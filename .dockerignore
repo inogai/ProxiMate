@@ -1,0 +1,89 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Flutter/Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Build artifacts
+build/
+!build/web/
+**/build/
+
+# Android
+android/
+!android/.gitkeep
+**/android/
+
+# iOS
+ios/
+!ios/.gitkeep
+**/ios/
+
+# Linux
+linux/
+
+# macOS
+macos/
+
+# Windows
+windows/
+
+# Web (keep only what's needed for build)
+web/.firebase/
+web/firebase-debug.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Test
+test/
+**/test/
+coverage/
+**/*.test.dart
+
+# Documentation
+*.md
+!README.md
+docs/
+doc/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+
+# Misc
+*.log
+*.swp
+*.swo
+*~
+.fvm/
+.pub-cache/
+.pub/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Screenshots/assets not needed
+screenshots/
+demo/

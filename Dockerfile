@@ -1,0 +1,49 @@
+# Multi-stage build for minimal final image size
+# Stage 1: Build the Flutter web app
+FROM ghcr.io/cirruslabs/flutter:stable AS build
+
+# Set working directory
+WORKDIR /app
+
+# Copy pubspec files first for better caching
+COPY pubspec.yaml pubspec.lock ./
+
+# Get dependencies
+RUN flutter pub get
+
+# Copy the rest of the application
+COPY . .
+
+# Build web app with optimizations
+# --release: Production build with minification
+# --web-renderer canvaskit: Better performance and consistency
+# --dart-define=FLUTTER_WEB_USE_SKIA=true: Use Skia for rendering
+RUN flutter build web \
+    --release \
+    --web-renderer canvaskit \
+    --dart-define=FLUTTER_WEB_USE_SKIA=true \
+    --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+
+# Stage 2: Serve with nginx (minimal image)
+FROM nginx:alpine
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built web app from build stage
+COPY --from=build /app/build/web /usr/share/nginx/html
+
+# Add labels for metadata
+LABEL maintainer="ProxiMate Team"
+LABEL description="ProxiMate - Peer Networking Flutter Web App"
+LABEL version="1.0.0"
+
+# Expose port 80
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
