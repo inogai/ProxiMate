@@ -1,6 +1,6 @@
 # Multi-stage build for minimal final image size
 # Stage 1: Build the Flutter web app
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+FROM instrumentisto/flutter:latest AS build
 
 # Set working directory
 WORKDIR /app
