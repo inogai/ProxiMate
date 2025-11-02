@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/storage_service.dart';
 import '../widgets/profile_tab.dart';
+import '../widgets/home_tab.dart';
+import '../widgets/invitations_tab.dart';
+import '../widgets/network_tab.dart';
 
 /// Main screen with tab navigation
 class MainScreen extends StatefulWidget {
@@ -13,29 +18,17 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _tabs = [
+    const HomeTab(),
+    const InvitationsTab(),
+    const NetworkTab(),
     const ProfileTab(),
-    const _PlaceholderTab(
-      icon: Icons.dashboard,
-      title: 'Home',
-      message: 'Home tab coming soon',
-    ),
-  ];
-
-  final List<NavigationDestination> _destinations = [
-    const NavigationDestination(
-      icon: Icon(Icons.person_outline),
-      selectedIcon: Icon(Icons.person),
-      label: 'Profile',
-    ),
-    const NavigationDestination(
-      icon: Icon(Icons.dashboard_outlined),
-      selectedIcon: Icon(Icons.dashboard),
-      label: 'Home',
-    ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final storage = context.watch<StorageService>();
+    final nameCardCount = storage.nameCards.length;
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -48,48 +41,36 @@ class _MainScreenState extends State<MainScreen> {
             _currentIndex = index;
           });
         },
-        destinations: _destinations,
-      ),
-    );
-  }
-}
-
-/// Placeholder tab for future features
-class _PlaceholderTab extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
-
-  const _PlaceholderTab({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 80,
-              color: Colors.grey[400],
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.mail_outline),
+            selectedIcon: Icon(Icons.mail),
+            label: 'Invitations',
+          ),
+          NavigationDestination(
+            icon: Badge(
+              label: Text('$nameCardCount'),
+              isLabelVisible: nameCardCount > 0,
+              child: const Icon(Icons.contacts_outlined),
             ),
-            const SizedBox(height: 24),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+            selectedIcon: Badge(
+              label: Text('$nameCardCount'),
+              isLabelVisible: nameCardCount > 0,
+              child: const Icon(Icons.contacts),
             ),
-          ],
-        ),
+            label: 'Network',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
       ),
     );
   }
