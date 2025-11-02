@@ -16,10 +16,8 @@ COPY . .
 
 # Build web app with optimizations
 # --release: Production build with minification
-# --wasm: Use WebAssembly for better performance (Flutter 3.22+)
-RUN flutter build web \
-    --release \
-    --wasm
+# Default renderer works across all browsers (Chrome, Firefox, Safari, Edge)
+RUN flutter build web --release
 
 # Stage 2: Serve with nginx (minimal image)
 FROM nginx:alpine
