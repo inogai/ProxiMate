@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/peer.dart';
 import '../services/storage_service.dart';
 import 'restaurant_selection_screen.dart';
+import 'main_screen.dart';
 
 /// Detailed view of a peer's profile
 class PeerDetailScreen extends StatefulWidget {
@@ -261,22 +262,23 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
           );
 
       if (mounted) {
+        // Pop all routes and push MainScreen with invitations tab selected
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const MainScreen(initialIndex: 1), // 1 = Invitations tab
+          ),
+          (route) => false,
+        );
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'Invitation sent to ${widget.peer.name} for $selectedRestaurant!',
             ),
             backgroundColor: Colors.green,
-            action: SnackBarAction(
-              label: 'View',
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-            ),
+            duration: const Duration(seconds: 3),
           ),
         );
-        Navigator.of(context).pop();
       }
     } finally {
       if (mounted) {

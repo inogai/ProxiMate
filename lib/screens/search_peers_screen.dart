@@ -21,13 +21,22 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _searchPeers();
+    // Delay initialization to after the first frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeAndSearch();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeAndSearch() async {
+    // Create or get the search activity (removes any duplicate search activities)
+    context.read<StorageService>().createOrGetSearchActivity();
+    await _searchPeers();
   }
 
   Future<void> _searchPeers() async {

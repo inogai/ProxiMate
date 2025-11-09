@@ -4,22 +4,26 @@ class Invitation {
   final String peerId;
   final String peerName;
   final String restaurant;
+  final String activityId; // ID of the activity this invitation belongs to
   final DateTime createdAt;
   final InvitationStatus status;
   final bool sentByMe; // true if user sent, false if received
   final List<IceBreaker> iceBreakers; // Ice-breaking questions
   final bool nameCardCollected; // Whether name card was collected
+  final bool chatOpened; // Whether the chat has been opened at least once
 
   Invitation({
     required this.id,
     required this.peerId,
     required this.peerName,
     required this.restaurant,
+    required this.activityId,
     required this.createdAt,
     this.status = InvitationStatus.pending,
     required this.sentByMe,
     List<IceBreaker>? iceBreakers,
     this.nameCardCollected = false,
+    this.chatOpened = false,
   }) : iceBreakers = iceBreakers ?? [];
 
   Invitation copyWith({
@@ -27,22 +31,26 @@ class Invitation {
     String? peerId,
     String? peerName,
     String? restaurant,
+    String? activityId,
     DateTime? createdAt,
     InvitationStatus? status,
     bool? sentByMe,
     List<IceBreaker>? iceBreakers,
     bool? nameCardCollected,
+    bool? chatOpened,
   }) {
     return Invitation(
       id: id ?? this.id,
       peerId: peerId ?? this.peerId,
       peerName: peerName ?? this.peerName,
       restaurant: restaurant ?? this.restaurant,
+      activityId: activityId ?? this.activityId,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
       sentByMe: sentByMe ?? this.sentByMe,
       iceBreakers: iceBreakers ?? this.iceBreakers,
       nameCardCollected: nameCardCollected ?? this.nameCardCollected,
+      chatOpened: chatOpened ?? this.chatOpened,
     );
   }
 

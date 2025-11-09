@@ -117,6 +117,43 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear selected activity
+  void clearSelectedActivity() {
+    _selectedActivityId = null;
+    notifyListeners();
+  }
+
+  /// Create or get the search activity (removes duplicates)
+  Activity createOrGetSearchActivity() {
+    const searchActivityName = 'Searching for peers to eat';
+    
+    // Find and remove any existing search activities (clean up duplicates)
+    final oldSearchActivities = _activities
+        .where((a) => a.name == searchActivityName)
+        .map((a) => a.id)
+        .toList();
+    
+    // Remove old search activities
+    _activities.removeWhere((a) => a.name == searchActivityName);
+    
+    // Also remove invitations associated with old search activities
+    _invitations.removeWhere((inv) => oldSearchActivities.contains(inv.activityId));
+    
+    // Create a new search activity
+    final activity = Activity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: searchActivityName,
+      description: 'Looking for people nearby who want to grab food together',
+      createdAt: DateTime.now(),
+    );
+    
+    _activities.add(activity);
+    _selectedActivityId = activity.id;
+    notifyListeners();
+    
+    return activity;
+  }
+
   /// Get activity by ID
   Activity? getActivityById(String activityId) {
     try {
@@ -128,12 +165,8 @@ class StorageService extends ChangeNotifier {
 
   /// Search for nearby peers (mock implementation)
   Future<List<Peer>> searchNearbyPeers() async {
-    // Create activity first
-    createActivity(
-      'Searching for peers to eat',
-      'Looking for people nearby who want to grab food together',
-    );
-
+    // Don't create a new activity here - it's already created by createOrGetSearchActivity()
+    
     // Simulate API call
     await Future.delayed(const Duration(seconds: 2));
 
@@ -228,6 +261,11 @@ class StorageService extends ChangeNotifier {
 
   /// Send invitation to eat
   Future<Invitation> sendInvitation(Peer peer, String restaurant) async {
+    // Require activity to be selected
+    if (_selectedActivityId == null) {
+      throw Exception('No activity selected. Please select an activity first.');
+    }
+
     // Simulate API call
     await Future.delayed(const Duration(milliseconds: 500));
 
@@ -239,6 +277,7 @@ class StorageService extends ChangeNotifier {
       peerId: peer.id,
       peerName: peer.name,
       restaurant: restaurant,
+      activityId: _selectedActivityId!,
       createdAt: DateTime.now(),
       sentByMe: true,
       status: InvitationStatus.pending,
@@ -248,11 +287,9 @@ class StorageService extends ChangeNotifier {
     _invitations.add(invitation);
     notifyListeners();
 
-    // Simulate peer response after delay
-    _simulatePeerResponse(invitation.id);
-
-    // Also simulate some received invitations
-    _simulateReceivedInvitations();
+    // Don't simulate peer response - let user use mock buttons instead
+    // Don't auto-simulate received invitations - causes duplicate activities
+    // _simulateReceivedInvitations();
 
     return invitation;
   }
@@ -283,89 +320,52 @@ class StorageService extends ChangeNotifier {
     ];
   }
 
-  /// Simulate peer accepting/declining (for demo purposes)
-  Future<void> _simulatePeerResponse(String invitationId) async {
-    await Future.delayed(const Duration(seconds: 3));
-
-    final index = _invitations.indexWhere((i) => i.id == invitationId);
-    if (index != -1) {
-      // 70% chance of acceptance for demo
-      final accepted = DateTime.now().millisecond % 10 < 7;
-
-      _invitations[index] = _invitations[index].copyWith(
-        status: accepted
-            ? InvitationStatus.accepted
-            : InvitationStatus.declined,
-      );
-      notifyListeners();
-
-      // If accepted, create a chat room
-      if (accepted) {
-        _createChatRoom(_invitations[index]);
-      }
-    }
-  }
-
-  /// Simulate receiving invitations from others
-  Future<void> _simulateReceivedInvitations() async {
-    // Only add if we don't have any received invitations yet
-    if (receivedInvitations.isEmpty && _nearbyPeers.length >= 2) {
-      await Future.delayed(const Duration(seconds: 5));
-
-      final peer = _nearbyPeers[1];
-      final iceBreakers = _generateIceBreakers(peer);
-      
-      final invitation = Invitation(
-        id: 'received_${DateTime.now().millisecondsSinceEpoch}',
-        peerId: peer.id,
-        peerName: peer.name,
-        restaurant: 'Green Garden Cafe',
-        createdAt: DateTime.now(),
-        sentByMe: false,
-        status: InvitationStatus.pending,
-        iceBreakers: iceBreakers,
-      );
-
-      _invitations.add(invitation);
-      notifyListeners();
-    }
-  }
-
-  /// Accept an invitation (max 1 allowed)
+  /// Accept an invitation (max 1 per activity)
   Future<void> acceptInvitation(String invitationId) async {
-    // Check if there's already an accepted invitation
-    final hasAccepted = _invitations.any((i) => i.isAccepted);
-    
-    if (hasAccepted) {
-      // Auto-decline all other pending invitations
-      for (int i = 0; i < _invitations.length; i++) {
-        if (_invitations[i].isPending && _invitations[i].id != invitationId) {
-          _invitations[i] = _invitations[i].copyWith(
-            status: InvitationStatus.declined,
-          );
-        }
-      }
-    }
-
     final index = _invitations.indexWhere((i) => i.id == invitationId);
-    if (index != -1) {
-      // Decline all other invitations if we're accepting this one
-      for (int i = 0; i < _invitations.length; i++) {
-        if (i != index && _invitations[i].isPending) {
-          _invitations[i] = _invitations[i].copyWith(
-            status: InvitationStatus.declined,
-          );
-        }
-      }
+    if (index == -1) return;
 
-      _invitations[index] = _invitations[index].copyWith(
-        status: InvitationStatus.accepted,
-      );
-      notifyListeners();
+    final acceptedInvitation = _invitations[index];
+    final activityId = acceptedInvitation.activityId;
 
-      // Create chat room
-      _createChatRoom(_invitations[index]);
+    // Check if there's already an accepted invitation for this activity
+    final hasAcceptedForActivity = _invitations.any(
+      (i) => i.isAccepted && i.activityId == activityId && i.id != invitationId,
+    );
+    
+    if (hasAcceptedForActivity) {
+      // Already have an accepted invitation for this activity, can't accept another
+      return;
     }
+
+    // Accept this invitation
+    _invitations[index] = _invitations[index].copyWith(
+      status: InvitationStatus.accepted,
+    );
+
+    // Auto-decline all OTHER received invitations for the same activity
+    for (int i = 0; i < _invitations.length; i++) {
+      if (i != index && 
+          _invitations[i].activityId == activityId && 
+          _invitations[i].isPending && 
+          !_invitations[i].sentByMe) {
+        _invitations[i] = _invitations[i].copyWith(
+          status: InvitationStatus.declined,
+        );
+      }
+    }
+
+    // Delete all unanswered SENT invitations for the same activity
+    _invitations.removeWhere(
+      (inv) => inv.activityId == activityId && 
+               inv.sentByMe && 
+               inv.isPending,
+    );
+
+    notifyListeners();
+
+    // Create chat room
+    _createChatRoom(acceptedInvitation);
   }
 
   /// Decline an invitation
@@ -377,6 +377,138 @@ class StorageService extends ChangeNotifier {
       );
       notifyListeners();
     }
+  }
+
+  /// Mock: Accept a sent invitation (simulate peer accepting)
+  Future<void> mockAcceptSentInvitation(String invitationId) async {
+    final index = _invitations.indexWhere((i) => i.id == invitationId);
+    if (index == -1 || !_invitations[index].sentByMe) return;
+
+    final acceptedInvitation = _invitations[index];
+    final activityId = acceptedInvitation.activityId;
+
+    // Mark this invitation as accepted
+    _invitations[index] = _invitations[index].copyWith(
+      status: InvitationStatus.accepted,
+    );
+
+    // Auto-decline all OTHER received invitations for the same activity
+    for (int i = 0; i < _invitations.length; i++) {
+      if (i != index && 
+          _invitations[i].activityId == activityId && 
+          _invitations[i].isPending && 
+          !_invitations[i].sentByMe) {
+        _invitations[i] = _invitations[i].copyWith(
+          status: InvitationStatus.declined,
+        );
+      }
+    }
+
+    // Delete all other unanswered SENT invitations for the same activity
+    _invitations.removeWhere(
+      (inv) => inv.activityId == activityId && 
+               inv.sentByMe && 
+               inv.isPending &&
+               inv.id != invitationId,
+    );
+
+    notifyListeners();
+
+    // Create chat room
+    _createChatRoom(acceptedInvitation);
+  }
+
+  /// Mock: Decline a sent invitation (simulate peer declining)
+  Future<void> mockDeclineSentInvitation(String invitationId) async {
+    final index = _invitations.indexWhere((i) => i.id == invitationId);
+    if (index == -1 || !_invitations[index].sentByMe) return;
+
+    _invitations[index] = _invitations[index].copyWith(
+      status: InvitationStatus.declined,
+    );
+    notifyListeners();
+  }
+
+  /// Mock: Simulate receiving an invitation from a peer
+  Future<void> mockReceiveInvitation() async {
+    // Require activity to be selected
+    if (_selectedActivityId == null) {
+      throw Exception('No activity selected. Please select an activity first.');
+    }
+
+    // Get a random peer from nearby peers, or create a full mock peer
+    Peer mockPeer;
+    
+    if (_nearbyPeers.isNotEmpty) {
+      mockPeer = _nearbyPeers[DateTime.now().millisecond % _nearbyPeers.length];
+    } else {
+      // Create a full mock peer with complete profile
+      final mockNames = ['Jessica Lee', 'Ryan Martinez', 'Olivia Taylor', 'James Anderson', 'Emma White'];
+      final mockSchools = ['MIT', 'Stanford', 'Harvard', 'UC Berkeley', 'Yale'];
+      final mockMajors = ['Computer Science', 'Engineering', 'Business', 'Biology', 'Psychology'];
+      final mockInterestsOptions = [
+        'Coding, Gaming, Music',
+        'Sports, Travel, Photography',
+        'Reading, Art, Cooking',
+        'Hiking, Yoga, Coffee',
+        'Movies, Dancing, Food',
+      ];
+      final mockBackgrounds = [
+        'Senior looking to expand my network before graduation',
+        'Transfer student interested in meeting new people',
+        'Graduate student passionate about collaboration',
+        'Undergrad exploring different career paths',
+        'International student wanting to connect with locals',
+      ];
+      
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final randomIndex = timestamp % mockNames.length;
+      
+      mockPeer = Peer(
+        id: 'mock_$timestamp',
+        name: mockNames[randomIndex],
+        school: mockSchools[randomIndex],
+        major: mockMajors[randomIndex],
+        interests: mockInterestsOptions[randomIndex],
+        background: mockBackgrounds[randomIndex],
+        distance: 0.5 + (randomIndex * 0.3),
+        wantsToEat: true,
+        matchScore: 0.6 + (randomIndex * 0.05),
+      );
+      
+      // Add the mock peer to nearby peers so they appear in the network
+      _nearbyPeers.add(mockPeer);
+    }
+
+    final restaurants = [
+      'The Corner Bistro',
+      'Sushi Paradise',
+      'Pizza Heaven',
+      'Burger Joint',
+      'Taco Fiesta',
+      'Thai Garden',
+      'Mediterranean Grill',
+    ];
+    
+    final restaurant = restaurants[DateTime.now().millisecond % restaurants.length];
+
+    // Generate ice breakers for the mock peer (as if they sent them)
+    final iceBreakers = _generateIceBreakers(mockPeer);
+
+    final invitation = Invitation(
+      id: 'received_${DateTime.now().millisecondsSinceEpoch}',
+      peerId: mockPeer.id,
+      peerName: mockPeer.name,
+      restaurant: restaurant,
+      activityId: _selectedActivityId!,
+      createdAt: DateTime.now(),
+      sentByMe: false, // This is a received invitation
+      status: InvitationStatus.pending,
+      iceBreakers: iceBreakers, // Include ice breakers from the mock peer
+    );
+
+    _invitations.add(invitation);
+    notifyListeners();
   }
 
   /// Create a chat room for accepted invitation
@@ -496,6 +628,17 @@ class StorageService extends ChangeNotifier {
     }
     
     notifyListeners();
+  }
+
+  /// Mark chat as opened for the invitation
+  Future<void> markChatOpened(String invitationId) async {
+    final invIndex = _invitations.indexWhere((i) => i.id == invitationId);
+    if (invIndex != -1) {
+      _invitations[invIndex] = _invitations[invIndex].copyWith(
+        chatOpened: true,
+      );
+      notifyListeners();
+    }
   }
 
   /// Mark match as not good and decline
