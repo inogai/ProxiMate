@@ -64,14 +64,14 @@ class _MainScreenState extends State<MainScreen> {
             icon: Badge(
               label: Text('$nameCardCount'),
               isLabelVisible: nameCardCount > 0,
-              child: const Icon(Icons.contacts_outlined),
+              child: const Icon(Icons.hub_outlined),
             ),
             selectedIcon: Badge(
               label: Text('$nameCardCount'),
               isLabelVisible: nameCardCount > 0,
-              child: const Icon(Icons.contacts),
+              child: const Icon(Icons.hub),
             ),
-            label: 'Network',
+            label: 'Connections',
           ),
           const NavigationDestination(
             icon: Icon(Icons.person_outline),

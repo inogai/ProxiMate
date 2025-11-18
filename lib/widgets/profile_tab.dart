@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
@@ -44,7 +46,11 @@ class ProfileTab extends StatelessWidget {
                           radius: 50,
                           backgroundColor: Theme.of(context).primaryColor,
                           backgroundImage: profile.profileImagePath != null
-                              ? FileImage(File(profile.profileImagePath!))
+                              ? (kIsWeb
+                                  ? (profile.profileImagePath!.startsWith('data:')
+                                      ? MemoryImage(base64Decode(profile.profileImagePath!.split(',')[1]))
+                                      : NetworkImage(profile.profileImagePath!))
+                                  : FileImage(File(profile.profileImagePath!)))
                               : null,
                           child: profile.profileImagePath == null
                               ? Text(

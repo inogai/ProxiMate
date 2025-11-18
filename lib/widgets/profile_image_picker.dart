@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
+import 'circular_image_cropper.dart';
+import 'web_image_cropper.dart';
 
 /// Widget for picking and cropping profile images
-class ProfileImagePicker extends StatelessWidget {
+class ProfileImagePicker extends StatefulWidget {
   final String? currentImagePath;
   final Function(String?) onImageSelected;
   final double radius;
@@ -16,10 +20,17 @@ class ProfileImagePicker extends StatelessWidget {
     this.radius = 60,
   });
 
-  Future<void> _pickAndCropImage(BuildContext context) async {
+  @override
+  State<ProfileImagePicker> createState() => _ProfileImagePickerState();
+}
+
+class _ProfileImagePickerState extends State<ProfileImagePicker> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  Future<void> _pickAndCropImage() async {
     try {
       // Pick image from gallery or camera
-      final source = await _showImageSourceDialog(context);
+      final source = await _showImageSourceDialog();
       if (source == null) {
         debugPrint('Image source selection cancelled');
         return;
@@ -42,93 +53,112 @@ class ProfileImagePicker extends StatelessWidget {
 
       debugPrint('Image picked: ${pickedFile.path}');
       
-      // Check if file exists
+      debugPrint('Image picked: ${pickedFile.path}');
+      
+      // On web, show the web cropper
+      if (kIsWeb) {
+        debugPrint('Web platform detected, showing web cropper');
+        debugPrint('XFile details - path: ${pickedFile.path}, name: ${pickedFile.name}');
+        
+        try {
+          debugPrint('Showing WebImageCropper in dialog...');
+          
+          final croppedBytes = await showDialog<Uint8List>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) {
+              debugPrint('WebImageCropper dialog builder called');
+              return Dialog.fullscreen(
+                child: WebImageCropper(
+                  imageFile: pickedFile,
+                  onCropped: (bytes) {
+                    debugPrint('onCropped called with ${bytes.length} bytes');
+                    Navigator.of(dialogContext).pop(bytes);
+                  },
+                  onCancel: () {
+                    debugPrint('onCancel called');
+                    Navigator.of(dialogContext).pop();
+                  },
+                ),
+              );
+            },
+          );
+          
+          debugPrint('Navigation returned, croppedBytes: ${croppedBytes?.length ?? "null"}');
+          
+          if (croppedBytes != null) {
+            // Convert bytes to base64 data URL for web storage
+            final base64Image = base64Encode(croppedBytes);
+            final dataUrl = 'data:image/png;base64,$base64Image';
+            debugPrint('Image cropped on web, data URL length: ${dataUrl.length}');
+            widget.onImageSelected(dataUrl);
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Profile image updated'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            }
+          }
+        } catch (webCropError, stackTrace) {
+          debugPrint('Error in web cropper: $webCropError');
+          debugPrint('Stack trace: $stackTrace');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cropper error: $webCropError'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+        return;
+      }
+      
+      // Mobile platform - check file and show cropper
       final file = File(pickedFile.path);
       final exists = await file.exists();
       debugPrint('Picked file exists: $exists, size: ${exists ? await file.length() : 0}');
 
-      // Crop the image with circle overlay
+      // Navigate to custom circular cropper
       debugPrint('Starting image crop...');
-      debugPrint('Calling ImageCropper().cropImage with path: ${pickedFile.path}');
       
-      try {
-        final croppedFile = await ImageCropper().cropImage(
-          sourcePath: pickedFile.path,
-          compressFormat: ImageCompressFormat.jpg,
-          compressQuality: 85,
-          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-          uiSettings: [
-            AndroidUiSettings(
-              toolbarTitle: 'Crop Profile Image',
-              toolbarColor: Colors.deepPurple,
-              toolbarWidgetColor: Colors.white,
-              statusBarColor: Colors.deepPurple,
-              backgroundColor: Colors.black,
-              initAspectRatio: CropAspectRatioPreset.square,
-              lockAspectRatio: true,
-              hideBottomControls: true,
-              cropStyle: CropStyle.circle,
-              showCropGrid: false,
-              activeControlsWidgetColor: Colors.deepPurple,
-              cropFrameColor: Colors.white,
-              cropGridColor: Colors.white,
-              dimmedLayerColor: Colors.black.withOpacity(0.8),
-            ),
-            IOSUiSettings(
-              title: 'Crop Profile Image',
-              aspectRatioLockEnabled: true,
-              cropStyle: CropStyle.circle,
-              resetAspectRatioEnabled: false,
-            ),
-          ],
-        );
+      if (!context.mounted) return;
+      
+      final croppedFile = await Navigator.of(context).push<File>(
+        MaterialPageRoute(
+          builder: (context) => CircularImageCropper(
+            imageFile: file,
+            onCropped: (croppedFile) {
+              Navigator.of(context).pop(croppedFile);
+            },
+            onCancel: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ),
+      );
 
-        debugPrint('Crop completed. Result: ${croppedFile?.path ?? 'null'}');
+      debugPrint('Crop completed. Result: ${croppedFile?.path ?? 'null'}');
 
-        if (croppedFile != null && croppedFile.path.isNotEmpty) {
-          debugPrint('Image cropped successfully: ${croppedFile.path}');
-          onImageSelected(croppedFile.path);
-          
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Profile image updated'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 1),
-              ),
-            );
-          }
-        } else {
-          debugPrint('Image crop cancelled or failed - croppedFile is null');
-          // Fallback: use the original picked image
-          debugPrint('Using original picked image as fallback');
-          onImageSelected(pickedFile.path);
-          
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Using original image (crop skipped)'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        }
-      } catch (cropError) {
-        debugPrint('Error during crop: $cropError');
-        debugPrint('Using original picked image due to error');
-        // Fallback: use the original picked image
-        onImageSelected(pickedFile.path);
+      if (croppedFile != null && croppedFile.path.isNotEmpty) {
+        debugPrint('Image cropped successfully: ${croppedFile.path}');
+        widget.onImageSelected(croppedFile.path);
         
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Using original image (crop failed: $cropError)'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
+            const SnackBar(
+              content: Text('Profile image updated'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 1),
             ),
           );
         }
+      } else {
+        debugPrint('Image crop cancelled - using original');
       }
     } catch (e) {
       debugPrint('Error picking/cropping image: $e');
@@ -143,7 +173,7 @@ class ProfileImagePicker extends StatelessWidget {
     }
   }
 
-  Future<ImageSource?> _showImageSourceDialog(BuildContext context) async {
+  Future<ImageSource?> _showImageSourceDialog() async {
     return showDialog<ImageSource>(
       context: context,
       builder: (context) => AlertDialog(
@@ -167,7 +197,7 @@ class ProfileImagePicker extends StatelessWidget {
     );
   }
 
-  void _showImageOptions(BuildContext context) {
+  void _showImageOptions() {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -178,16 +208,16 @@ class ProfileImagePicker extends StatelessWidget {
               title: const Text('Change Photo'),
               onTap: () {
                 Navigator.pop(context);
-                _pickAndCropImage(context);
+                _pickAndCropImage();
               },
             ),
-            if (currentImagePath != null)
+            if (widget.currentImagePath != null)
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
                 title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
-                  onImageSelected(null);
+                  widget.onImageSelected(null);
                 },
               ),
             ListTile(
@@ -203,23 +233,27 @@ class ProfileImagePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('ProfileImagePicker build - currentImagePath: $currentImagePath');
+    debugPrint('ProfileImagePicker build - currentImagePath: ${widget.currentImagePath}');
     
     return GestureDetector(
-      onTap: () => _showImageOptions(context),
+      onTap: () => _showImageOptions(),
       child: Stack(
         children: [
           CircleAvatar(
-            key: ValueKey(currentImagePath), // Force rebuild when path changes
-            radius: radius,
+            key: ValueKey(widget.currentImagePath), // Force rebuild when path changes
+            radius: widget.radius,
             backgroundColor: Theme.of(context).primaryColor,
-            backgroundImage: currentImagePath != null && currentImagePath!.isNotEmpty
-                ? FileImage(File(currentImagePath!))
+            backgroundImage: widget.currentImagePath != null && widget.currentImagePath!.isNotEmpty
+                ? (kIsWeb
+                    ? (widget.currentImagePath!.startsWith('data:')
+                        ? MemoryImage(base64Decode(widget.currentImagePath!.split(',')[1]))
+                        : NetworkImage(widget.currentImagePath!))
+                    : FileImage(File(widget.currentImagePath!)))
                 : null,
-            child: currentImagePath == null || currentImagePath!.isEmpty
+            child: widget.currentImagePath == null || widget.currentImagePath!.isEmpty
                 ? Icon(
                     Icons.person,
-                    size: radius * 1.2,
+                    size: widget.radius * 1.2,
                     color: Colors.white,
                   )
                 : null,
@@ -238,9 +272,9 @@ class ProfileImagePicker extends StatelessWidget {
               ),
               padding: const EdgeInsets.all(8),
               child: Icon(
-                currentImagePath == null ? Icons.add_a_photo : Icons.edit,
+                widget.currentImagePath == null ? Icons.add_a_photo : Icons.edit,
                 color: Colors.white,
-                size: radius * 0.35,
+                size: widget.radius * 0.35,
               ),
             ),
           ),
