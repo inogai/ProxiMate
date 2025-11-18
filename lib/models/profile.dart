@@ -1,5 +1,9 @@
-/// Model class representing user profile data
-class UserProfile {
+import 'package:flutter/foundation.dart';
+
+/// Unified profile model representing any user (current user or connections)
+@immutable
+class Profile {
+  final String id;
   final String userName;
   final String? school;
   final String? major;
@@ -7,7 +11,8 @@ class UserProfile {
   final String? background;
   final String? profileImagePath;
 
-  UserProfile({
+  const Profile({
+    required this.id,
     required this.userName,
     this.school,
     this.major,
@@ -16,8 +21,8 @@ class UserProfile {
     this.profileImagePath,
   });
 
-  /// Create a copy of the profile with updated fields
-  UserProfile copyWith({
+  Profile copyWith({
+    String? id,
     String? userName,
     String? school,
     String? major,
@@ -25,7 +30,8 @@ class UserProfile {
     String? background,
     String? profileImagePath,
   }) {
-    return UserProfile(
+    return Profile(
+      id: id ?? this.id,
       userName: userName ?? this.userName,
       school: school ?? this.school,
       major: major ?? this.major,
@@ -35,21 +41,21 @@ class UserProfile {
     );
   }
 
-  /// Convert to JSON for storage
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'userName': userName,
-      'school': school,
-      'major': major,
-      'interests': interests,
-      'background': background,
-      'profileImagePath': profileImagePath,
+      if (school != null) 'school': school,
+      if (major != null) 'major': major,
+      if (interests != null) 'interests': interests,
+      if (background != null) 'background': background,
+      if (profileImagePath != null) 'profileImagePath': profileImagePath,
     };
   }
 
-  /// Create from JSON
-  factory UserProfile.fromJson(Map<String, dynamic> json) {
-    return UserProfile(
+  factory Profile.fromJson(Map<String, dynamic> json) {
+    return Profile(
+      id: json['id'] as String,
       userName: json['userName'] as String,
       school: json['school'] as String?,
       major: json['major'] as String?,
@@ -57,5 +63,20 @@ class UserProfile {
       background: json['background'] as String?,
       profileImagePath: json['profileImagePath'] as String?,
     );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Profile &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return 'Profile{id: $id, userName: $userName}';
   }
 }

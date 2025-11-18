@@ -1,4 +1,4 @@
-import 'user_profile.dart';
+import 'profile.dart';
 
 /// Model class representing a potential peer/match
 class Peer {
@@ -11,6 +11,7 @@ class Peer {
   final double matchScore; // 0.0 to 1.0
   final double distance; // distance in km
   final bool wantsToEat; // true if they want to eat, false otherwise
+  final String? profileImageUrl; // URL for profile image
 
   Peer({
     required this.id,
@@ -22,35 +23,35 @@ class Peer {
     this.matchScore = 0.0,
     this.distance = 0.0,
     this.wantsToEat = true,
+    this.profileImageUrl,
   });
 
   /// Calculate match score based on common interests/background
-  static double calculateMatchScore(UserProfile user, Peer peer) {
-    double score = 0.0;
-
-    // School match
-    if (user.school?.toLowerCase() == peer.school.toLowerCase()) {
-      score += 0.3;
+  static double calculateMatchScore(Profile user, Peer peer) {
+    if (user.major == null && user.interests == null) {
+      return 0.0;
     }
 
-    // Major match
-    if (user.major?.toLowerCase() == peer.major.toLowerCase()) {
-      score += 0.3;
-    }
+    // Split majors and interests into individual tags
+    final userMajors = user.major?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
+    final userInterests = user.interests?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
+    final peerMajors = peer.major.split(',').map((e) => e.trim().toLowerCase()).toSet();
+    final peerInterests = peer.interests.split(',').map((e) => e.trim().toLowerCase()).toSet();
 
-    // Interest overlap (simple word matching)
-    if (user.interests != null && peer.interests.isNotEmpty) {
-      final userInterests =
-          user.interests!.toLowerCase().split(RegExp(r'[,\s]+'));
-      final peerInterests = peer.interests.toLowerCase().split(RegExp(r'[,\s]+'));
-      final commonInterests =
-          userInterests.where((i) => peerInterests.contains(i)).length;
-      if (commonInterests > 0) {
-        score += 0.4 * (commonInterests / userInterests.length).clamp(0, 1);
-      }
-    }
+    // Count matching tags
+    final matchingMajors = userMajors.intersection(peerMajors).length;
+    final matchingInterests = userInterests.intersection(peerInterests).length;
+    final totalMatches = matchingMajors + matchingInterests;
 
-    return score;
+    // Count total unique tags from both users
+    final totalUserTags = userMajors.length + userInterests.length;
+    final totalPeerTags = peerMajors.length + peerInterests.length;
+    final totalTags = (totalUserTags + totalPeerTags) / 2; // Average
+
+    if (totalTags == 0) return 0.0;
+
+    // Calculate percentage: matching tags / average total tags
+    return (totalMatches / totalTags).clamp(0.0, 1.0);
   }
 
   Peer copyWith({
@@ -63,6 +64,7 @@ class Peer {
     double? matchScore,
     double? distance,
     bool? wantsToEat,
+    String? profileImageUrl,
   }) {
     return Peer(
       id: id ?? this.id,
@@ -74,6 +76,7 @@ class Peer {
       matchScore: matchScore ?? this.matchScore,
       distance: distance ?? this.distance,
       wantsToEat: wantsToEat ?? this.wantsToEat,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
     );
   }
 }

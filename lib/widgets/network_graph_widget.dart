@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Node in the network graph
@@ -5,19 +9,31 @@ class NetworkNode {
   final String id;
   final String name;
   final String? school;
+  final String? major;
+  final String? interests;
   final Color color;
   Offset position;
   Offset velocity;
   bool isDragging;
   final List<String> connections;
+  final String? profileImagePath;
+  final bool isDirectConnection;
+  final int? depth;
+  final bool isTextNode;
 
   NetworkNode({
     required this.id,
     required this.name,
     this.school,
+    this.major,
+    this.interests,
     required this.color,
     required this.position,
     this.connections = const [],
+    this.profileImagePath,
+    this.isDirectConnection = true,
+    this.depth,
+    this.isTextNode = false,
   })  : velocity = Offset.zero,
         isDragging = false;
 }
@@ -26,13 +42,21 @@ class NetworkNode {
 class NetworkGraphWidget extends StatefulWidget {
   final List<NetworkNode> nodes;
   final Function(NetworkNode)? onNodeTap;
+  final Function(NetworkNode)? onInfoBarTap;
   final String? initialSelectedNodeId;
+  final String? currentUserId;
+  final String? currentUserMajor;
+  final String? currentUserInterests;
 
   const NetworkGraphWidget({
     super.key,
     required this.nodes,
     this.onNodeTap,
+    this.onInfoBarTap,
     this.initialSelectedNodeId,
+    this.currentUserId,
+    this.currentUserMajor,
+    this.currentUserInterests,
   });
 
   @override
@@ -43,15 +67,13 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   NetworkNode? _selectedNode;
-  NetworkNode? _draggingNode;
-  Offset _dragOffset = Offset.zero;
   double _scale = 1.0;
   Offset _panOffset = Offset.zero;
   Offset _lastFocalPoint = Offset.zero;
+  bool _hideNoCommonInterests = false;
 
   // Physics simulation parameters
   static const double nodeRadius = 30.0;
-  static const double damping = 0.85; // Higher damping for quicker settle
 
   @override
   void initState() {
@@ -59,9 +81,8 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 16),
-    )..addListener(_updatePhysics);
-    // Don't start animation automatically - physics disabled for stationary nodes
-    // _animationController.repeat();
+    );
+    // Physics disabled for better performance
     
     // Set initial selected node if provided
     if (widget.initialSelectedNodeId != null) {
@@ -78,54 +99,91 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
     super.dispose();
   }
 
-  void _updatePhysics() {
-    // Only apply physics when a node is being dragged or settling
-    if (_draggingNode == null) {
-      // Check if any node has velocity (is settling after drag)
-      bool hasMovement = false;
-      for (final node in widget.nodes) {
-        if (node.velocity.distance > 0.1) {
-          hasMovement = true;
-          break;
-        }
-      }
-      
-      if (!hasMovement) {
-        _animationController.stop();
-        return;
+  void _onNodePanStart(NetworkNode node, DragStartDetails details, double offset) {
+    setState(() {
+      node.isDragging = true;
+    });
+  }
+
+  bool _hasCommonInterests(NetworkNode node) {
+    // Always show current user, text nodes, and direct connections
+    if (node.id == widget.currentUserId || node.isTextNode || node.isDirectConnection) return true;
+    
+    // Check for common major
+    if (widget.currentUserMajor != null && node.major != null) {
+      if (node.major!.toLowerCase() == widget.currentUserMajor!.toLowerCase()) {
+        return true;
       }
     }
-
-    setState(() {
-      // Only apply damping to slow down nodes after drag
-      for (int i = 0; i < widget.nodes.length; i++) {
-        if (widget.nodes[i].isDragging) continue;
-
-        // Apply damping to velocity
-        widget.nodes[i].velocity *= damping;
-        
-        // Update position based on velocity
-        widget.nodes[i].position += widget.nodes[i].velocity;
-        
-        // Stop movement if velocity is very small
-        if (widget.nodes[i].velocity.distance < 0.1) {
-          widget.nodes[i].velocity = Offset.zero;
+    
+    // Check for common interests
+    if (widget.currentUserInterests != null && node.interests != null) {
+      final currentUserInterestsList = widget.currentUserInterests!
+          .split(',')
+          .map((i) => i.trim().toLowerCase())
+          .toList();
+      final nodeInterestsList = node.interests!
+          .split(',')
+          .map((i) => i.trim().toLowerCase())
+          .toList();
+      
+      for (final interest in nodeInterestsList) {
+        if (currentUserInterestsList.contains(interest)) {
+          return true;
         }
       }
-    });
+    }
+    
+    return false;
   }
 
-  void _onNodePanStart(NetworkNode node, DragStartDetails details) {
-    setState(() {
-      _draggingNode = node;
-      node.isDragging = true;
-      _dragOffset = details.localPosition - node.position;
-    });
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Filter Network'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Filter extended connections by common interests',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Filter Common Tags Only'),
+                subtitle: const Text(
+                  'Hide connections with no shared major or interests',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: _hideNoCommonInterests,
+                onChanged: (bool value) {
+                  setState(() {
+                    _hideNoCommonInterests = value;
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  void _onNodePanUpdate(NetworkNode node, DragUpdateDetails details) {
+  void _onNodePanUpdate(NetworkNode node, DragUpdateDetails details, double offset) {
+    if (!mounted) return;
     setState(() {
-      node.position = details.localPosition - _dragOffset;
+      // Use delta for smooth incremental updates instead of recalculating position
+      node.position += details.delta / _scale;
       node.velocity = Offset.zero;
     });
   }
@@ -133,15 +191,6 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
   void _onNodePanEnd(NetworkNode node, DragEndDetails details) {
     setState(() {
       node.isDragging = false;
-      _draggingNode = null;
-      
-      // Add velocity based on drag velocity for bounce effect
-      node.velocity = details.velocity.pixelsPerSecond * 0.05;
-      
-      // Start animation to handle the settling
-      if (!_animationController.isAnimating) {
-        _animationController.repeat();
-      }
     });
   }
 
@@ -163,6 +212,11 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
 
   @override
   Widget build(BuildContext context) {
+    // Filter nodes based on common interests setting
+    final visibleNodes = _hideNoCommonInterests
+        ? widget.nodes.where((node) => _hasCommonInterests(node)).toList()
+        : widget.nodes;
+
     return GestureDetector(
       onScaleStart: _onScaleStart,
       onScaleUpdate: _onScaleUpdate,
@@ -188,20 +242,46 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
                 child: SizedBox.expand(
                   child: CustomPaint(
                     painter: NetworkGraphPainter(
-                      nodes: widget.nodes,
+                      nodes: visibleNodes,
                       selectedNode: _selectedNode,
                     ),
                     child: Stack(
                       clipBehavior: Clip.none,
-                      children: widget.nodes.map((node) {
+                      children: visibleNodes.map((node) {
+                        final isSelected = _selectedNode?.id == node.id;
+                        final isYou = widget.currentUserId != null && node.id == widget.currentUserId;
+                        final baseSize = isYou ? nodeRadius * 2.6 : nodeRadius * 2;
+                        final size = isSelected ? baseSize * 1.2 : baseSize;
+                        final offset = size / 2;
+                        
+                        // For text nodes, center differently
+                        if (node.isTextNode) {
+                          return Positioned(
+                            left: node.position.dx,
+                            top: node.position.dy,
+                            child: Transform.translate(
+                              offset: const Offset(-125, -10), // Center the ~250px wide text
+                              child: SizedBox(
+                                width: 250,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    // Text nodes are not interactive
+                                  },
+                                  child: _buildNode(node),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        
                         return Positioned(
-                          left: node.position.dx - nodeRadius,
-                          top: node.position.dy - nodeRadius,
+                          left: node.position.dx - offset,
+                          top: node.position.dy - offset,
                           child: GestureDetector(
                             onPanStart: (details) =>
-                                _onNodePanStart(node, details),
+                                _onNodePanStart(node, details, offset),
                             onPanUpdate: (details) =>
-                                _onNodePanUpdate(node, details),
+                                _onNodePanUpdate(node, details, offset),
                             onPanEnd: (details) => _onNodePanEnd(node, details),
                             onTap: () {
                               setState(() {
@@ -239,41 +319,91 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
   }
 
   Widget _buildNode(NetworkNode node) {
+    // Handle text-only nodes
+    if (node.isTextNode) {
+      return Text(
+        node.name,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          color: Colors.grey.shade600,
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+
     final isSelected = _selectedNode?.id == node.id;
-    final isYou = node.id == 'you';
+    final isYou = widget.currentUserId != null && node.id == widget.currentUserId;
     final baseSize = isYou ? nodeRadius * 2.6 : nodeRadius * 2;
     final size = isSelected ? baseSize * 1.2 : baseSize;
+    final double opacity = node.isDirectConnection 
+        ? 1.0 
+        : (node.depth != null && node.depth! >= 2 ? 0.25 : 0.4);
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: node.color,
-        border: Border.all(
-          color: isSelected
-              ? Colors.white
-              : isYou
-                  ? Colors.white.withOpacity(0.8)
-                  : Colors.white.withOpacity(0.3),
-          width: isSelected ? 3 : (isYou ? 3 : 2),
+    return Opacity(
+      opacity: opacity,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: node.profileImagePath == null ? node.color : Colors.transparent,
+          border: Border.all(
+            color: isSelected
+                ? Colors.white
+                : isYou
+                    ? Colors.white.withOpacity(0.8)
+                    : Colors.white.withOpacity(0.3),
+            width: isSelected ? 3 : (isYou ? 3 : 2),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: node.color.withOpacity(0.5),
+              blurRadius: isSelected ? 20 : (isYou ? 15 : 10),
+              spreadRadius: isSelected ? 5 : (isYou ? 4 : 2),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: node.color.withOpacity(0.5),
-            blurRadius: isSelected ? 20 : (isYou ? 15 : 10),
-            spreadRadius: isSelected ? 5 : (isYou ? 4 : 2),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          isYou ? 'YOU' : node.name.split(' ').map((e) => e[0]).take(2).join(),
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: isSelected ? (isYou ? 18 : 16) : (isYou ? 16 : 14),
-          ),
+        child: ClipOval(
+          child: node.profileImagePath != null
+              ? RepaintBoundary(
+                  child: Image(
+                    image: _getImageProvider(node.profileImagePath!),
+                    fit: BoxFit.cover,
+                    width: size,
+                    height: size,
+                    gaplessPlayback: true,
+                    filterQuality: FilterQuality.medium,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: node.color,
+                        child: Center(
+                          child: Text(
+                            isYou ? 'YOU' : node.name.split(' ').map((e) => e[0]).take(2).join(),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSelected ? (isYou ? 18 : 16) : (isYou ? 16 : 14),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
+              : Container(
+                  color: node.color,
+                  child: Center(
+                    child: Text(
+                      isYou ? 'YOU' : node.name.split(' ').map((e) => e[0]).take(2).join(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isSelected ? (isYou ? 18 : 16) : (isYou ? 16 : 14),
+                      ),
+                    ),
+                  ),
+                ),
         ),
       ),
     );
@@ -286,6 +416,15 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
         padding: const EdgeInsets.all(8),
         child: Column(
           children: [
+            IconButton(
+              icon: Icon(
+                _hideNoCommonInterests ? Icons.filter_alt : Icons.filter_alt_outlined,
+                color: _hideNoCommonInterests ? Colors.green : Colors.white,
+              ),
+              onPressed: _showFilterDialog,
+              tooltip: 'Filter Network',
+            ),
+            const Divider(color: Colors.white24, height: 1),
             IconButton(
               icon: const Icon(Icons.add, color: Colors.white),
               onPressed: () {
@@ -322,80 +461,219 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget>
 
   Widget _buildSelectedNodeInfo() {
     if (_selectedNode == null) return const SizedBox.shrink();
+    final bool isCurrentUser = _selectedNode!.id == 'you' || _selectedNode!.id == widget.currentUserId;
 
     return Card(
       color: Colors.black.withOpacity(0.85),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _selectedNode!.color,
-              ),
-              child: Center(
-                child: Text(
-                  _selectedNode!.id == 'you'
-                      ? 'YOU'
-                      : _selectedNode!.name.split(' ').map((e) => e[0]).take(2).join(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+            GestureDetector(
+              onTap: () {
+                if (widget.onInfoBarTap != null) {
+                  widget.onInfoBarTap!(_selectedNode!);
+                }
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _selectedNode!.profileImagePath == null ? _selectedNode!.color : Colors.transparent,
+                ),
+                child: ClipOval(
+                  child: _selectedNode!.profileImagePath != null
+                      ? RepaintBoundary(
+                          child: Image(
+                            image: _getImageProvider(_selectedNode!.profileImagePath!),
+                            fit: BoxFit.cover,
+                            width: 50,
+                            height: 50,
+                            gaplessPlayback: true,
+                            filterQuality: FilterQuality.medium,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: _selectedNode!.color,
+                                child: Center(
+                                  child: Text(
+                                    _selectedNode!.id == 'you'
+                                        ? 'YOU'
+                                        : _selectedNode!.name.split(' ').map((e) => e[0]).take(2).join(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : Container(
+                          color: _selectedNode!.color,
+                          child: Center(
+                            child: Text(
+                              _selectedNode!.id == 'you'
+                                  ? 'YOU'
+                                  : _selectedNode!.name.split(' ').map((e) => e[0]).take(2).join(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
                 ),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedNode!.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (_selectedNode!.school != null) ...[
-                    const SizedBox(height: 4),
+              child: GestureDetector(
+                onTap: () {
+                  if (widget.onInfoBarTap != null) {
+                    widget.onInfoBarTap!(_selectedNode!);
+                  }
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      _selectedNode!.school!,
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 14,
+                      _selectedNode!.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_selectedNode!.connections.length} connections',
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 12,
+                    if (_selectedNode!.school != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _selectedNode!.school!,
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (_selectedNode!.major != null)
+                          Builder(
+                            builder: (context) {
+                              final bool matches = widget.currentUserMajor != null &&
+                                  _selectedNode!.major!.toLowerCase() ==
+                                      widget.currentUserMajor!.toLowerCase();
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: matches
+                                      ? Colors.green.withOpacity(0.3)
+                                      : Colors.grey.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: matches
+                                          ? Colors.green.withOpacity(0.5)
+                                          : Colors.grey.withOpacity(0.5)),
+                                ),
+                                child: Text(
+                                  _selectedNode!.major!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        if (_selectedNode!.interests != null)
+                          ..._selectedNode!.interests!.split(',').map((interest) {
+                            final trimmedInterest = interest.trim();
+                            final currentUserInterestsList = widget.currentUserInterests
+                                ?.split(',')
+                                .map((i) => i.trim().toLowerCase())
+                                .toList() ?? [];
+                            final bool matches = currentUserInterestsList
+                                .contains(trimmedInterest.toLowerCase());
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: matches
+                                    ? Colors.green.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: matches
+                                        ? Colors.green.withOpacity(0.5)
+                                        : Colors.grey.withOpacity(0.5)),
+                              ),
+                              child: Text(
+                                trimmedInterest,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () {
-                setState(() {
-                  _selectedNode = null;
-                });
-              },
+            if (!isCurrentUser && !_selectedNode!.isTextNode)
+              Container(
+                alignment: Alignment.center,
+                child: IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                  onPressed: () {
+                    if (widget.onInfoBarTap != null) {
+                      widget.onInfoBarTap!(_selectedNode!);
+                    }
+                  },
+                  tooltip: 'Chat',
+                ),
+              ),
+            Container(
+              alignment: Alignment.center,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _selectedNode = null;
+                  });
+                },
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  ImageProvider _getImageProvider(String imagePath) {
+    if (kIsWeb) {
+      if (imagePath.startsWith('data:')) {
+        // Base64 data URL
+        return MemoryImage(base64Decode(imagePath.split(',')[1]));
+      } else {
+        // Blob URL or network URL
+        return NetworkImage(imagePath);
+      }
+    } else {
+      // Mobile: file path
+      return FileImage(File(imagePath));
+    }
   }
 }
 
@@ -426,10 +704,15 @@ class NetworkGraphPainter extends CustomPainter {
 
         final isHighlighted = selectedNode?.id == node.id ||
             selectedNode?.id == connectedNode.id;
+        
+        // Make connection line more transparent if either node is indirect
+        final isIndirectConnection = !node.isDirectConnection || !connectedNode.isDirectConnection;
+        final baseOpacity = isIndirectConnection ? 0.05 : 0.1;
+        final highlightOpacity = isIndirectConnection ? 0.3 : 0.6;
 
         connectionPaint.color = isHighlighted
-            ? Colors.white.withOpacity(0.6)
-            : Colors.white.withOpacity(0.1);
+            ? Colors.white.withOpacity(highlightOpacity)
+            : Colors.white.withOpacity(baseOpacity);
         connectionPaint.strokeWidth = isHighlighted ? 3 : 1.5;
 
         canvas.drawLine(

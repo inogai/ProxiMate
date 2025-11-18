@@ -30,7 +30,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _loadCurrentProfile() {
-    final profile = context.read<StorageService>().userProfile;
+    final profile = context.read<StorageService>().currentProfile;
     if (profile != null) {
       _schoolController.text = profile.school ?? '';
       _backgroundController.text = profile.background ?? '';
@@ -125,7 +125,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userName = context.watch<StorageService>().userProfile?.userName ?? '';
+    final userName = context.watch<StorageService>().currentProfile?.userName ?? '';
 
     return Scaffold(
       appBar: AppBar(

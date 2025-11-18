@@ -46,14 +46,19 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Theme.of(context).primaryColor,
-                    child: Text(
-                      widget.peer.name[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    backgroundImage: widget.peer.profileImageUrl != null
+                        ? NetworkImage(widget.peer.profileImageUrl!)
+                        : null,
+                    child: widget.peer.profileImageUrl == null
+                        ? Text(
+                            widget.peer.name[0].toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -101,64 +106,141 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
             // Profile details
             Padding(
               padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoSection(
-                    context,
-                    icon: Icons.school,
-                    title: 'School',
-                    content: widget.peer.school,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoSection(
-                    context,
-                    icon: Icons.book,
-                    title: 'Major',
-                    content: widget.peer.major,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoSection(
-                    context,
-                    icon: Icons.favorite,
-                    title: 'Interests',
-                    content: widget.peer.interests,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoSection(
-                    context,
-                    icon: Icons.history_edu,
-                    title: 'Background',
-                    content: widget.peer.background,
-                  ),
-                  const SizedBox(height: 32),
-                  // Action button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isSending ? null : _handleSendInvite,
-                      icon: _isSending
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.restaurant_menu),
-                      label: Text(_isSending
-                          ? 'Sending Invite...'
-                          : 'Send Invitation to Eat'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Consumer<StorageService>(
+                builder: (context, storage, _) {
+                  final currentProfile = storage.currentProfile;
+                  final userMajors = currentProfile?.major?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
+                  final userInterests = currentProfile?.interests?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
+                  
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoSection(
+                        context,
+                        icon: Icons.school,
+                        title: 'School',
+                        content: widget.peer.school,
                       ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(height: 16),
+                      _buildTagSection(
+                        context,
+                        icon: Icons.book,
+                        title: 'Major',
+                        tags: widget.peer.major.split(',').map((e) => e.trim()).toList(),
+                        color: Colors.grey,
+                        matchingTags: userMajors,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTagSection(
+                        context,
+                        icon: Icons.favorite,
+                        title: 'Interests',
+                        tags: widget.peer.interests.split(',').map((e) => e.trim()).toList(),
+                        color: Colors.grey,
+                        matchingTags: userInterests,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInfoSection(
+                        context,
+                        icon: Icons.history_edu,
+                        title: 'Background',
+                        content: widget.peer.background,
+                      ),
+                      const SizedBox(height: 32),
+                      // Action button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSending ? null : _handleSendInvite,
+                          icon: _isSending
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.restaurant_menu),
+                          label: Text(_isSending
+                              ? 'Sending Invite...'
+                              : 'Send Invitation to Eat'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagSection(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required List<String> tags,
+    required Color color,
+    Set<String>? matchingTags,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: tags.map((tag) {
+                final isMatch = matchingTags?.contains(tag.toLowerCase()) ?? false;
+                return _buildTag(context, tag, isMatch ? Colors.orange : color);
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTag(BuildContext context, String label, Color color) {
+    final isHighlighted = color == Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isHighlighted ? Colors.orange.shade50 : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isHighlighted ? Colors.orange.shade300 : Colors.grey.shade400, 
+          width: 1
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isHighlighted ? Colors.orange.shade900 : Colors.grey.shade700,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

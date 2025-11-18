@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
+import 'dart:math';
 import '../services/storage_service.dart';
 import '../models/meeting.dart';
 import '../models/activity.dart';
 import '../screens/chat_room_screen.dart';
+import '../widgets/rating_dialog.dart';
 
 /// Screen showing all invitations for a specific activity
-class ActivityInvitationsScreen extends StatelessWidget {
+class ActivityInvitationsScreen extends StatefulWidget {
   final Activity activity;
 
   const ActivityInvitationsScreen({
@@ -15,23 +18,85 @@ class ActivityInvitationsScreen extends StatelessWidget {
   });
 
   @override
+  State<ActivityInvitationsScreen> createState() => _ActivityInvitationsScreenState();
+}
+
+class _ActivityInvitationsScreenState extends State<ActivityInvitationsScreen> {
+  Timer? _autoResponseTimer;
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    // Start timer for auto-responding to pending invitations after 5 seconds
+    _autoResponseTimer = Timer(const Duration(seconds: 5), _autoRespondToPendingInvitations);
+  }
+
+  @override
+  void dispose() {
+    _autoResponseTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _autoRespondToPendingInvitations() async {
+    if (!mounted) return;
+    
+    final storage = context.read<StorageService>();
+    final sentInvitations = storage.sentInvitations
+        .where((i) => i.activityId == widget.activity.id && i.isPending)
+        .toList();
+
+    for (final invitation in sentInvitations) {
+      // Random chance: 70% accept, 30% decline
+      final shouldAccept = _random.nextDouble() < 0.7;
+      
+      if (shouldAccept) {
+        await storage.mockAcceptSentInvitation(invitation.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${invitation.peerName} accepted your invitation!'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        await storage.mockDeclineSentInvitation(invitation.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${invitation.peerName} declined your invitation'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+      
+      // Add a small delay between responses to make it feel more natural
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
     
     // Filter invitations by this activity's ID
     final sentInvitations = storage.sentInvitations
-        .where((i) => i.activityId == activity.id)
+        .where((i) => i.activityId == widget.activity.id)
         .toList();
     final receivedInvitations = storage.receivedInvitations
-        .where((i) => i.activityId == activity.id)
+        .where((i) => i.activityId == widget.activity.id)
         .toList();
     final acceptedInvitations = storage.acceptedInvitations
-        .where((i) => i.activityId == activity.id)
+        .where((i) => i.activityId == widget.activity.id)
         .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(activity.name),
+        title: Text(widget.activity.name),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -52,7 +117,7 @@ class ActivityInvitationsScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      activity.description,
+                      widget.activity.description,
                       style: TextStyle(
                         color: Colors.blue[900],
                         fontWeight: FontWeight.w500,
@@ -298,23 +363,17 @@ class ActivityInvitationsScreen extends StatelessWidget {
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.lightbulb_outline,
-                      size: 18, color: Colors.orange[700]),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Ice Breaker Questions',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange[700],
-                        ),
-                  ),
-                ],
+              Text(
+                'Meetup Ice Breaker Questions',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                    ),
               ),
               const SizedBox(height: 12),
-              ...invitation.iceBreakers.take(3).map((iceBreaker) {
+              ...invitation.iceBreakers.map((iceBreaker) {
                 return Container(
+                  width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -325,37 +384,24 @@ class ActivityInvitationsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.question_answer,
-                              size: 16, color: Colors.green[700]),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              iceBreaker.question,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.green[900],
-                                  ),
+                      Text(
+                        iceBreaker.question,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green[900],
                             ),
-                          ),
-                        ],
                       ),
                       const SizedBox(height: 6),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 24),
-                        child: Text(
-                          iceBreaker.answer,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[700],
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                        ),
+                      Text(
+                        iceBreaker.answer,
+                        style:
+                            Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey[700],
+                                  fontStyle: FontStyle.italic,
+                                ),
                       ),
                     ],
                   ),
@@ -397,9 +443,28 @@ class ActivityInvitationsScreen extends StatelessWidget {
                     );
 
                     if (confirmed == true) {
+                      // Show rating dialog after confirmation
+                      if (context.mounted) {
+                        final ratingData = await showDialog<Map<String, dynamic>>(
+                          context: context,
+                          builder: (context) => RatingDialog(
+                            peerName: invitation.peerName,
+                          ),
+                        );
+
+                        // Process rating if provided
+                        if (ratingData != null) {
+                          await storage.addUserRating(
+                            ratedUserId: invitation.peerId,
+                            rating: ratingData['rating'] as int,
+                            reason: ratingData['reason'] as String?,
+                          );
+                        }
+                      }
+
                       await storage.markNotGoodMatch(invitation.id);
                       // Delete the activity after declining
-                      storage.deleteActivity(activity.id);
+                      storage.deleteActivity(widget.activity.id);
                       
                       if (context.mounted) {
                         // Navigate back to prevent showing deleted activity
@@ -428,9 +493,26 @@ class ActivityInvitationsScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
+                    // Show rating dialog before collecting name card
+                    final ratingData = await showDialog<Map<String, dynamic>>(
+                      context: context,
+                      builder: (context) => RatingDialog(
+                        peerName: invitation.peerName,
+                      ),
+                    );
+
+                    // Process rating if provided
+                    if (ratingData != null) {
+                      await storage.addUserRating(
+                        ratedUserId: invitation.peerId,
+                        rating: ratingData['rating'] as int,
+                        reason: ratingData['reason'] as String?,
+                      );
+                    }
+
                     await storage.collectNameCard(invitation.id);
                     // Delete the activity after collecting name card (activity finished)
-                    storage.deleteActivity(activity.id);
+                    storage.deleteActivity(widget.activity.id);
                     
                     if (context.mounted) {
                       // Navigate back since activity is deleted
@@ -589,7 +671,6 @@ class ActivityInvitationsScreen extends StatelessWidget {
   }
 
   Widget _buildSentCard(BuildContext context, Invitation invitation) {
-    final storage = context.read<StorageService>();
     final isPending = invitation.isPending;
 
     return Card(
@@ -671,72 +752,6 @@ class ActivityInvitationsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            
-            // Mock action buttons (only show for pending invitations)
-            if (isPending) ...[
-              const SizedBox(height: 12),
-              const Divider(),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    'Mock Response:',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await storage.mockAcceptSentInvitation(invitation.id);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${invitation.peerName} accepted your invitation!'),
-                              backgroundColor: Colors.green,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Accept'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.green,
-                        side: const BorderSide(color: Colors.green),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await storage.mockDeclineSentInvitation(invitation.id);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${invitation.peerName} declined your invitation'),
-                              backgroundColor: Colors.red,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.close, size: 16),
-                      label: const Text('Decline'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ],
         ),
       ),

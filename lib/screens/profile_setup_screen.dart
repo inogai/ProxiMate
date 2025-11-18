@@ -74,7 +74,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userName = context.watch<StorageService>().userProfile?.userName ?? '';
+    final userName = context.watch<StorageService>().currentProfile?.userName ?? '';
 
     return Scaffold(
       appBar: AppBar(

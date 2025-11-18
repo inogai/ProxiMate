@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
 import '../widgets/profile_tab.dart';
-import '../widgets/home_tab.dart';
+import '../widgets/find_peers_tab.dart';
 import '../widgets/invitations_tab.dart';
 import '../widgets/network_tab.dart';
 
@@ -26,16 +26,16 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   final List<Widget> _tabs = [
-    const HomeTab(),
-    const InvitationsTab(),
     const NetworkTab(),
+    const FindPeersTab(),
+    const InvitationsTab(),
     const ProfileTab(),
   ];
 
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    final nameCardCount = storage.nameCards.length;
+    final connectionCount = storage.connections.length;
 
     return Scaffold(
       body: IndexedStack(
@@ -50,28 +50,28 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
         destinations: [
+          NavigationDestination(
+            icon: Badge(
+              label: Text('$connectionCount'),
+              isLabelVisible: connectionCount > 0,
+              child: const Icon(Icons.hub_outlined),
+            ),
+            selectedIcon: Badge(
+              label: Text('$connectionCount'),
+              isLabelVisible: connectionCount > 0,
+              child: const Icon(Icons.hub),
+            ),
+            label: 'ProxiNet',
+          ),
           const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
+            label: 'ProxiMate',
           ),
           const NavigationDestination(
             icon: Icon(Icons.mail_outline),
             selectedIcon: Icon(Icons.mail),
             label: 'Invitations',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              label: Text('$nameCardCount'),
-              isLabelVisible: nameCardCount > 0,
-              child: const Icon(Icons.hub_outlined),
-            ),
-            selectedIcon: Badge(
-              label: Text('$nameCardCount'),
-              isLabelVisible: nameCardCount > 0,
-              child: const Icon(Icons.hub),
-            ),
-            label: 'Connections',
           ),
           const NavigationDestination(
             icon: Icon(Icons.person_outline),

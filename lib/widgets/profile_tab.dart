@@ -14,7 +14,7 @@ class ProfileTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final storageService = context.watch<StorageService>();
-    final profile = storageService.userProfile;
+    final profile = storageService.currentProfile;
 
     return Scaffold(
       appBar: AppBar(
@@ -84,18 +84,20 @@ class ProfileTab extends StatelessWidget {
                     content: profile.school ?? 'Not specified',
                   ),
                   const SizedBox(height: 16),
-                  _buildInfoCard(
+                  _buildTagCard(
                     context,
                     icon: Icons.book,
                     title: 'Major',
-                    content: profile.major ?? 'Not specified',
+                    tags: profile.major?.split(',').map((e) => e.trim()).toList() ?? [],
+                    color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  _buildInfoCard(
+                  _buildTagCard(
                     context,
                     icon: Icons.favorite,
                     title: 'Interests',
-                    content: profile.interests ?? 'Not specified',
+                    tags: profile.interests?.split(',').map((e) => e.trim()).toList() ?? [],
+                    color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
                   _buildInfoCard(
@@ -185,6 +187,75 @@ class ProfileTab extends StatelessWidget {
             child: const Text('Logout'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTagCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required List<String> tags,
+    required Color color,
+  }) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 24,
+                  color: Theme.of(context).primaryColor,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            tags.isEmpty
+                ? Text(
+                    'Not specified',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                  )
+                : Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: tags.map((tag) => _buildTag(context, tag, color)).toList(),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTag(BuildContext context, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade400, width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.grey.shade700,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }

@@ -1,40 +1,73 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../models/user_profile.dart';
+import 'dart:math';
+import '../models/profile.dart';
 import '../models/peer.dart';
 import '../models/meeting.dart';
-import '../models/name_card.dart';
+import '../models/connection.dart';
 import '../models/activity.dart';
+import '../models/user_rating.dart';
 
 /// Storage service with persistent data using shared_preferences
 class StorageService extends ChangeNotifier {
-  static const String _keyUserProfile = 'user_profile';
-  UserProfile? _userProfile;
+  static const String _keyCurrentProfile = 'current_profile';
+  static const String _keyConnections = 'connections';
+  static const String _keyProfiles = 'profiles';
+  Profile? _currentProfile;
+  Map<String, Profile> _profiles = {};
+  List<Connection> _connections = [];
   List<Peer> _nearbyPeers = [];
   List<Invitation> _invitations = [];
   List<ChatRoom> _chatRooms = [];
-  List<NameCard> _nameCards = [];
   List<Activity> _activities = [];
+  List<UserRating> _userRatings = [];
   Peer? _selectedPeer;
   String? _selectedActivityId; // Currently selected activity for viewing invitations
 
-  UserProfile? get userProfile => _userProfile;
+  Profile? get currentProfile => _currentProfile;
+  List<Connection> get connections => _connections;
   List<Peer> get nearbyPeers => _nearbyPeers;
   List<Invitation> get invitations => _invitations;
   List<ChatRoom> get chatRooms => _chatRooms;
-  List<NameCard> get nameCards => _nameCards;
   List<Activity> get activities => _activities;
+  List<UserRating> get userRatings => _userRatings;
   Peer? get selectedPeer => _selectedPeer;
   String? get selectedActivityId => _selectedActivityId;
 
-  bool get hasUser => _userProfile != null;
+  // Get connected profiles
+  List<Profile> get connectedProfiles {
+    return _connections
+        .map((conn) => _profiles[conn.toProfileId])
+        .whereType<Profile>()
+        .toList();
+  }
 
-  // Get peers who want to eat
+  bool get hasUser => _currentProfile != null;
+
+  // Get new friends (nearby peers who are not yet connections)
+  List<Peer> get newFriends {
+    final connectionIds = _connections.map((c) => c.toProfileId).toSet();
+    final filtered = _nearbyPeers.where((p) => !connectionIds.contains(p.id)).toList();
+    // Sort by match score (highest first)
+    filtered.sort((a, b) => b.matchScore.compareTo(a.matchScore));
+    return filtered;
+  }
+
+  // Get your connections as peers
+  List<Peer> get yourConnections {
+    final connectionIds = _connections.map((c) => c.toProfileId).toSet();
+    final filtered = _nearbyPeers.where((p) => connectionIds.contains(p.id)).toList();
+    // Sort by match score (highest first)
+    filtered.sort((a, b) => b.matchScore.compareTo(a.matchScore));
+    return filtered;
+  }
+
+  // Deprecated - kept for backward compatibility
   List<Peer> get peersWantToEat =>
       _nearbyPeers.where((p) => p.wantsToEat).toList();
 
-  // Get peers who don't want to eat
+  // Deprecated - kept for backward compatibility
   List<Peer> get peersNotWantToEat =>
       _nearbyPeers.where((p) => !p.wantsToEat).toList();
 
@@ -54,53 +87,99 @@ class StorageService extends ChangeNotifier {
   List<Invitation> get pendingInvitations =>
       _invitations.where((i) => i.isPending).toList();
 
-  /// Load user profile from persistent storage
+  /// Load current profile from persistent storage
   Future<void> loadUserProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final profileJson = prefs.getString(_keyUserProfile);
+      final profileJson = prefs.getString(_keyCurrentProfile);
       
       if (profileJson != null) {
         final profileMap = jsonDecode(profileJson) as Map<String, dynamic>;
-        _userProfile = UserProfile.fromJson(profileMap);
-        notifyListeners();
+        _currentProfile = Profile.fromJson(profileMap);
       }
+
+      // Load connections
+      final connectionsJson = prefs.getString(_keyConnections);
+      if (connectionsJson != null) {
+        final connectionsList = jsonDecode(connectionsJson) as List;
+        _connections = connectionsList
+            .map((json) => Connection.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+
+      // Load profiles
+      final profilesJson = prefs.getString(_keyProfiles);
+      if (profilesJson != null) {
+        final profilesMap = jsonDecode(profilesJson) as Map<String, dynamic>;
+        _profiles = profilesMap.map(
+          (key, value) => MapEntry(key, Profile.fromJson(value as Map<String, dynamic>)),
+        );
+      }
+
+      notifyListeners();
     } catch (e) {
-      debugPrint('Error loading user profile: $e');
+      debugPrint('Error loading profile data: $e');
     }
   }
 
-  /// Save user profile to persistent storage
-  Future<void> _persistUserProfile() async {
+  /// Save current profile to persistent storage
+  Future<void> _persistCurrentProfile() async {
     try {
-      if (_userProfile == null) return;
+      if (_currentProfile == null) return;
       
       final prefs = await SharedPreferences.getInstance();
-      final profileJson = jsonEncode(_userProfile!.toJson());
-      await prefs.setString(_keyUserProfile, profileJson);
+      final profileJson = jsonEncode(_currentProfile!.toJson());
+      await prefs.setString(_keyCurrentProfile, profileJson);
     } catch (e) {
-      debugPrint('Error saving user profile: $e');
+      debugPrint('Error saving current profile: $e');
     }
   }
 
-  /// Clear persisted user profile
+  /// Persist connections
+  Future<void> _persistConnections() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final connectionsJson = jsonEncode(_connections.map((c) => c.toJson()).toList());
+      await prefs.setString(_keyConnections, connectionsJson);
+    } catch (e) {
+      debugPrint('Error saving connections: $e');
+    }
+  }
+
+  /// Persist profiles cache
+  Future<void> _persistProfiles() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final profilesJson = jsonEncode(
+        _profiles.map((key, value) => MapEntry(key, value.toJson())),
+      );
+      await prefs.setString(_keyProfiles, profilesJson);
+    } catch (e) {
+      debugPrint('Error saving profiles: $e');
+    }
+  }
+
+  /// Clear persisted data
   Future<void> _clearPersistedProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_keyUserProfile);
+      await prefs.remove(_keyCurrentProfile);
+      await prefs.remove(_keyConnections);
+      await prefs.remove(_keyProfiles);
     } catch (e) {
-      debugPrint('Error clearing user profile: $e');
+      debugPrint('Error clearing profile data: $e');
     }
   }
 
   /// Save user name (registration step)
   Future<void> saveUserName(String userName) async {
-    _userProfile = UserProfile(userName: userName);
-    await _persistUserProfile();
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    _currentProfile = Profile(id: id, userName: userName);
+    await _persistCurrentProfile();
     notifyListeners();
   }
 
-  /// Update user profile with additional information
+  /// Update current profile with additional information
   Future<void> updateProfile({
     String? school,
     String? major,
@@ -108,26 +187,27 @@ class StorageService extends ChangeNotifier {
     String? background,
     String? profileImagePath,
   }) async {
-    if (_userProfile == null) return;
+    if (_currentProfile == null) return;
 
-    _userProfile = _userProfile!.copyWith(
+    _currentProfile = _currentProfile!.copyWith(
       school: school,
       major: major,
       interests: interests,
       background: background,
       profileImagePath: profileImagePath,
     );
-    await _persistUserProfile();
+    await _persistCurrentProfile();
     notifyListeners();
   }
 
   /// Clear all data (for logout)
   Future<void> clearProfile() async {
-    _userProfile = null;
+    _currentProfile = null;
+    _profiles = {};
+    _connections = [];
     _nearbyPeers = [];
     _invitations = [];
     _chatRooms = [];
-    _nameCards = [];
     _activities = [];
     _selectedPeer = null;
     _selectedActivityId = null;
@@ -230,78 +310,354 @@ class StorageService extends ChangeNotifier {
 
   /// Generate mock peers for demonstration
   List<Peer> _generateMockPeers() {
-    if (_userProfile == null) return [];
+    if (_currentProfile == null) return [];
 
     final peers = [
       Peer(
         id: '1',
         name: 'Alex Johnson',
-        school: _userProfile!.school ?? 'MIT',
-        major: _userProfile!.major ?? 'Computer Science',
+        school: _currentProfile!.school ?? 'MIT',
+        major: _currentProfile!.major ?? 'Computer Science',
         interests: 'Machine Learning, Hiking, Photography',
         background: 'Worked at Google for 2 years, now pursuing Masters',
         distance: 0.5,
         wantsToEat: true,
+        profileImageUrl: 'https://picsum.photos/seed/alex/200',
       ),
       Peer(
         id: '2',
         name: 'Sarah Chen',
-        school: _userProfile!.school ?? 'Stanford',
+        school: _currentProfile!.school ?? 'Stanford',
         major: 'Electrical Engineering',
         interests: 'Robotics, Music, Cooking',
         background: 'Undergraduate student interested in AI research',
         distance: 1.2,
         wantsToEat: true,
+        profileImageUrl: 'https://picsum.photos/seed/sarah/200',
       ),
       Peer(
         id: '3',
         name: 'Michael Brown',
         school: 'UC Berkeley',
-        major: _userProfile!.major ?? 'Computer Science',
+        major: _currentProfile!.major ?? 'Computer Science',
         interests: 'Web Development, Gaming, Basketball',
         background: 'Full-stack developer, love building apps',
         distance: 0.8,
         wantsToEat: false,
+        profileImageUrl: 'https://picsum.photos/seed/michael/200',
       ),
       Peer(
         id: '4',
         name: 'Emily Davis',
-        school: _userProfile!.school ?? 'Harvard',
+        school: _currentProfile!.school ?? 'Harvard',
         major: 'Data Science',
         interests: 'Data Analysis, Running, Reading',
         background: 'Data analyst looking to network with tech professionals',
         distance: 2.1,
         wantsToEat: true,
+        profileImageUrl: 'https://picsum.photos/seed/emily/200',
       ),
       Peer(
         id: '5',
         name: 'David Wilson',
-        school: _userProfile!.school ?? 'MIT',
+        school: _currentProfile!.school ?? 'MIT',
         major: 'Business',
         interests: 'Entrepreneurship, Travel, Coffee',
         background: 'MBA student, formerly worked at startup',
         distance: 1.5,
         wantsToEat: false,
+        profileImageUrl: 'https://picsum.photos/seed/david/200',
       ),
       Peer(
         id: '6',
         name: 'Lisa Martinez',
         school: 'Stanford',
-        major: _userProfile!.major ?? 'Computer Science',
+        major: _currentProfile!.major ?? 'Computer Science',
         interests: 'UI/UX Design, Art, Yoga',
         background: 'Product designer passionate about user experience',
         distance: 0.3,
         wantsToEat: true,
+        profileImageUrl: 'https://picsum.photos/seed/lisa/200',
       ),
     ];
 
     // Calculate match scores and sort by distance
     return peers
         .map((peer) => peer.copyWith(
-              matchScore: Peer.calculateMatchScore(_userProfile!, peer),
+              matchScore: Peer.calculateMatchScore(_currentProfile!, peer),
             ))
         .toList()
       ..sort((a, b) => a.distance.compareTo(b.distance));
+  }
+
+  /// Generate mock network profiles database with connections
+  Map<String, dynamic> generateMockNetworkDatabase() {
+    // Define mock profiles with varied friend counts (1-6 friends per person)
+    final mockProfiles = {
+      'mock_0': {
+        'id': 'mock_0',
+        'name': 'Alex Chen',
+        'school': 'MIT',
+        'major': 'Computer Science',
+        'interests': 'AI, Hiking',
+        'imageUrl': 'https://picsum.photos/seed/alexchen/200',
+      },
+      'mock_1': {
+        'id': 'mock_1',
+        'name': 'Sarah Kim',
+        'school': 'Stanford',
+        'major': 'Engineering',
+        'interests': 'Robotics, Music',
+        'imageUrl': 'https://picsum.photos/seed/sarahkim/200',
+      },
+      'mock_2': {
+        'id': 'mock_2',
+        'name': 'Mike Johnson',
+        'school': 'Berkeley',
+        'major': 'Business',
+        'interests': 'Startups, Sports',
+        'imageUrl': 'https://picsum.photos/seed/mikej/200',
+      },
+      'mock_3': {
+        'id': 'mock_3',
+        'name': 'Emma Davis',
+        'school': 'Harvard',
+        'major': 'Biology',
+        'interests': 'Research, Art',
+        'imageUrl': 'https://picsum.photos/seed/emmad/200',
+      },
+      'mock_4': {
+        'id': 'mock_4',
+        'name': 'James Wilson',
+        'school': 'Yale',
+        'major': 'Economics',
+        'interests': 'Finance, Travel',
+        'imageUrl': 'https://picsum.photos/seed/jamesw/200',
+      },
+      'mock_5': {
+        'id': 'mock_5',
+        'name': 'Lisa Martinez',
+        'school': 'Princeton',
+        'major': 'Psychology',
+        'interests': 'Social Science, Photography',
+        'imageUrl': 'https://picsum.photos/seed/lisam/200',
+      },
+      'mock_6': {
+        'id': 'mock_6',
+        'name': 'Tom Anderson',
+        'school': 'Columbia',
+        'major': 'Physics',
+        'interests': 'Space, Gaming',
+        'imageUrl': 'https://picsum.photos/seed/toma/200',
+      },
+      'mock_7': {
+        'id': 'mock_7',
+        'name': 'Nina Patel',
+        'school': 'Cornell',
+        'major': 'Architecture',
+        'interests': 'Design, Cooking',
+        'imageUrl': 'https://picsum.photos/seed/ninap/200',
+      },
+      'mock_8': {
+        'id': 'mock_8',
+        'name': 'David Lee',
+        'school': 'Duke',
+        'major': 'Mathematics',
+        'interests': 'Chess, Programming',
+        'imageUrl': 'https://picsum.photos/seed/davidl/200',
+      },
+      'mock_9': {
+        'id': 'mock_9',
+        'name': 'Rachel Green',
+        'school': 'Brown',
+        'major': 'Literature',
+        'interests': 'Writing, Theatre',
+        'imageUrl': 'https://picsum.photos/seed/rachelg/200',
+      },
+      'mock_10': {
+        'id': 'mock_10',
+        'name': 'Kevin Wang',
+        'school': 'Caltech',
+        'major': 'Chemistry',
+        'interests': 'Lab Work, Soccer',
+        'imageUrl': 'https://picsum.photos/seed/kevinw/200',
+      },
+      'mock_11': {
+        'id': 'mock_11',
+        'name': 'Sophia Torres',
+        'school': 'Northwestern',
+        'major': 'Journalism',
+        'interests': 'Media, Film',
+        'imageUrl': 'https://picsum.photos/seed/sophiat/200',
+      },
+      'mock_12': {
+        'id': 'mock_12',
+        'name': 'Ryan Cooper',
+        'school': 'UPenn',
+        'major': 'Medicine',
+        'interests': 'Healthcare, Running',
+        'imageUrl': 'https://picsum.photos/seed/ryanc/200',
+      },
+      'mock_13': {
+        'id': 'mock_13',
+        'name': 'Maya Patel',
+        'school': 'Dartmouth',
+        'major': 'Environmental Science',
+        'interests': 'Sustainability, Yoga',
+        'imageUrl': 'https://picsum.photos/seed/mayap/200',
+      },
+      'mock_14': {
+        'id': 'mock_14',
+        'name': 'Chris Martin',
+        'school': 'Rice',
+        'major': 'Philosophy',
+        'interests': 'Ethics, Reading',
+        'imageUrl': 'https://picsum.photos/seed/chrism/200',
+      },
+    };
+
+    // Define connections based on the friend lists
+    // Helper to avoid duplicate connections
+    final addedConnections = <String>{};
+    final mockConnections = <Map<String, String>>[];
+    
+    void addConnection(String from, String to) {
+      final key1 = '$from-$to';
+      final key2 = '$to-$from';
+      if (!addedConnections.contains(key1) && !addedConnections.contains(key2)) {
+        mockConnections.add({'from': from, 'to': to});
+        addedConnections.add(key1);
+      }
+    }
+
+    // mock_0 (Alex Chen): friends with you, mock_1, mock_2, mock_5, mock_8 (5 friends)
+    addConnection('mock_0', 'mock_1');
+    addConnection('mock_0', 'mock_2');
+    addConnection('mock_0', 'mock_5');
+    addConnection('mock_0', 'mock_8');
+    
+    // mock_1 (Sarah Kim): friends with you, mock_0, mock_3, mock_9 (4 friends)
+    addConnection('mock_1', 'mock_3');
+    addConnection('mock_1', 'mock_9');
+    
+    // mock_2 (Mike Johnson): friends with mock_0, mock_4, mock_11 (3 friends)
+    addConnection('mock_2', 'mock_4');
+    addConnection('mock_2', 'mock_11');
+    
+    // mock_3 (Emma Davis): friends with you, mock_1, mock_5, mock_6, mock_10 (5 friends)
+    addConnection('mock_3', 'mock_5');
+    addConnection('mock_3', 'mock_6');
+    addConnection('mock_3', 'mock_10');
+    
+    // mock_4 (James Wilson): friends with mock_2, mock_6, mock_12 (3 friends)
+    addConnection('mock_4', 'mock_6');
+    addConnection('mock_4', 'mock_12');
+    
+    // mock_5 (Lisa Martinez): friends with you, mock_0, mock_3, mock_7, mock_9, mock_13 (6 friends - popular!)
+    addConnection('mock_5', 'mock_7');
+    addConnection('mock_5', 'mock_9');
+    addConnection('mock_5', 'mock_13');
+    
+    // mock_6 (Tom Anderson): friends with mock_3, mock_4 (2 friends)
+    // Already connected above
+    
+    // mock_7 (Nina Patel): friends with you, mock_5, mock_11 (3 friends)
+    addConnection('mock_7', 'mock_11');
+    
+    // mock_8 (David Lee): friends with mock_0, mock_10 (2 friends)
+    addConnection('mock_8', 'mock_10');
+    
+    // mock_9 (Rachel Green): friends with mock_1, mock_5, mock_12, mock_13 (4 friends)
+    addConnection('mock_9', 'mock_12');
+    addConnection('mock_9', 'mock_13');
+    
+    // mock_10 (Kevin Wang): friends with mock_3, mock_8 (2 friends)
+    // Already connected above
+    
+    // mock_11 (Sophia Torres): friends with mock_2, mock_7, mock_13 (3 friends)
+    addConnection('mock_11', 'mock_13');
+    
+    // mock_12 (Ryan Cooper): friends with mock_4, mock_9 (2 friends)
+    // Already connected above
+    
+    // mock_13 (Maya Patel): friends with you, mock_5, mock_9, mock_11 (4 friends)
+    // Already connected above
+    
+    // mock_14 (Chris Martin): friends with mock_0 (1 friend - introvert!)
+    addConnection('mock_14', 'mock_0');
+
+    return {
+      'profiles': mockProfiles,
+      'connections': mockConnections,
+    };
+  }
+
+  /// Get mock network nodes for a given connection profile ID
+  Map<String, dynamic> getMockNetworkForConnection(String connectionProfileId) {
+    final database = generateMockNetworkDatabase();
+    final profiles = database['profiles'] as Map<String, dynamic>;
+    final connections = database['connections'] as List<Map<String, String>>;
+
+    // Find the key for this connection in our mock database
+    String? connectionKey;
+    for (final entry in profiles.entries) {
+      if (entry.value['id'] == connectionProfileId) {
+        connectionKey = entry.key;
+        break;
+      }
+    }
+
+    if (connectionKey == null) {
+      return {'directProfiles': [], 'indirectProfiles': []};
+    }
+
+    // Get direct connections
+    final directConnectionKeys = <String>{};
+    for (final conn in connections) {
+      if (conn['from'] == connectionKey) {
+        directConnectionKeys.add(conn['to']!);
+      } else if (conn['to'] == connectionKey) {
+        directConnectionKeys.add(conn['from']!);
+      }
+    }
+
+    // Get indirect connections (friends of friends)
+    final indirectConnectionKeys = <String>{};
+    for (final directKey in directConnectionKeys) {
+      for (final conn in connections) {
+        if (conn['from'] == directKey && conn['to'] != connectionKey) {
+          indirectConnectionKeys.add(conn['to']!);
+        } else if (conn['to'] == directKey && conn['from'] != connectionKey) {
+          indirectConnectionKeys.add(conn['from']!);
+        }
+      }
+    }
+
+    // Remove direct connections from indirect
+    indirectConnectionKeys.removeAll(directConnectionKeys);
+
+    // Build result
+    final directProfiles = directConnectionKeys
+        .map((key) => profiles[key] as Map<String, dynamic>)
+        .toList();
+    
+    final indirectProfiles = indirectConnectionKeys
+        .map((key) => {
+          ...profiles[key] as Map<String, dynamic>,
+          'connectedThrough': directConnectionKeys.firstWhere(
+            (directKey) => connections.any((c) =>
+              (c['from'] == directKey && c['to'] == key) ||
+              (c['to'] == directKey && c['from'] == key)
+            ),
+          ),
+        })
+        .toList();
+
+    return {
+      'directProfiles': directProfiles,
+      'indirectProfiles': indirectProfiles,
+      'allConnections': connections,
+    };
   }
 
   /// Select a peer to potentially meet
@@ -347,28 +703,77 @@ class StorageService extends ChangeNotifier {
 
   /// Generate ice-breaking questions based on peer's profile
   List<IceBreaker> _generateIceBreakers(Peer peer) {
-    return [
+    final allQuestions = [
+      // Interest-based questions
       IceBreaker(
         question: 'What inspired you to study ${peer.major}?',
         answer: 'This helps you understand their passion and motivation',
-      ),
-      IceBreaker(
-        question: 'What\'s your favorite thing about ${peer.school}?',
-        answer: 'A great way to share common experiences',
       ),
       IceBreaker(
         question: 'I see you\'re interested in ${peer.interests.split(',').first.trim()}. How did you get into that?',
         answer: 'Shows you read their profile and care about their interests',
       ),
       IceBreaker(
+        question: 'What\'s your favorite thing about ${peer.school}?',
+        answer: 'A great way to share common experiences',
+      ),
+      // Values and personal philosophy
+      IceBreaker(
+        question: 'What\'s a core value or principle that guides your decisions?',
+        answer: 'Helps understand what matters most to them',
+      ),
+      IceBreaker(
+        question: 'What does success mean to you personally?',
+        answer: 'Reveals their priorities and aspirations',
+      ),
+      IceBreaker(
+        question: 'If you could change one thing about the world, what would it be?',
+        answer: 'Shows their values and what they care about',
+      ),
+      IceBreaker(
+        question: 'What\'s something you believe that most people disagree with?',
+        answer: 'Encourages authentic conversation and perspective sharing',
+      ),
+      // Background and experiences
+      IceBreaker(
+        question: 'What\'s a life experience that shaped who you are today?',
+        answer: 'Invites deeper storytelling about their journey',
+      ),
+      IceBreaker(
+        question: 'How has your background influenced your career or life goals?',
+        answer: 'Explores the connection between past and future',
+      ),
+      IceBreaker(
+        question: 'What\'s a challenge you\'ve overcome that you\'re proud of?',
+        answer: 'Highlights resilience and personal growth',
+      ),
+      IceBreaker(
+        question: 'Is there a family tradition or cultural practice that\'s meaningful to you?',
+        answer: 'Opens discussion about heritage and identity',
+      ),
+      // Fun and personality
+      IceBreaker(
         question: 'What\'s a fun fact about yourself that most people don\'t know?',
         answer: 'Helps break the ice with something unexpected',
       ),
       IceBreaker(
         question: 'If you could have dinner with anyone, dead or alive, who would it be?',
-        answer: 'Reveals their values and inspirations',
+        answer: 'Reveals their inspirations and interests',
+      ),
+      IceBreaker(
+        question: 'What\'s something you\'re currently trying to learn or get better at?',
+        answer: 'Shows growth mindset and current interests',
+      ),
+      IceBreaker(
+        question: 'If you had a free year to do anything, how would you spend it?',
+        answer: 'Explores dreams and priorities',
       ),
     ];
+
+    // Randomly select 2 questions
+    final random = Random();
+    final shuffled = List<IceBreaker>.from(allQuestions)..shuffle(random);
+    return shuffled.take(2).toList();
   }
 
   /// Accept an invitation (max 1 per activity)
@@ -645,30 +1050,43 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  /// Collect name card from peer
+  /// Create connection from peer
   Future<void> collectNameCard(String invitationId) async {
+    if (_currentProfile == null) return;
+
     final invitation = _invitations.firstWhere((i) => i.id == invitationId);
     final peer = getPeerById(invitation.peerId);
     
     if (peer == null) return;
 
-    // Check if already collected
-    final alreadyCollected = _nameCards.any((nc) => nc.peerId == peer.id);
-    if (alreadyCollected) return;
+    // Check if already connected
+    final alreadyConnected = _connections.any((c) => c.toProfileId == peer.id);
+    if (alreadyConnected) return;
 
-    final nameCard = NameCard(
+    // Create or get profile for the peer
+    if (!_profiles.containsKey(peer.id)) {
+      _profiles[peer.id] = Profile(
+        id: peer.id,
+        userName: peer.name,
+        school: peer.school,
+        major: peer.major,
+        interests: peer.interests,
+        background: peer.background,
+        profileImagePath: null,
+      );
+    }
+
+    // Create connection
+    final connection = Connection(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      peerId: peer.id,
-      name: peer.name,
-      school: peer.school,
-      major: peer.major,
-      interests: peer.interests,
-      background: peer.background,
+      fromProfileId: _currentProfile!.id,
+      toProfileId: peer.id,
       restaurant: invitation.restaurant,
       collectedAt: DateTime.now(),
+      status: ConnectionStatus.accepted,
     );
 
-    _nameCards.add(nameCard);
+    _connections.add(connection);
     
     // Mark invitation as name card collected
     final invIndex = _invitations.indexWhere((i) => i.id == invitationId);
@@ -678,7 +1096,15 @@ class StorageService extends ChangeNotifier {
       );
     }
     
+    await _persistConnections();
+    await _persistProfiles();
     notifyListeners();
+  }
+
+  /// Get profile by ID
+  Profile? getProfileById(String id) {
+    if (id == _currentProfile?.id) return _currentProfile;
+    return _profiles[id];
   }
 
   /// Mark chat as opened for the invitation
@@ -700,6 +1126,27 @@ class StorageService extends ChangeNotifier {
     final invitation = _invitations.firstWhere((i) => i.id == invitationId);
     _chatRooms.removeWhere((c) => c.peerId == invitation.peerId);
     
+    notifyListeners();
+  }
+
+  /// Add a user rating
+  Future<void> addUserRating({
+    required String ratedUserId,
+    required int rating,
+    String? reason,
+  }) async {
+    if (_currentProfile == null) return;
+
+    final userRating = UserRating(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      ratedUserId: ratedUserId,
+      ratedByUserId: _currentProfile!.id,
+      rating: rating,
+      reason: reason,
+      createdAt: DateTime.now(),
+    );
+
+    _userRatings.add(userRating);
     notifyListeners();
   }
 }

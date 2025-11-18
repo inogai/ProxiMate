@@ -58,8 +58,8 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    final peersWantToEat = storage.peersWantToEat;
-    final peersNotWantToEat = storage.peersNotWantToEat;
+    final newFriends = storage.newFriends;
+    final yourConnections = storage.yourConnections;
 
     return Scaffold(
       appBar: AppBar(
@@ -75,12 +75,12 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
           controller: _tabController,
           tabs: [
             Tab(
-              icon: const Icon(Icons.restaurant),
-              text: 'Want to Eat (${peersWantToEat.length})',
+              icon: const Icon(Icons.person_add),
+              text: 'New Friends (${newFriends.length})',
             ),
             Tab(
-              icon: const Icon(Icons.no_meals),
-              text: 'Not Now (${peersNotWantToEat.length})',
+              icon: const Icon(Icons.group),
+              text: 'Your Connections (${yourConnections.length})',
             ),
           ],
         ),
@@ -99,9 +99,9 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildPeerList(peersWantToEat, 'No peers want to eat right now'),
+                _buildPeerList(newFriends, 'No new friends nearby'),
                 _buildPeerList(
-                    peersNotWantToEat, 'No peers in this category'),
+                    yourConnections, 'No connections found nearby'),
               ],
             ),
     );
@@ -130,20 +130,58 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _searchPeers,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: peers.length,
-        itemBuilder: (context, index) {
-          final peer = peers[index];
-          return _buildPeerCard(context, peer);
-        },
-      ),
+    return Column(
+      children: [
+        // Hint at the top
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Text(
+                '* ',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Tags highlighted in orange match your interests',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _searchPeers,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: peers.length,
+              itemBuilder: (context, index) {
+                final peer = peers[index];
+                return _buildPeerCard(context, peer);
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildPeerCard(BuildContext context, Peer peer) {
+    final storage = context.read<StorageService>();
+    final currentProfile = storage.currentProfile;
+    
+    // Get user's majors and interests for comparison
+    final userMajors = currentProfile?.major?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
+    final userInterests = currentProfile?.interests?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
@@ -166,14 +204,19 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: Theme.of(context).primaryColor,
-                    child: Text(
-                      peer.name[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    backgroundImage: peer.profileImageUrl != null
+                        ? NetworkImage(peer.profileImageUrl!)
+                        : null,
+                    child: peer.profileImageUrl == null
+                        ? Text(
+                            peer.name[0].toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -189,7 +232,7 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${peer.major} • ${peer.school}',
+                          peer.school,
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: Colors.grey[600],
@@ -215,17 +258,23 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
                           color: Theme.of(context).primaryColor,
                         ),
                   ),
-                  const SizedBox(width: 16),
-                  Icon(Icons.favorite, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      peer.interests,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...peer.major.split(',').map((major) {
+                    final isMatch = userMajors.contains(major.trim().toLowerCase());
+                    return _buildTag(context, major.trim(), Icons.school, 
+                        isMatch ? Colors.orange : Colors.grey);
+                  }),
+                  ...peer.interests.split(',').map((interest) {
+                    final isMatch = userInterests.contains(interest.trim().toLowerCase());
+                    return _buildTag(context, interest.trim(), Icons.favorite, 
+                        isMatch ? Colors.orange : Colors.grey);
+                  }),
                 ],
               ),
               const SizedBox(height: 8),
@@ -279,6 +328,36 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),
+      ),
+    );
+  }
+
+  Widget _buildTag(BuildContext context, String label, IconData icon, Color color) {
+    final isHighlighted = color == Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isHighlighted ? Colors.orange.shade50 : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isHighlighted ? Colors.orange.shade300 : Colors.grey.shade400,
+          width: 1
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: isHighlighted ? Colors.orange.shade700 : Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isHighlighted ? Colors.orange.shade900 : Colors.grey.shade700,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
