@@ -146,7 +146,7 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
               ),
               Expanded(
                 child: Text(
-                  'Tags highlighted in orange match your interests',
+                  'Tags highlighted in color match your interests',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -268,12 +268,12 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
                   ...peer.major.split(',').map((major) {
                     final isMatch = userMajors.contains(major.trim().toLowerCase());
                     return _buildTag(context, major.trim(), Icons.school, 
-                        isMatch ? Colors.orange : Colors.grey);
+                        isMatch ? Theme.of(context).colorScheme.primary : Colors.grey);
                   }),
                   ...peer.interests.split(',').map((interest) {
                     final isMatch = userInterests.contains(interest.trim().toLowerCase());
                     return _buildTag(context, interest.trim(), Icons.favorite, 
-                        isMatch ? Colors.orange : Colors.grey);
+                        isMatch ? Theme.of(context).colorScheme.primary : Colors.grey);
                   }),
                 ],
               ),
@@ -309,7 +309,7 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
     if (percentage >= 70) {
       badgeColor = Colors.green;
     } else if (percentage >= 40) {
-      badgeColor = Colors.orange;
+      badgeColor = Theme.of(context).colorScheme.primary;
     } else {
       badgeColor = Colors.grey;
     }
@@ -333,26 +333,27 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
   }
 
   Widget _buildTag(BuildContext context, String label, IconData icon, Color color) {
-    final isHighlighted = color == Colors.orange;
+    final isHighlighted = color == Theme.of(context).colorScheme.primary;
+    final primaryColor = Theme.of(context).colorScheme.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isHighlighted ? Colors.orange.shade50 : Colors.grey.shade200,
+        color: isHighlighted ? primaryColor.withOpacity(0.1) : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isHighlighted ? Colors.orange.shade300 : Colors.grey.shade400,
+          color: isHighlighted ? primaryColor.withOpacity(0.3) : Colors.grey.shade400,
           width: 1
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: isHighlighted ? Colors.orange.shade700 : Colors.grey.shade600),
+          Icon(icon, size: 14, color: isHighlighted ? primaryColor : Colors.grey.shade600),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
-              color: isHighlighted ? Colors.orange.shade900 : Colors.grey.shade700,
+              color: isHighlighted ? primaryColor : Colors.grey.shade700,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),

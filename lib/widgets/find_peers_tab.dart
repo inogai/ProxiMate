@@ -36,7 +36,7 @@ class FindPeersTab extends StatelessWidget {
               title: 'Find Nearby Peers',
               description:
                   'Discover people near you who want to eat and share similar interests',
-              color: Colors.blue,
+              color: Theme.of(context).colorScheme.primary,
               onTap: () async {
                 // Show confirmation dialog
                 final confirmed = await showDialog<bool>(
