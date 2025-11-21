@@ -42,6 +42,13 @@ void main() {
       // TODO
     });
 
+    // Get User
+    //
+    //Future<UserRead> getUserUsersUserIdGet(int userId) async
+    test('test getUserUsersUserIdGet', () async {
+      // TODO
+    });
+
     // Get Users
     //
     //Future<BuiltList<UserRead>> getUsersUsersGet({ String school, String major, String interests, int limit, int offset }) async
@@ -60,6 +67,13 @@ void main() {
     //
     //Future<JsonObject> rootGet() async
     test('test rootGet', () async {
+      // TODO
+    });
+
+    // Update User
+    //
+    //Future<UserRead> updateUserUsersUserIdPut(int userId, UserUpdate userUpdate) async
+    test('test updateUserUsersUserIdPut', () async {
       // TODO
     });
 

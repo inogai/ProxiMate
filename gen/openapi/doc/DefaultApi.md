@@ -14,9 +14,11 @@ Method | HTTP request | Description
 [**getBatchLocationsLocationsBatchGet**](DefaultApi.md#getbatchlocationslocationsbatchget) | **GET** /locations/batch | Get Batch Locations
 [**getNearbyUsersUsersNearbyGet**](DefaultApi.md#getnearbyusersusersnearbyget) | **GET** /users/nearby | Get Nearby Users
 [**getUserLocationsLocationsUserIdGet**](DefaultApi.md#getuserlocationslocationsuseridget) | **GET** /locations/{user_id} | Get User Locations
+[**getUserUsersUserIdGet**](DefaultApi.md#getuserusersuseridget) | **GET** /users/{user_id} | Get User
 [**getUsersUsersGet**](DefaultApi.md#getusersusersget) | **GET** /users/ | Get Users
 [**healthCheckHealthGet**](DefaultApi.md#healthcheckhealthget) | **GET** /health | Health Check
 [**rootGet**](DefaultApi.md#rootget) | **GET** / | Root
+[**updateUserUsersUserIdPut**](DefaultApi.md#updateuserusersuseridput) | **PUT** /users/{user_id} | Update User
 [**visualizeDbVisualizeGet**](DefaultApi.md#visualizedbvisualizeget) | **GET** /visualize | Visualize Db
 
 
@@ -231,6 +233,47 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **getUserUsersUserIdGet**
+> UserRead getUserUsersUserIdGet(userId)
+
+Get User
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getDefaultApi();
+final int userId = 56; // int | 
+
+try {
+    final response = api.getUserUsersUserIdGet(userId);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling DefaultApi->getUserUsersUserIdGet: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **userId** | **int**|  | 
+
+### Return type
+
+[**UserRead**](UserRead.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **getUsersUsersGet**
 > BuiltList<UserRead> getUsersUsersGet(school, major, interests, limit, offset)
 
@@ -350,6 +393,49 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateUserUsersUserIdPut**
+> UserRead updateUserUsersUserIdPut(userId, userUpdate)
+
+Update User
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getDefaultApi();
+final int userId = 56; // int | 
+final UserUpdate userUpdate = ; // UserUpdate | 
+
+try {
+    final response = api.updateUserUsersUserIdPut(userId, userUpdate);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling DefaultApi->updateUserUsersUserIdPut: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **userId** | **int**|  | 
+ **userUpdate** | [**UserUpdate**](UserUpdate.md)|  | 
+
+### Return type
+
+[**UserRead**](UserRead.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

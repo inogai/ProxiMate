@@ -20,6 +20,7 @@ import 'package:openapi/src/model/location_read.dart';
 import 'package:openapi/src/model/user_create.dart';
 import 'package:openapi/src/model/user_read.dart';
 import 'package:openapi/src/model/user_read_with_distance.dart';
+import 'package:openapi/src/model/user_update.dart';
 import 'package:openapi/src/model/validation_error.dart';
 import 'package:openapi/src/model/validation_error_loc_inner.dart';
 
@@ -32,6 +33,7 @@ part 'serializers.g.dart';
   UserCreate,
   UserRead,
   UserReadWithDistance,
+  UserUpdate,
   ValidationError,
   ValidationErrorLocInner,
 ])

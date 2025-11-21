@@ -70,9 +70,11 @@ Class | Method | HTTP request | Description
 [*DefaultApi*](doc/DefaultApi.md) | [**getBatchLocationsLocationsBatchGet**](doc/DefaultApi.md#getbatchlocationslocationsbatchget) | **GET** /locations/batch | Get Batch Locations
 [*DefaultApi*](doc/DefaultApi.md) | [**getNearbyUsersUsersNearbyGet**](doc/DefaultApi.md#getnearbyusersusersnearbyget) | **GET** /users/nearby | Get Nearby Users
 [*DefaultApi*](doc/DefaultApi.md) | [**getUserLocationsLocationsUserIdGet**](doc/DefaultApi.md#getuserlocationslocationsuseridget) | **GET** /locations/{user_id} | Get User Locations
+[*DefaultApi*](doc/DefaultApi.md) | [**getUserUsersUserIdGet**](doc/DefaultApi.md#getuserusersuseridget) | **GET** /users/{user_id} | Get User
 [*DefaultApi*](doc/DefaultApi.md) | [**getUsersUsersGet**](doc/DefaultApi.md#getusersusersget) | **GET** /users/ | Get Users
 [*DefaultApi*](doc/DefaultApi.md) | [**healthCheckHealthGet**](doc/DefaultApi.md#healthcheckhealthget) | **GET** /health | Health Check
 [*DefaultApi*](doc/DefaultApi.md) | [**rootGet**](doc/DefaultApi.md#rootget) | **GET** / | Root
+[*DefaultApi*](doc/DefaultApi.md) | [**updateUserUsersUserIdPut**](doc/DefaultApi.md#updateuserusersuseridput) | **PUT** /users/{user_id} | Update User
 [*DefaultApi*](doc/DefaultApi.md) | [**visualizeDbVisualizeGet**](doc/DefaultApi.md#visualizedbvisualizeget) | **GET** /visualize | Visualize Db
 
 
@@ -84,6 +86,7 @@ Class | Method | HTTP request | Description
  - [UserCreate](doc/UserCreate.md)
  - [UserRead](doc/UserRead.md)
  - [UserReadWithDistance](doc/UserReadWithDistance.md)
+ - [UserUpdate](doc/UserUpdate.md)
  - [ValidationError](doc/ValidationError.md)
  - [ValidationErrorLocInner](doc/ValidationErrorLocInner.md)
 

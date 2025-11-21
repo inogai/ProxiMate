@@ -84,11 +84,12 @@ class ApiService {
     return response.data!;
   }
 
-  Future<UserRead> updateUser(int userId, Map<String, dynamic> userData) async {
-    // Note: updateUser endpoint not available in current API
-    // This is a placeholder for future implementation
-    _debugLog('Update user endpoint not available - using placeholder');
-    throw UnimplementedError('Update user endpoint not yet implemented in backend');
+  Future<UserRead> updateUser(int userId, UserUpdate userUpdate) async {
+    final response = await _executeWithRetry(
+      () => _api.updateUserUsersUserIdPut(userId: userId, userUpdate: userUpdate),
+      'Update User',
+    );
+    return response.data!;
   }
 
   Future<UserRead> getUser(int userId) async {
@@ -232,15 +233,14 @@ class ApiService {
       ..avatarUrl = profile.profileImagePath ?? '');
   }
 
-  Map<String, dynamic> profileToUserUpdate(Profile profile) {
-    return {
-      'username': profile.userName,
-      'school': profile.school,
-      'major': profile.major,
-      'interests': profile.interests,
-      'bio': profile.background,
-      'avatarUrl': profile.profileImagePath,
-    };
+  UserUpdate profileToUserUpdate(Profile profile) {
+    return UserUpdate((b) => b
+      ..username = profile.userName
+      ..school = profile.school ?? ''
+      ..major = profile.major ?? ''
+      ..interests = profile.interests ?? ''
+      ..bio = profile.background ?? ''
+      ..avatarUrl = profile.profileImagePath ?? '');
   }
 
   Peer userReadToPeer(UserRead user, LocationRead? location, {double? distance}) {
