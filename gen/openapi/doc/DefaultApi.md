@@ -19,6 +19,7 @@ Method | HTTP request | Description
 [**declineInvitationInvitationsInvitationIdDeclinePut**](DefaultApi.md#declineinvitationinvitationsinvitationiddeclineput) | **PUT** /invitations/{invitation_id}/decline | Decline Invitation
 [**deleteActivityActivitiesActivityIdDelete**](DefaultApi.md#deleteactivityactivitiesactivityiddelete) | **DELETE** /activities/{activity_id} | Delete Activity
 [**deleteAvatarUsersUserIdAvatarDelete**](DefaultApi.md#deleteavatarusersuseridavatardelete) | **DELETE** /users/{user_id}/avatar | Delete Avatar
+[**findChatroomBetweenUsersChatroomsFindGet**](DefaultApi.md#findchatroombetweenuserschatroomsfindget) | **GET** /chatrooms/find | Find Chatroom Between Users
 [**getActivitiesActivitiesGet**](DefaultApi.md#getactivitiesactivitiesget) | **GET** /activities | Get Activities
 [**getBatchLocationsLocationsBatchGet**](DefaultApi.md#getbatchlocationslocationsbatchget) | **GET** /locations/batch | Get Batch Locations
 [**getChatMessagesChatroomsChatroomIdMessagesGet**](DefaultApi.md#getchatmessageschatroomschatroomidmessagesget) | **GET** /chatrooms/{chatroom_id}/messages | Get Chat Messages
@@ -438,6 +439,49 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **findChatroomBetweenUsersChatroomsFindGet**
+> ChatRoomRead findChatroomBetweenUsersChatroomsFindGet(user1Id, user2Id)
+
+Find Chatroom Between Users
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getDefaultApi();
+final int user1Id = 56; // int | First user ID
+final int user2Id = 56; // int | Second user ID
+
+try {
+    final response = api.findChatroomBetweenUsersChatroomsFindGet(user1Id, user2Id);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling DefaultApi->findChatroomBetweenUsersChatroomsFindGet: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **user1Id** | **int**| First user ID | 
+ **user2Id** | **int**| Second user ID | 
+
+### Return type
+
+[**ChatRoomRead**](ChatRoomRead.md)
 
 ### Authorization
 

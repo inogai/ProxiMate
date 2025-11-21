@@ -75,6 +75,7 @@ Class | Method | HTTP request | Description
 [*DefaultApi*](doc/DefaultApi.md) | [**declineInvitationInvitationsInvitationIdDeclinePut**](doc/DefaultApi.md#declineinvitationinvitationsinvitationiddeclineput) | **PUT** /invitations/{invitation_id}/decline | Decline Invitation
 [*DefaultApi*](doc/DefaultApi.md) | [**deleteActivityActivitiesActivityIdDelete**](doc/DefaultApi.md#deleteactivityactivitiesactivityiddelete) | **DELETE** /activities/{activity_id} | Delete Activity
 [*DefaultApi*](doc/DefaultApi.md) | [**deleteAvatarUsersUserIdAvatarDelete**](doc/DefaultApi.md#deleteavatarusersuseridavatardelete) | **DELETE** /users/{user_id}/avatar | Delete Avatar
+[*DefaultApi*](doc/DefaultApi.md) | [**findChatroomBetweenUsersChatroomsFindGet**](doc/DefaultApi.md#findchatroombetweenuserschatroomsfindget) | **GET** /chatrooms/find | Find Chatroom Between Users
 [*DefaultApi*](doc/DefaultApi.md) | [**getActivitiesActivitiesGet**](doc/DefaultApi.md#getactivitiesactivitiesget) | **GET** /activities | Get Activities
 [*DefaultApi*](doc/DefaultApi.md) | [**getBatchLocationsLocationsBatchGet**](doc/DefaultApi.md#getbatchlocationslocationsbatchget) | **GET** /locations/batch | Get Batch Locations
 [*DefaultApi*](doc/DefaultApi.md) | [**getChatMessagesChatroomsChatroomIdMessagesGet**](doc/DefaultApi.md#getchatmessageschatroomschatroomidmessagesget) | **GET** /chatrooms/{chatroom_id}/messages | Get Chat Messages

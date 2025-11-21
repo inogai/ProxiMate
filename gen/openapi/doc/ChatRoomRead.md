@@ -8,8 +8,8 @@ import 'package:openapi/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**peerId** | **int** |  | 
-**peerName** | **String** |  | 
+**user1Id** | **int** |  | 
+**user2Id** | **int** |  | 
 **restaurant** | **String** |  | 
 **id** | **String** |  | 
 **createdAt** | [**DateTime**](DateTime.md) |  | 

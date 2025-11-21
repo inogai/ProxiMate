@@ -7,13 +7,13 @@ void main() {
   // TODO add properties to the builder and call build()
 
   group(ChatRoomRead, () {
-    // int peerId
-    test('to test the property `peerId`', () async {
+    // int user1Id
+    test('to test the property `user1Id`', () async {
       // TODO
     });
 
-    // String peerName
-    test('to test the property `peerName`', () async {
+    // int user2Id
+    test('to test the property `user2Id`', () async {
       // TODO
     });
 

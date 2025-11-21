@@ -11,18 +11,18 @@ part 'chat_room_read.g.dart';
 /// ChatRoomRead
 ///
 /// Properties:
-/// * [peerId] 
-/// * [peerName] 
+/// * [user1Id] 
+/// * [user2Id] 
 /// * [restaurant] 
 /// * [id] 
 /// * [createdAt] 
 @BuiltValue()
 abstract class ChatRoomRead implements Built<ChatRoomRead, ChatRoomReadBuilder> {
-  @BuiltValueField(wireName: r'peer_id')
-  int get peerId;
+  @BuiltValueField(wireName: r'user1_id')
+  int get user1Id;
 
-  @BuiltValueField(wireName: r'peer_name')
-  String get peerName;
+  @BuiltValueField(wireName: r'user2_id')
+  int get user2Id;
 
   @BuiltValueField(wireName: r'restaurant')
   String get restaurant;
@@ -56,15 +56,15 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
     ChatRoomRead object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
-    yield r'peer_id';
+    yield r'user1_id';
     yield serializers.serialize(
-      object.peerId,
+      object.user1Id,
       specifiedType: const FullType(int),
     );
-    yield r'peer_name';
+    yield r'user2_id';
     yield serializers.serialize(
-      object.peerName,
-      specifiedType: const FullType(String),
+      object.user2Id,
+      specifiedType: const FullType(int),
     );
     yield r'restaurant';
     yield serializers.serialize(
@@ -104,19 +104,19 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
-        case r'peer_id':
+        case r'user1_id':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(int),
           ) as int;
-          result.peerId = valueDes;
+          result.user1Id = valueDes;
           break;
-        case r'peer_name':
+        case r'user2_id':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(String),
-          ) as String;
-          result.peerName = valueDes;
+            specifiedType: const FullType(int),
+          ) as int;
+          result.user2Id = valueDes;
           break;
         case r'restaurant':
           final valueDes = serializers.deserialize(
