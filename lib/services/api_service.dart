@@ -7,6 +7,8 @@ import 'package:openapi/openapi.dart';
 import 'package:dio/dio.dart';
 import '../models/profile.dart';
 import '../models/peer.dart';
+import '../models/meeting.dart';
+import '../models/activity.dart';
 
 class ApiService {
   late DefaultApi _api;
@@ -289,6 +291,110 @@ class ApiService {
     );
   }
 
+  // Invitation model converters
+  InvitationCreate invitationToInvitationCreate(Invitation invitation, int senderId, int receiverId) {
+    return InvitationCreate((b) => b
+      ..senderId = senderId
+      ..receiverId = receiverId
+      ..activityId = invitation.activityId
+      ..restaurant = invitation.restaurant
+      ..status = invitation.status.name
+      ..iceBreakers = invitation.iceBreakers.map((ib) => ib.question).join('|')
+      ..sentByMe = invitation.sentByMe
+      ..nameCardCollected = invitation.nameCardCollected
+      ..chatOpened = invitation.chatOpened);
+  }
+
+  Invitation invitationReadToInvitation(InvitationRead invitationRead) {
+    return Invitation(
+      id: invitationRead.id,
+      peerId: invitationRead.senderId.toString(),
+      peerName: '', // Will be filled by caller
+      restaurant: invitationRead.restaurant,
+      activityId: invitationRead.activityId,
+      createdAt: invitationRead.createdAt,
+      sentByMe: invitationRead.sentByMe ?? false,
+      status: _parseInvitationStatus(invitationRead.status),
+      iceBreakers: _parseIceBreakers(invitationRead.iceBreakers),
+      nameCardCollected: invitationRead.nameCardCollected ?? false,
+      chatOpened: invitationRead.chatOpened ?? false,
+    );
+  }
+
+  InvitationStatus _parseInvitationStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'accepted':
+        return InvitationStatus.accepted;
+      case 'declined':
+        return InvitationStatus.declined;
+      case 'pending':
+      default:
+        return InvitationStatus.pending;
+    }
+  }
+
+  List<IceBreaker> _parseIceBreakers(String? iceBreakersStr) {
+    if (iceBreakersStr == null || iceBreakersStr.isEmpty) {
+      return [];
+    }
+    
+    final questions = iceBreakersStr.split('|');
+    return questions.map((question) => IceBreaker(
+      question: question,
+      answer: 'Ice breaker question',
+    )).toList();
+  }
+
+  // Chat model converters
+  ChatRoomBase chatRoomToChatRoomBase(ChatRoom chatRoom) {
+    return ChatRoomBase((b) => b
+      ..peerId = int.tryParse(chatRoom.peerId) ?? 0
+      ..peerName = chatRoom.peerName
+      ..restaurant = chatRoom.restaurant);
+  }
+
+  ChatRoom chatRoomReadToChatRoom(ChatRoomRead chatRoomRead) {
+    return ChatRoom(
+      id: chatRoomRead.id,
+      peerId: chatRoomRead.peerId.toString(),
+      peerName: chatRoomRead.peerName,
+      restaurant: chatRoomRead.restaurant,
+      createdAt: chatRoomRead.createdAt,
+    );
+  }
+
+  ChatMessageCreateRequest chatMessageToCreateRequest(String text, int senderId) {
+    return ChatMessageCreateRequest((b) => b
+      ..senderId = senderId
+      ..text = text
+      ..isMine = true);
+  }
+
+  ChatMessage chatMessageReadToChatMessage(ChatMessageRead messageRead, bool isMine) {
+    return ChatMessage(
+      id: messageRead.id,
+      text: messageRead.text,
+      isMine: isMine,
+      timestamp: messageRead.timestamp,
+    );
+  }
+
+  // Activity model converters
+  ActivityCreate activityToActivityCreate(Activity activity) {
+    return ActivityCreate((b) => b
+      ..name = activity.name
+      ..description = activity.description);
+  }
+
+  Activity activityReadToActivity(ActivityRead activityRead) {
+    return Activity(
+      id: activityRead.id,
+      name: activityRead.name,
+      description: activityRead.description,
+      createdAt: activityRead.createdAt,
+    );
+  }
+
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const double earthRadius = 6371; // Earth's radius in kilometers
 
@@ -402,6 +508,146 @@ class ApiService {
       _debugLog('Error deleting avatar: $e');
       return false;
     }
+  }
+
+  // Invitation endpoints
+
+  /// Create invitation
+  Future<InvitationRead> createInvitation(InvitationCreate invitation) async {
+    final response = await _executeWithRetry(
+      () => _api.createInvitationInvitationsPost(invitationCreate: invitation),
+      'Create Invitation',
+    );
+    return response.data!;
+  }
+
+  /// Get invitations for user
+  Future<BuiltList<InvitationRead>> getInvitations(int userId) async {
+    final response = await _executeWithRetry(
+      () => _api.getInvitationsInvitationsGet(userId: userId),
+      'Get Invitations',
+    );
+    return response.data!;
+  }
+
+  /// Accept invitation
+  Future<InvitationRead> acceptInvitation(String invitationId) async {
+    final response = await _executeWithRetry(
+      () => _api.acceptInvitationInvitationsInvitationIdAcceptPut(invitationId: invitationId),
+      'Accept Invitation',
+    );
+    return response.data!;
+  }
+
+  /// Decline invitation
+  Future<InvitationRead> declineInvitation(String invitationId) async {
+    final response = await _executeWithRetry(
+      () => _api.declineInvitationInvitationsInvitationIdDeclinePut(invitationId: invitationId),
+      'Decline Invitation',
+    );
+    return response.data!;
+  }
+
+  /// Collect name card
+  Future<InvitationRead> collectNameCard(String invitationId) async {
+    final response = await _executeWithRetry(
+      () => _api.collectNameCardInvitationsInvitationIdCollectNameCardPut(invitationId: invitationId),
+      'Collect Name Card',
+    );
+    return response.data!;
+  }
+
+  /// Mark chat opened
+  Future<InvitationRead> markChatOpened(String invitationId) async {
+    final response = await _executeWithRetry(
+      () => _api.markChatOpenedInvitationsInvitationIdChatOpenedPut(invitationId: invitationId),
+      'Mark Chat Opened',
+    );
+    return response.data!;
+  }
+
+  /// Mark not good match
+  Future<InvitationRead> markNotGoodMatch(String invitationId) async {
+    final response = await _executeWithRetry(
+      () => _api.markNotGoodMatchInvitationsInvitationIdNotGoodMatchPut(invitationId: invitationId),
+      'Mark Not Good Match',
+    );
+    return response.data!;
+  }
+
+  // Chat endpoints
+
+  /// Create chat room
+  Future<ChatRoomRead> createChatRoom(ChatRoomBase chatRoom) async {
+    final response = await _executeWithRetry(
+      () => _api.createChatroomChatroomsPost(chatRoomBase: chatRoom),
+      'Create Chat Room',
+    );
+    return response.data!;
+  }
+
+  /// Get chat rooms for user
+  Future<BuiltList<ChatRoomRead>> getChatRooms(int userId) async {
+    final response = await _executeWithRetry(
+      () => _api.getChatroomsChatroomsGet(userId: userId),
+      'Get Chat Rooms',
+    );
+    return response.data!;
+  }
+
+  /// Get chat room by ID
+  Future<ChatRoomRead> getChatRoom(String chatroomId) async {
+    final response = await _executeWithRetry(
+      () => _api.getChatroomChatroomsChatroomIdGet(chatroomId: chatroomId),
+      'Get Chat Room',
+    );
+    return response.data!;
+  }
+
+  /// Send chat message
+  Future<ChatMessageRead> sendChatMessage(String chatroomId, ChatMessageCreateRequest message) async {
+    final response = await _executeWithRetry(
+      () => _api.sendChatMessageChatroomsChatroomIdMessagesPost(chatroomId: chatroomId, chatMessageCreateRequest: message),
+      'Send Chat Message',
+    );
+    return response.data!;
+  }
+
+  /// Get chat messages
+  Future<BuiltList<ChatMessageRead>> getChatMessages(String chatroomId) async {
+    final response = await _executeWithRetry(
+      () => _api.getChatMessagesChatroomsChatroomIdMessagesGet(chatroomId: chatroomId),
+      'Get Chat Messages',
+    );
+    return response.data!;
+  }
+
+  // Activity endpoints
+
+  /// Create activity
+  Future<ActivityRead> createActivity(ActivityCreate activity) async {
+    final response = await _executeWithRetry(
+      () => _api.createActivityActivitiesPost(activityCreate: activity),
+      'Create Activity',
+    );
+    return response.data!;
+  }
+
+  /// Get activities
+  Future<BuiltList<ActivityRead>> getActivities() async {
+    final response = await _executeWithRetry(
+      () => _api.getActivitiesActivitiesGet(),
+      'Get Activities',
+    );
+    return response.data!;
+  }
+
+  /// Delete activity
+  Future<void> deleteActivity(String activityId) async {
+    await _executeWithRetry(
+      () => _api.deleteActivityActivitiesActivityIdDelete(activityId: activityId),
+      'Delete Activity',
+    );
   }
 
   void _debugLog(String message) {

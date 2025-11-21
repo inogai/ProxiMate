@@ -11,6 +11,7 @@ import '../models/user_rating.dart';
 import 'api_service.dart';
 import 'location_service.dart';
 import 'package:openapi/openapi.dart';
+import 'package:dio/dio.dart';
 
 /// Storage service with persistent data using shared_preferences and API integration
 class StorageService extends ChangeNotifier {
@@ -163,9 +164,44 @@ class StorageService extends ChangeNotifier {
         _startLocationTracking();
       }
 
+      // Load activities from API
+      await _loadActivitiesFromApi();
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading profile data: $e');
+    }
+  }
+
+  /// Load activities from API
+  Future<void> _loadActivitiesFromApi() async {
+    try {
+      if (_apiUserId == null) {
+        _debugLog('Cannot load activities from API: no API user ID');
+        return;
+      }
+
+      _debugLog('Loading activities from API...');
+      final apiActivities = await _apiService.getActivities();
+      
+      _activities.clear();
+      for (final apiActivity in apiActivities) {
+        final activity = _apiService.activityReadToActivity(apiActivity);
+        _activities.add(activity);
+      }
+      
+      _debugLog('Loaded ${_activities.length} activities from API');
+      
+      // Select first activity if none is selected
+      if (_selectedActivityId == null && _activities.isNotEmpty) {
+        _selectedActivityId = _activities.first.id;
+        _debugLog('Auto-selected activity: ${_activities.first.name}');
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      _debugLog('Error loading activities from API: $e');
+      // Continue with local activities if API fails
     }
   }
 
@@ -931,39 +967,111 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Send invitation to eat
+/// Send invitation to eat
   Future<Invitation> sendInvitation(Peer peer, String restaurant) async {
+    _debugLog('sendInvitation called for peer: ${peer.name}, restaurant: $restaurant');
+    
     // Require activity to be selected
     if (_selectedActivityId == null) {
+      _debugLog('No activity selected - throwing exception');
       throw Exception('No activity selected. Please select an activity first.');
     }
 
-    // Simulate API call
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Require API user ID for backend integration
+    if (_apiUserId == null) {
+      _debugLog('No API user ID - throwing exception');
+      throw Exception('User not authenticated. Please log in first.');
+    }
+
+    _debugLog('Validation passed - proceeding with API call');
+
+    // Require API user ID for backend integration
+    if (_apiUserId == null) {
+      _debugLog('No API user ID');
+      throw Exception('User not authenticated. Please log in first.');
+    }
+
+    _debugLog('Creating invitation with senderId: $_apiUserId, receiverId: ${peer.id}, activityId: $_selectedActivityId');
 
     // Generate ice-breaking questions
     final iceBreakers = _generateIceBreakers(peer);
 
-    final invitation = Invitation(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      peerId: peer.id,
-      peerName: peer.name,
-      restaurant: restaurant,
-      activityId: _selectedActivityId!,
-      createdAt: DateTime.now(),
-      sentByMe: true,
-      status: InvitationStatus.pending,
-      iceBreakers: iceBreakers,
-    );
+    try {
+      _debugLog('Creating API invitation request...');
+      
+      // Create API invitation request
+      final invitationCreate = InvitationCreate((b) => b
+        ..senderId = int.parse(_apiUserId!)
+        ..receiverId = int.parse(peer.id)
+        ..activityId = _selectedActivityId!
+        ..restaurant = restaurant
+        ..status = 'pending'
+        ..sentByMe = true
+        ..nameCardCollected = false
+        ..chatOpened = false
+..iceBreakers = _serializeIceBreakers(iceBreakers));
 
-    _invitations.add(invitation);
-    notifyListeners();
+      _debugLog('Calling ApiService.createInvitation...');
+      _debugLog('InvitationCreate data: senderId=${invitationCreate.senderId}, receiverId=${invitationCreate.receiverId}, activityId=${invitationCreate.activityId}');
+      
+      // Call API to create invitation
+      final apiResponse = await _apiService.createInvitation(invitationCreate);
+      
+      _debugLog('API call successful - received response with ID: ${apiResponse.id}');
+      _debugLog('API call successful, response: ${apiResponse.id}');
 
-    // Don't simulate peer response - let user use mock buttons instead
-    // Don't auto-simulate received invitations - causes duplicate activities
-    // _simulateReceivedInvitations();
+      // Create local invitation object from API response
+      final invitation = Invitation(
+        id: apiResponse.id.toString(),
+        peerId: peer.id,
+        peerName: peer.name,
+        restaurant: restaurant,
+        activityId: _selectedActivityId!,
+        createdAt: apiResponse.createdAt,
+        sentByMe: true,
+        status: _parseInvitationStatus(apiResponse.status ?? 'pending'),
+        iceBreakers: iceBreakers,
+        nameCardCollected: apiResponse.nameCardCollected ?? false,
+        chatOpened: apiResponse.chatOpened ?? false,
+      );
 
-    return invitation;
+      _invitations.add(invitation);
+      notifyListeners();
+      _debugLog('Invitation added to local list and notified listeners');
+
+      return invitation;
+    } catch (e) {
+      _debugLog('Failed to send invitation: $e');
+      _debugLog('Error type: ${e.runtimeType}');
+      if (e is DioException) {
+        _debugLog('Dio error: ${e.type} - ${e.message}');
+        _debugLog('Response: ${e.response?.data}');
+      }
+      throw Exception('Failed to send invitation: ${e.toString()}');
+    }
+  }
+
+  /// Serialize iceBreakers to JSON string for API
+  String _serializeIceBreakers(List<IceBreaker> iceBreakers) {
+    final iceBreakerMap = iceBreakers.map((ib) => {
+      'question': ib.question,
+      'answer': ib.answer,
+    }).toList();
+    return jsonEncode(iceBreakerMap);
+  }
+
+  /// Parse invitation status from API string
+  InvitationStatus _parseInvitationStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return InvitationStatus.pending;
+      case 'accepted':
+        return InvitationStatus.accepted;
+      case 'declined':
+        return InvitationStatus.declined;
+      default:
+        return InvitationStatus.pending;
+    }
   }
 
   /// Generate ice-breaking questions based on peer's profile

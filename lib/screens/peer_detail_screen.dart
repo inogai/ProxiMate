@@ -320,6 +320,8 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
   }
 
   Future<void> _handleSendInvite() async {
+    print('_handleSendInvite called for peer: ${widget.peer.name}');
+    
     // First, show restaurant selection screen
     final selectedRestaurant = await Navigator.push<String>(
       context,
@@ -328,8 +330,11 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
       ),
     );
 
+    print('Restaurant selected: $selectedRestaurant');
+
     // If user cancelled restaurant selection, don't send invitation
     if (selectedRestaurant == null || !mounted) {
+      print('Restaurant selection cancelled or widget not mounted');
       return;
     }
 
@@ -338,10 +343,12 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
     });
 
     try {
+      print('Calling sendInvitation...');
       await context.read<StorageService>().sendInvitation(
             widget.peer,
             selectedRestaurant,
           );
+      print('sendInvitation completed successfully');
 
       if (mounted) {
         // Pop all routes and push MainScreen with invitations tab selected

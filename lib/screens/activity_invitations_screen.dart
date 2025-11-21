@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:async';
-import 'dart:math';
 import '../services/storage_service.dart';
 import '../models/meeting.dart';
 import '../models/activity.dart';
@@ -21,64 +19,15 @@ class ActivityInvitationsScreen extends StatefulWidget {
 }
 
 class _ActivityInvitationsScreenState extends State<ActivityInvitationsScreen> {
-  Timer? _autoResponseTimer;
-  final Random _random = Random();
-
   @override
   void initState() {
     super.initState();
-    // Start timer for auto-responding to pending invitations after 5 seconds
-    _autoResponseTimer = Timer(
-      const Duration(seconds: 5),
-      _autoRespondToPendingInvitations,
-    );
+    // Auto-response timer removed - now using real API endpoints
   }
 
   @override
   void dispose() {
-    _autoResponseTimer?.cancel();
     super.dispose();
-  }
-
-  Future<void> _autoRespondToPendingInvitations() async {
-    if (!mounted) return;
-
-    final storage = context.read<StorageService>();
-    final sentInvitations = storage.sentInvitations
-        .where((i) => i.activityId == widget.activity.id && i.isPending)
-        .toList();
-
-    for (final invitation in sentInvitations) {
-      // Random chance: 70% accept, 30% decline
-      final shouldAccept = _random.nextDouble() < 0.7;
-
-      if (shouldAccept) {
-        await storage.mockAcceptSentInvitation(invitation.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${invitation.peerName} accepted your invitation!'),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      } else {
-        await storage.mockDeclineSentInvitation(invitation.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${invitation.peerName} declined your invitation'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-
-      // Add a small delay between responses to make it feel more natural
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
   }
 
   void _showPeerProfileDialog(Invitation invitation) {
