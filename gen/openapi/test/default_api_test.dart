@@ -21,6 +21,20 @@ void main() {
       // TODO
     });
 
+    // Get Batch Locations
+    //
+    //Future<BuiltList<LocationRead>> getBatchLocationsLocationsBatchGet(String userIds) async
+    test('test getBatchLocationsLocationsBatchGet', () async {
+      // TODO
+    });
+
+    // Get Nearby Users
+    //
+    //Future<BuiltList<UserReadWithDistance>> getNearbyUsersUsersNearbyGet(num latitude, num longitude, { num radiusKm, int limit }) async
+    test('test getNearbyUsersUsersNearbyGet', () async {
+      // TODO
+    });
+
     // Get User Locations
     //
     //Future<BuiltList<LocationRead>> getUserLocationsLocationsUserIdGet(int userId) async
@@ -28,10 +42,10 @@ void main() {
       // TODO
     });
 
-    // Get User
+    // Get Users
     //
-    //Future<UserRead> getUserUsersUserIdGet(int userId) async
-    test('test getUserUsersUserIdGet', () async {
+    //Future<BuiltList<UserRead>> getUsersUsersGet({ String school, String major, String interests, int limit, int offset }) async
+    test('test getUsersUsersGet', () async {
       // TODO
     });
 
@@ -49,10 +63,10 @@ void main() {
       // TODO
     });
 
-    // Update User
+    // Visualize Db
     //
-    //Future<UserRead> updateUserUsersUserIdPut(int userId, UserUpdate userUpdate) async
-    test('test updateUserUsersUserIdPut', () async {
+    //Future<String> visualizeDbVisualizeGet() async
+    test('test visualizeDbVisualizeGet', () async {
       // TODO
     });
 

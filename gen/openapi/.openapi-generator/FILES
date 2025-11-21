@@ -7,7 +7,7 @@ doc/LocationCreate.md
 doc/LocationRead.md
 doc/UserCreate.md
 doc/UserRead.md
-doc/UserUpdate.md
+doc/UserReadWithDistance.md
 doc/ValidationError.md
 doc/ValidationErrorLocInner.md
 lib/openapi.dart
@@ -26,7 +26,7 @@ lib/src/model/location_create.dart
 lib/src/model/location_read.dart
 lib/src/model/user_create.dart
 lib/src/model/user_read.dart
-lib/src/model/user_update.dart
+lib/src/model/user_read_with_distance.dart
 lib/src/model/validation_error.dart
 lib/src/model/validation_error_loc_inner.dart
 lib/src/serializers.dart
@@ -37,6 +37,6 @@ test/location_create_test.dart
 test/location_read_test.dart
 test/user_create_test.dart
 test/user_read_test.dart
-test/user_update_test.dart
+test/user_read_with_distance_test.dart
 test/validation_error_loc_inner_test.dart
 test/validation_error_test.dart

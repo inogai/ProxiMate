@@ -12,7 +12,7 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(LocationRead.serializer)
       ..add(UserCreate.serializer)
       ..add(UserRead.serializer)
-      ..add(UserUpdate.serializer)
+      ..add(UserReadWithDistance.serializer)
       ..add(ValidationError.serializer)
       ..add(ValidationErrorLocInner.serializer)
       ..addBuilderFactory(

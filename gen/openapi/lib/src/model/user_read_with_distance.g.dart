@@ -1,14 +1,14 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'user_update.dart';
+part of 'user_read_with_distance.dart';
 
 // **************************************************************************
 // BuiltValueGenerator
 // **************************************************************************
 
-class _$UserUpdate extends UserUpdate {
+class _$UserReadWithDistance extends UserReadWithDistance {
   @override
-  final String? username;
+  final String username;
   @override
   final String? school;
   @override
@@ -19,35 +19,50 @@ class _$UserUpdate extends UserUpdate {
   final String? bio;
   @override
   final String? avatarUrl;
+  @override
+  final int id;
+  @override
+  final DateTime createdAt;
+  @override
+  final num? distanceKm;
 
-  factory _$UserUpdate([void Function(UserUpdateBuilder)? updates]) =>
-      (UserUpdateBuilder()..update(updates))._build();
+  factory _$UserReadWithDistance(
+          [void Function(UserReadWithDistanceBuilder)? updates]) =>
+      (UserReadWithDistanceBuilder()..update(updates))._build();
 
-  _$UserUpdate._(
-      {this.username,
+  _$UserReadWithDistance._(
+      {required this.username,
       this.school,
       this.major,
       this.interests,
       this.bio,
-      this.avatarUrl})
+      this.avatarUrl,
+      required this.id,
+      required this.createdAt,
+      this.distanceKm})
       : super._();
   @override
-  UserUpdate rebuild(void Function(UserUpdateBuilder) updates) =>
+  UserReadWithDistance rebuild(
+          void Function(UserReadWithDistanceBuilder) updates) =>
       (toBuilder()..update(updates)).build();
 
   @override
-  UserUpdateBuilder toBuilder() => UserUpdateBuilder()..replace(this);
+  UserReadWithDistanceBuilder toBuilder() =>
+      UserReadWithDistanceBuilder()..replace(this);
 
   @override
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
-    return other is UserUpdate &&
+    return other is UserReadWithDistance &&
         username == other.username &&
         school == other.school &&
         major == other.major &&
         interests == other.interests &&
         bio == other.bio &&
-        avatarUrl == other.avatarUrl;
+        avatarUrl == other.avatarUrl &&
+        id == other.id &&
+        createdAt == other.createdAt &&
+        distanceKm == other.distanceKm;
   }
 
   @override
@@ -59,25 +74,32 @@ class _$UserUpdate extends UserUpdate {
     _$hash = $jc(_$hash, interests.hashCode);
     _$hash = $jc(_$hash, bio.hashCode);
     _$hash = $jc(_$hash, avatarUrl.hashCode);
+    _$hash = $jc(_$hash, id.hashCode);
+    _$hash = $jc(_$hash, createdAt.hashCode);
+    _$hash = $jc(_$hash, distanceKm.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
 
   @override
   String toString() {
-    return (newBuiltValueToStringHelper(r'UserUpdate')
+    return (newBuiltValueToStringHelper(r'UserReadWithDistance')
           ..add('username', username)
           ..add('school', school)
           ..add('major', major)
           ..add('interests', interests)
           ..add('bio', bio)
-          ..add('avatarUrl', avatarUrl))
+          ..add('avatarUrl', avatarUrl)
+          ..add('id', id)
+          ..add('createdAt', createdAt)
+          ..add('distanceKm', distanceKm))
         .toString();
   }
 }
 
-class UserUpdateBuilder implements Builder<UserUpdate, UserUpdateBuilder> {
-  _$UserUpdate? _$v;
+class UserReadWithDistanceBuilder
+    implements Builder<UserReadWithDistance, UserReadWithDistanceBuilder> {
+  _$UserReadWithDistance? _$v;
 
   String? _username;
   String? get username => _$this._username;
@@ -103,11 +125,23 @@ class UserUpdateBuilder implements Builder<UserUpdate, UserUpdateBuilder> {
   String? get avatarUrl => _$this._avatarUrl;
   set avatarUrl(String? avatarUrl) => _$this._avatarUrl = avatarUrl;
 
-  UserUpdateBuilder() {
-    UserUpdate._defaults(this);
+  int? _id;
+  int? get id => _$this._id;
+  set id(int? id) => _$this._id = id;
+
+  DateTime? _createdAt;
+  DateTime? get createdAt => _$this._createdAt;
+  set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+
+  num? _distanceKm;
+  num? get distanceKm => _$this._distanceKm;
+  set distanceKm(num? distanceKm) => _$this._distanceKm = distanceKm;
+
+  UserReadWithDistanceBuilder() {
+    UserReadWithDistance._defaults(this);
   }
 
-  UserUpdateBuilder get _$this {
+  UserReadWithDistanceBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
       _username = $v.username;
@@ -116,33 +150,42 @@ class UserUpdateBuilder implements Builder<UserUpdate, UserUpdateBuilder> {
       _interests = $v.interests;
       _bio = $v.bio;
       _avatarUrl = $v.avatarUrl;
+      _id = $v.id;
+      _createdAt = $v.createdAt;
+      _distanceKm = $v.distanceKm;
       _$v = null;
     }
     return this;
   }
 
   @override
-  void replace(UserUpdate other) {
-    _$v = other as _$UserUpdate;
+  void replace(UserReadWithDistance other) {
+    _$v = other as _$UserReadWithDistance;
   }
 
   @override
-  void update(void Function(UserUpdateBuilder)? updates) {
+  void update(void Function(UserReadWithDistanceBuilder)? updates) {
     if (updates != null) updates(this);
   }
 
   @override
-  UserUpdate build() => _build();
+  UserReadWithDistance build() => _build();
 
-  _$UserUpdate _build() {
+  _$UserReadWithDistance _build() {
     final _$result = _$v ??
-        _$UserUpdate._(
-          username: username,
+        _$UserReadWithDistance._(
+          username: BuiltValueNullFieldError.checkNotNull(
+              username, r'UserReadWithDistance', 'username'),
           school: school,
           major: major,
           interests: interests,
           bio: bio,
           avatarUrl: avatarUrl,
+          id: BuiltValueNullFieldError.checkNotNull(
+              id, r'UserReadWithDistance', 'id'),
+          createdAt: BuiltValueNullFieldError.checkNotNull(
+              createdAt, r'UserReadWithDistance', 'createdAt'),
+          distanceKm: distanceKm,
         );
     replace(_$result);
     return _$result;

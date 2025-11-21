@@ -19,7 +19,7 @@ import 'package:openapi/src/model/location_create.dart';
 import 'package:openapi/src/model/location_read.dart';
 import 'package:openapi/src/model/user_create.dart';
 import 'package:openapi/src/model/user_read.dart';
-import 'package:openapi/src/model/user_update.dart';
+import 'package:openapi/src/model/user_read_with_distance.dart';
 import 'package:openapi/src/model/validation_error.dart';
 import 'package:openapi/src/model/validation_error_loc_inner.dart';
 
@@ -31,14 +31,22 @@ part 'serializers.g.dart';
   LocationRead,
   UserCreate,
   UserRead,
-  UserUpdate,
+  UserReadWithDistance,
   ValidationError,
   ValidationErrorLocInner,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(UserReadWithDistance)]),
+        () => ListBuilder<UserReadWithDistance>(),
+      )
+      ..addBuilderFactory(
         const FullType(BuiltList, [FullType(LocationRead)]),
         () => ListBuilder<LocationRead>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(UserRead)]),
+        () => ListBuilder<UserRead>(),
       )
       ..add(const OneOfSerializer())
       ..add(const AnyOfSerializer())

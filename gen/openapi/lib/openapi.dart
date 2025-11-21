@@ -17,7 +17,7 @@ export 'package:openapi/src/model/location_create.dart';
 export 'package:openapi/src/model/location_read.dart';
 export 'package:openapi/src/model/user_create.dart';
 export 'package:openapi/src/model/user_read.dart';
-export 'package:openapi/src/model/user_update.dart';
+export 'package:openapi/src/model/user_read_with_distance.dart';
 export 'package:openapi/src/model/validation_error.dart';
 export 'package:openapi/src/model/validation_error_loc_inner.dart';
 
