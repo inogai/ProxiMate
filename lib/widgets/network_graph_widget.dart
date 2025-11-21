@@ -1,42 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Node in the network graph
-class NetworkNode {
-  final String id;
-  final String name;
-  final String? school;
-  final String? major;
-  final String? interests;
-  final Color color;
-  Offset position;
-  Offset velocity;
-  bool isDragging;
-  final List<String> connections;
-  final String? profileImagePath;
-  final bool isDirectConnection;
-  final int? depth;
-  final bool isTextNode;
-
-  NetworkNode({
-    required this.id,
-    required this.name,
-    this.school,
-    this.major,
-    this.interests,
-    required this.color,
-    required this.position,
-    this.connections = const [],
-    this.profileImagePath,
-    this.isDirectConnection = true,
-    this.depth,
-    this.isTextNode = false,
-  })  : velocity = Offset.zero,
-        isDragging = false;
-}
+import 'network_graph_node.dart';
 
 /// Interactive network graph widget with Obsidian-like visualization
 class NetworkGraphWidget extends StatefulWidget {
@@ -77,7 +41,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   @override
   void initState() {
     super.initState();
-    
+
     // Set initial selected node if provided
     if (widget.initialSelectedNodeId != null) {
       _selectedNode = widget.nodes.firstWhere(
@@ -89,16 +53,22 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
 
   void _ensureNodesInViewport() {
     if (_viewportSize == null) return;
-    
+
     final margin = nodeRadius * 2;
-    
+
     for (final node in widget.nodes) {
       if (node.isTextNode) continue;
-      
+
       // Clamp node positions to viewport bounds
-      final clampedX = node.position.dx.clamp(margin, _viewportSize!.width - margin);
-      final clampedY = node.position.dy.clamp(margin, _viewportSize!.height - margin);
-      
+      final clampedX = node.position.dx.clamp(
+        margin,
+        _viewportSize!.width - margin,
+      );
+      final clampedY = node.position.dy.clamp(
+        margin,
+        _viewportSize!.height - margin,
+      );
+
       // Only update if outside bounds
       if (node.position.dx != clampedX || node.position.dy != clampedY) {
         node.position = Offset(clampedX, clampedY);
@@ -111,42 +81,14 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
     super.dispose();
   }
 
-  void _onNodePanStart(NetworkNode node, DragStartDetails details, double offset) {
+  void _onNodePanStart(
+    NetworkNode node,
+    DragStartDetails details,
+    double offset,
+  ) {
     setState(() {
       node.isDragging = true;
     });
-  }
-
-  bool _hasCommonInterests(NetworkNode node) {
-    // Always show current user, text nodes, and direct connections
-    if (node.id == widget.currentUserId || node.isTextNode || node.isDirectConnection) return true;
-    
-    // Check for common major
-    if (widget.currentUserMajor != null && node.major != null) {
-      if (node.major!.toLowerCase() == widget.currentUserMajor!.toLowerCase()) {
-        return true;
-      }
-    }
-    
-    // Check for common interests
-    if (widget.currentUserInterests != null && node.interests != null) {
-      final currentUserInterestsList = widget.currentUserInterests!
-          .split(',')
-          .map((i) => i.trim().toLowerCase())
-          .toList();
-      final nodeInterestsList = node.interests!
-          .split(',')
-          .map((i) => i.trim().toLowerCase())
-          .toList();
-      
-      for (final interest in nodeInterestsList) {
-        if (currentUserInterestsList.contains(interest)) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
   }
 
   void _showFilterDialog() {
@@ -159,17 +101,17 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Highlight extended connections with common interests',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
               ),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Highlight Common Tags'),
-                subtitle: const Text(
-                  'Show full opacity for connections with shared major or interests',
-                  style: TextStyle(fontSize: 12),
-                ),
+                 subtitle: Text(
+                   'Show full opacity for connections with shared major or interests',
+                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                 ),
                 value: _highlightCommonInterests,
                 onChanged: (bool value) {
                   setState(() {
@@ -181,17 +123,21 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
+             TextButton(
+               onPressed: () => Navigator.pop(context),
+               child: Text('Close', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+             ),
           ],
         );
       },
     );
   }
 
-  void _onNodePanUpdate(NetworkNode node, DragUpdateDetails details, double offset) {
+  void _onNodePanUpdate(
+    NetworkNode node,
+    DragUpdateDetails details,
+    double offset,
+  ) {
     if (!mounted) return;
     setState(() {
       // Use delta for smooth incremental updates
@@ -225,6 +171,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     // Capture viewport size for physics
     final size = MediaQuery.of(context).size;
     if (_viewportSize != size) {
@@ -238,22 +185,19 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
         }
       });
     }
-    
+
     return GestureDetector(
       onScaleStart: _onScaleStart,
       onScaleUpdate: _onScaleUpdate,
       child: Container(
-        color: Colors.grey[900],
+        color: theme.colorScheme.surface,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             // Background grid
             CustomPaint(
               size: Size.infinite,
-              painter: GridPainter(
-                scale: _scale,
-                offset: _panOffset,
-              ),
+              painter: GridPainter(scale: _scale, offset: _panOffset, theme: theme),
             ),
             // Network graph
             Transform.translate(
@@ -263,39 +207,56 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                 alignment: Alignment.center,
                 child: SizedBox.expand(
                   child: CustomPaint(
-                    painter: NetworkGraphPainter(
-                      nodes: widget.nodes,
-                      selectedNode: _selectedNode,
-                    ),
+                     painter: NetworkGraphPainter(
+                       nodes: widget.nodes,
+                       selectedNode: _selectedNode,
+                       theme: theme,
+                     ),
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: widget.nodes.map((node) {
                         final isSelected = _selectedNode?.id == node.id;
-                        final isYou = widget.currentUserId != null && node.id == widget.currentUserId;
-                        final baseSize = isYou ? nodeRadius * 2.6 : nodeRadius * 2;
+                        final isYou =
+                            widget.currentUserId != null &&
+                            node.id == widget.currentUserId;
+                        final baseSize = isYou
+                            ? nodeRadius * 2.6
+                            : nodeRadius * 2;
                         final size = isSelected ? baseSize * 1.2 : baseSize;
                         final offset = size / 2;
-                        
                         // For text nodes, center differently
                         if (node.isTextNode) {
                           return Positioned(
                             left: node.position.dx,
                             top: node.position.dy,
                             child: Transform.translate(
-                              offset: const Offset(-125, -10), // Center the ~250px wide text
+                              offset: const Offset(
+                                -125,
+                                -10,
+                              ), // Center the ~250px wide text
                               child: SizedBox(
                                 width: 250,
                                 child: GestureDetector(
                                   onTap: () {
                                     // Text nodes are not interactive
                                   },
-                                  child: _buildNode(node),
+                                  child: NetworkNodeWidget(
+                                    node: node,
+                                    selectedNode: _selectedNode,
+                                    currentUserId: widget.currentUserId,
+                                    currentUserMajor: widget.currentUserMajor,
+                                    currentUserInterests:
+                                        widget.currentUserInterests,
+                                    highlightCommonInterests:
+                                        _highlightCommonInterests,
+                                    nodeRadius: nodeRadius,
+                                  ),
                                 ),
                               ),
                             ),
                           );
                         }
-                        
+
                         return Positioned(
                           left: node.position.dx - offset,
                           top: node.position.dy - offset,
@@ -311,7 +272,16 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                               });
                               widget.onNodeTap?.call(node);
                             },
-                            child: _buildNode(node),
+                            child: NetworkNodeWidget(
+                              node: node,
+                              selectedNode: _selectedNode,
+                              currentUserId: widget.currentUserId,
+                              currentUserMajor: widget.currentUserMajor,
+                              currentUserInterests: widget.currentUserInterests,
+                              highlightCommonInterests:
+                                  _highlightCommonInterests,
+                              nodeRadius: nodeRadius,
+                            ),
                           ),
                         );
                       }).toList(),
@@ -321,11 +291,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
               ),
             ),
             // Controls overlay
-            Positioned(
-              top: 16,
-              right: 16,
-              child: _buildControls(),
-            ),
+            Positioned(top: 16, right: 16, child: _buildControls()),
             // Selected node info
             if (_selectedNode != null)
               Positioned(
@@ -340,130 +306,27 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
     );
   }
 
-  Widget _buildNode(NetworkNode node) {
-    // Handle text-only nodes
-    if (node.isTextNode) {
-      return Text(
-        node.name,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 14,
-          color: Colors.grey.shade600,
-          fontStyle: FontStyle.italic,
-        ),
-      );
-    }
-
-    final isSelected = _selectedNode?.id == node.id;
-    final isYou = widget.currentUserId != null && node.id == widget.currentUserId;
-    final baseSize = isYou ? nodeRadius * 2.6 : nodeRadius * 2;
-    final size = isSelected ? baseSize * 1.2 : baseSize;
-    
-    // Calculate opacity based on filter state and common interests
-    final hasCommonTags = _hasCommonInterests(node);
-    double opacity;
-    if (node.isDirectConnection) {
-      opacity = 1.0;
-    } else if (_highlightCommonInterests) {
-      // When filter is on, full opacity for common interests, reduced for others
-      opacity = hasCommonTags ? 1.0 : (node.depth != null && node.depth! >= 2 ? 0.25 : 0.4);
-    } else {
-      // Default opacity based on depth
-      opacity = node.depth != null && node.depth! >= 2 ? 0.25 : 0.4;
-    }
-
-    // Determine if node should have green outline (non-direct connection with common tags)
-    final bool hasGreenOutline = !node.isDirectConnection && hasCommonTags;
-
-    return Opacity(
-      opacity: opacity,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: node.profileImagePath == null ? node.color : Colors.transparent,
-          border: Border.all(
-            color: isSelected
-                ? Colors.white
-                : isYou
-                    ? Colors.white.withOpacity(0.8)
-                    : hasGreenOutline
-                        ? Colors.green
-                        : Colors.white.withOpacity(0.3),
-            width: isSelected ? 3 : (isYou ? 3 : (hasGreenOutline ? 2.5 : 2)),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: hasGreenOutline ? Colors.green.withOpacity(0.6) : node.color.withOpacity(0.5),
-              blurRadius: isSelected ? 20 : (isYou ? 15 : (hasGreenOutline ? 12 : 10)),
-              spreadRadius: isSelected ? 5 : (isYou ? 4 : (hasGreenOutline ? 3 : 2)),
-            ),
-          ],
-        ),
-        child: ClipOval(
-          child: node.profileImagePath != null
-              ? RepaintBoundary(
-                  child: Image(
-                    image: _getImageProvider(node.profileImagePath!),
-                    fit: BoxFit.cover,
-                    width: size,
-                    height: size,
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.medium,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: node.color,
-                        child: Center(
-                          child: Text(
-                            isYou ? 'YOU' : node.name.split(' ').map((e) => e[0]).take(2).join(),
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: isSelected ? (isYou ? 18 : 16) : (isYou ? 16 : 14),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                )
-              : Container(
-                  color: node.color,
-                  child: Center(
-                    child: Text(
-                      isYou ? 'YOU' : node.name.split(' ').map((e) => e[0]).take(2).join(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSelected ? (isYou ? 18 : 16) : (isYou ? 16 : 14),
-                      ),
-                    ),
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildControls() {
+    final theme = Theme.of(context);
     return Card(
-      color: Colors.black.withOpacity(0.7),
+      color: theme.colorScheme.surface.withOpacity(0.7),
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
           children: [
             IconButton(
               icon: Icon(
-                _highlightCommonInterests ? Icons.filter_alt : Icons.filter_alt_outlined,
-                color: _highlightCommonInterests ? Colors.green : Colors.white,
+                _highlightCommonInterests
+                    ? Icons.filter_alt
+                    : Icons.filter_alt_outlined,
+                color: _highlightCommonInterests ? theme.colorScheme.secondary : theme.colorScheme.onSurface,
               ),
               onPressed: _showFilterDialog,
               tooltip: 'Filter Network',
             ),
-            const Divider(color: Colors.white24, height: 1),
+            Divider(color: theme.colorScheme.onSurface.withOpacity(0.24), height: 1),
             IconButton(
-              icon: const Icon(Icons.add, color: Colors.white),
+              icon: Icon(Icons.add, color: theme.colorScheme.onSurface),
               onPressed: () {
                 setState(() {
                   _scale = (_scale + 0.2).clamp(0.5, 3.0);
@@ -472,7 +335,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
               tooltip: 'Zoom In',
             ),
             IconButton(
-              icon: const Icon(Icons.remove, color: Colors.white),
+              icon: Icon(Icons.remove, color: theme.colorScheme.onSurface),
               onPressed: () {
                 setState(() {
                   _scale = (_scale - 0.2).clamp(0.5, 3.0);
@@ -481,7 +344,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
               tooltip: 'Zoom Out',
             ),
             IconButton(
-              icon: const Icon(Icons.center_focus_strong, color: Colors.white),
+              icon: Icon(Icons.center_focus_strong, color: theme.colorScheme.onSurface),
               onPressed: () {
                 setState(() {
                   _scale = 1.0;
@@ -497,11 +360,13 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   }
 
   Widget _buildSelectedNodeInfo() {
+    final theme = Theme.of(context);
     if (_selectedNode == null) return const SizedBox.shrink();
-    final bool isCurrentUser = _selectedNode!.id == 'you' || _selectedNode!.id == widget.currentUserId;
+    final bool isCurrentUser =
+        _selectedNode!.id == 'you' || _selectedNode!.id == widget.currentUserId;
 
     return Card(
-      color: Colors.black.withOpacity(0.85),
+      color: theme.colorScheme.surface.withOpacity(0.85),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -518,13 +383,17 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                 height: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _selectedNode!.profileImagePath == null ? _selectedNode!.color : Colors.transparent,
+                  color: _selectedNode!.profileImagePath == null
+                      ? _selectedNode!.color
+                      : Colors.transparent,
                 ),
                 child: ClipOval(
                   child: _selectedNode!.profileImagePath != null
                       ? RepaintBoundary(
                           child: Image(
-                            image: _getImageProvider(_selectedNode!.profileImagePath!),
+                            image: NetworkNodeWidget.getImageProvider(
+                              _selectedNode!.profileImagePath!,
+                            ),
                             fit: BoxFit.cover,
                             width: 50,
                             height: 50,
@@ -537,9 +406,13 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                                   child: Text(
                                     _selectedNode!.id == 'you'
                                         ? 'YOU'
-                                        : _selectedNode!.name.split(' ').map((e) => e[0]).take(2).join(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                        : _selectedNode!.name
+                                              .split(' ')
+                                              .map((e) => e[0])
+                                              .take(2)
+                                              .join(),
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onPrimary,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
                                     ),
@@ -555,9 +428,13 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                             child: Text(
                               _selectedNode!.id == 'you'
                                   ? 'YOU'
-                                  : _selectedNode!.name.split(' ').map((e) => e[0]).take(2).join(),
-                              style: const TextStyle(
-                                color: Colors.white,
+                                  : _selectedNode!.name
+                                        .split(' ')
+                                        .map((e) => e[0])
+                                        .take(2)
+                                        .join(),
+                              style: TextStyle(
+                                color: theme.colorScheme.onPrimary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
                               ),
@@ -581,8 +458,8 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                   children: [
                     Text(
                       _selectedNode!.name,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -591,10 +468,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                       const SizedBox(height: 4),
                       Text(
                         _selectedNode!.school!,
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 14),
                       ),
                     ],
                     const SizedBox(height: 8),
@@ -605,25 +479,30 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                         if (_selectedNode!.major != null)
                           Builder(
                             builder: (context) {
-                              final bool matches = widget.currentUserMajor != null &&
+                              final bool matches =
+                                  widget.currentUserMajor != null &&
                                   _selectedNode!.major!.toLowerCase() ==
                                       widget.currentUserMajor!.toLowerCase();
                               return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: matches
-                                      ? Colors.green.withOpacity(0.3)
-                                      : Colors.grey.withOpacity(0.3),
+                                      ? theme.colorScheme.secondary.withOpacity(0.3)
+                                      : theme.colorScheme.onSurface.withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                      color: matches
-                                          ? Colors.green.withOpacity(0.5)
-                                          : Colors.grey.withOpacity(0.5)),
+                                    color: matches
+                                        ? theme.colorScheme.secondary.withOpacity(0.5)
+                                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                                  ),
                                 ),
                                 child: Text(
                                   _selectedNode!.major!,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurface,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -632,30 +511,38 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                             },
                           ),
                         if (_selectedNode!.interests != null)
-                          ..._selectedNode!.interests!.split(',').map((interest) {
+                          ..._selectedNode!.interests!.split(',').map((
+                            interest,
+                          ) {
                             final trimmedInterest = interest.trim();
-                            final currentUserInterestsList = widget.currentUserInterests
-                                ?.split(',')
-                                .map((i) => i.trim().toLowerCase())
-                                .toList() ?? [];
+                            final currentUserInterestsList =
+                                widget.currentUserInterests
+                                    ?.split(',')
+                                    .map((i) => i.trim().toLowerCase())
+                                    .toList() ??
+                                [];
                             final bool matches = currentUserInterestsList
                                 .contains(trimmedInterest.toLowerCase());
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: matches
-                                    ? Colors.green.withOpacity(0.3)
-                                    : Colors.grey.withOpacity(0.3),
+                                    ? theme.colorScheme.secondary.withOpacity(0.3)
+                                    : theme.colorScheme.onSurface.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                    color: matches
-                                        ? Colors.green.withOpacity(0.5)
-                                        : Colors.grey.withOpacity(0.5)),
+                                  color: matches
+                                      ? theme.colorScheme.secondary.withOpacity(0.5)
+                                      : theme.colorScheme.onSurface.withOpacity(0.5),
+                                ),
                               ),
                               child: Text(
                                 trimmedInterest,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -672,7 +559,10 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
               Container(
                 alignment: Alignment.center,
                 child: IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                  icon: Icon(
+                    Icons.chat_bubble_outline,
+                    color: theme.colorScheme.onSurface,
+                  ),
                   onPressed: () {
                     if (widget.onInfoBarTap != null) {
                       widget.onInfoBarTap!(_selectedNode!);
@@ -684,7 +574,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             Container(
               alignment: Alignment.center,
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
+                icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
                 onPressed: () {
                   setState(() {
                     _selectedNode = null;
@@ -697,32 +587,15 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
       ),
     );
   }
-
-  ImageProvider _getImageProvider(String imagePath) {
-    if (kIsWeb) {
-      if (imagePath.startsWith('data:')) {
-        // Base64 data URL
-        return MemoryImage(base64Decode(imagePath.split(',')[1]));
-      } else {
-        // Blob URL or network URL
-        return NetworkImage(imagePath);
-      }
-    } else {
-      // Mobile: file path
-      return FileImage(File(imagePath));
-    }
-  }
 }
 
 /// Painter for the network graph connections
 class NetworkGraphPainter extends CustomPainter {
   final List<NetworkNode> nodes;
   final NetworkNode? selectedNode;
+  final ThemeData theme;
 
-  NetworkGraphPainter({
-    required this.nodes,
-    this.selectedNode,
-  });
+  NetworkGraphPainter({required this.nodes, this.selectedNode, required this.theme});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -739,24 +612,21 @@ class NetworkGraphPainter extends CustomPainter {
         );
         if (connectedNode.id == node.id) continue;
 
-        final isHighlighted = selectedNode?.id == node.id ||
-            selectedNode?.id == connectedNode.id;
-        
+        final isHighlighted =
+            selectedNode?.id == node.id || selectedNode?.id == connectedNode.id;
+
         // Make connection line more transparent if either node is indirect
-        final isIndirectConnection = !node.isDirectConnection || !connectedNode.isDirectConnection;
+        final isIndirectConnection =
+            !node.isDirectConnection || !connectedNode.isDirectConnection;
         final baseOpacity = isIndirectConnection ? 0.05 : 0.1;
         final highlightOpacity = isIndirectConnection ? 0.3 : 0.6;
 
         connectionPaint.color = isHighlighted
-            ? Colors.white.withOpacity(highlightOpacity)
-            : Colors.white.withOpacity(baseOpacity);
+            ? theme.colorScheme.onSurface.withOpacity(highlightOpacity)
+            : theme.colorScheme.onSurface.withOpacity(baseOpacity);
         connectionPaint.strokeWidth = isHighlighted ? 3 : 1.5;
 
-        canvas.drawLine(
-          node.position,
-          connectedNode.position,
-          connectionPaint,
-        );
+        canvas.drawLine(node.position, connectedNode.position, connectionPaint);
       }
     }
   }
@@ -769,31 +639,24 @@ class NetworkGraphPainter extends CustomPainter {
 class GridPainter extends CustomPainter {
   final double scale;
   final Offset offset;
+  final ThemeData theme;
 
-  GridPainter({required this.scale, required this.offset});
+  GridPainter({required this.scale, required this.offset, required this.theme});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
+      ..color = theme.colorScheme.onSurface.withOpacity(0.05)
       ..strokeWidth = 1;
 
     const gridSize = 50.0;
 
     for (double x = 0; x < size.width; x += gridSize * scale) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
 
     for (double y = 0; y < size.height; y += gridSize * scale) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 

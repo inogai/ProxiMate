@@ -10,6 +10,7 @@ import '../models/profile.dart';
 import '../models/meeting.dart';
 import '../screens/chat_room_screen.dart';
 import 'network_graph_widget.dart';
+import 'network_graph_node.dart';
 
 /// Network tab widget showing connections
 class NetworkTab extends StatefulWidget {
@@ -60,32 +61,36 @@ class _NetworkTabState extends State<NetworkTab> {
     final nodes = <NetworkNode>[];
 
     // Always add current user as center node
-    nodes.add(NetworkNode(
-      id: currentProfile.id,
-      name: currentProfile.userName,
-      school: currentProfile.school ?? '',
-      major: currentProfile.major,
-      interests: currentProfile.interests,
-      color: Theme.of(context).colorScheme.primary,
-      position: Offset(size.width * 0.5, size.height * 0.5),
-      connections: connections.map((c) => c.toProfileId).toList(),
-      profileImagePath: currentProfile.profileImagePath,
-    ));
+    nodes.add(
+      NetworkNode(
+        id: currentProfile.id,
+        name: currentProfile.userName,
+        school: currentProfile.school ?? '',
+        major: currentProfile.major,
+        interests: currentProfile.interests,
+        color: Theme.of(context).colorScheme.primary,
+        position: Offset(size.width * 0.5, size.height * 0.5),
+        connections: connections.map((c) => c.toProfileId).toList(),
+        profileImagePath: currentProfile.profileImagePath,
+      ),
+    );
 
     // If no connections, add a text node above current user
     if (connectedProfiles.isEmpty) {
       // Add a dummy text node positioned north of the user
-      nodes.add(NetworkNode(
-        id: 'empty_message',
-        name: 'Start by finding new connections at "Find Peers"',
-        school: '',
-        color: Colors.transparent,
-        position: Offset(size.width * 0.5, size.height * 0.5 - 150),
-        connections: [],
-        isDirectConnection: false,
-        isTextNode: true,
-      ));
-      
+      nodes.add(
+        NetworkNode(
+          id: 'empty_message',
+          name: 'Start by finding new connections at "Find Peers"',
+          school: '',
+          color: Colors.transparent,
+          position: Offset(size.width * 0.5, size.height * 0.5 - 150),
+          connections: [],
+          isDirectConnection: false,
+          isTextNode: true,
+        ),
+      );
+
       return Stack(
         children: [
           NetworkGraphWidget(
@@ -102,7 +107,10 @@ class _NetworkTabState extends State<NetworkTab> {
             child: Card(
               color: Colors.black.withOpacity(0.7),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -117,10 +125,7 @@ class _NetworkTabState extends State<NetworkTab> {
                     SizedBox(height: 4),
                     Text(
                       'No connections yet',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ],
                 ),
@@ -156,21 +161,23 @@ class _NetworkTabState extends State<NetworkTab> {
 
       directConnectionIds.add(profile.id);
 
-      nodes.add(NetworkNode(
-        id: profile.id,
-        name: profile.userName,
-        school: profile.school ?? '',
-        major: profile.major,
-        interests: profile.interests,
-        color: Colors.orange,
-        position: Offset(
-          size.width * 0.5 + radius * cos(angle),
-          size.height * 0.5 + radius * sin(angle),
+      nodes.add(
+        NetworkNode(
+          id: profile.id,
+          name: profile.userName,
+          school: profile.school ?? '',
+          major: profile.major,
+          interests: profile.interests,
+          color: Colors.orange,
+          position: Offset(
+            size.width * 0.5 + radius * cos(angle),
+            size.height * 0.5 + radius * sin(angle),
+          ),
+          connections: [currentProfile.id],
+          profileImagePath: imageUrl,
+          isDirectConnection: true,
         ),
-        connections: [currentProfile.id],
-        profileImagePath: imageUrl,
-        isDirectConnection: true,
-      ));
+      );
     }
 
     // Add mock secondary connections using database-like system
@@ -179,7 +186,7 @@ class _NetworkTabState extends State<NetworkTab> {
       final database = storage.generateMockNetworkDatabase();
       final profiles = database['profiles'] as Map<String, dynamic>;
       final connections = database['connections'] as List<Map<String, String>>;
-      
+
       // Build adjacency map: profile key -> list of connected profile keys
       final adjacencyMap = <String, List<String>>{};
       for (final conn in connections) {
@@ -188,24 +195,39 @@ class _NetworkTabState extends State<NetworkTab> {
         adjacencyMap.putIfAbsent(from, () => []).add(to);
         adjacencyMap.putIfAbsent(to, () => []).add(from);
       }
-      
+
       // Identify which mock profiles are "direct friends" (friends with 'you')
       // These are: mock_0, mock_1, mock_3, mock_5, mock_7, mock_13
-      final directFriendIds = ['mock_0', 'mock_1', 'mock_3', 'mock_5', 'mock_7', 'mock_13'];
-      
+      final directFriendIds = [
+        'mock_0',
+        'mock_1',
+        'mock_3',
+        'mock_5',
+        'mock_7',
+        'mock_13',
+      ];
+
       // Map real connection IDs to mock direct friend IDs
       final realToMockMap = <String, String>{};
       final directNodeIds = directConnectionIds.toSet();
-      
-      for (int i = 0; i < min(directNodeIds.length, directFriendIds.length); i++) {
+
+      for (
+        int i = 0;
+        i < min(directNodeIds.length, directFriendIds.length);
+        i++
+      ) {
         realToMockMap[directConnectionIds[i]] = directFriendIds[i];
       }
-      
+
       // BFS to find all reachable profiles and their actual connections in the mock network
       final visited = <String>{};
       final queue = <({String key, int depth, String fromRealId})>[];
-      final profileInfo = <String, ({int depth, String fromRealId, List<String> mockConnections})>{};
-      
+      final profileInfo =
+          <
+            String,
+            ({int depth, String fromRealId, List<String> mockConnections})
+          >{};
+
       // Start BFS from the mapped mock profiles (these represent real connections)
       for (final entry in realToMockMap.entries) {
         final realId = entry.key;
@@ -213,25 +235,26 @@ class _NetworkTabState extends State<NetworkTab> {
         queue.add((key: mockKey, depth: 0, fromRealId: realId));
         visited.add(mockKey);
       }
-      
+
       while (queue.isNotEmpty) {
         final current = queue.removeAt(0);
-        
+
         // Get actual connections for this profile from adjacency map
         final actualConnections = adjacencyMap[current.key] ?? [];
-        
+
         // Record this profile with its actual mock network connections
         if (current.depth > 0) {
           profileInfo[current.key] = (
-            depth: current.depth, 
+            depth: current.depth,
             fromRealId: current.fromRealId,
             mockConnections: actualConnections,
           );
         }
-        
+
         // Explore neighbors
         for (final neighbor in actualConnections) {
-          if (!visited.contains(neighbor) && !realToMockMap.containsValue(neighbor)) {
+          if (!visited.contains(neighbor) &&
+              !realToMockMap.containsValue(neighbor)) {
             visited.add(neighbor);
             queue.add((
               key: neighbor,
@@ -241,43 +264,44 @@ class _NetworkTabState extends State<NetworkTab> {
           }
         }
       }
-      
+
       // Create a map to store mock ID to node for connection references
       final mockIdToNodeId = <String, String>{};
-      
+
       // Add nodes for profiles found through BFS
       for (final entry in profileInfo.entries) {
         final profileKey = entry.key;
         final depth = entry.value.depth;
         final fromRealId = entry.value.fromRealId;
         final mockConnections = entry.value.mockConnections;
-        
+
         final profileData = profiles[profileKey] as Map<String, dynamic>;
         final mockId = profileData['id'] as String;
-        
+
         // Find the real connection node this path came from (for positioning)
         final directNode = nodes.firstWhere(
           (n) => n.id == fromRealId,
           orElse: () => nodes[1],
         );
-        
+
         // Calculate position based on depth (further out = higher depth)
-        final depthRadius = min(size.width, size.height) * (0.30 + (depth * 0.12));
-        
+        final depthRadius =
+            min(size.width, size.height) * (0.30 + (depth * 0.12));
+
         // Calculate how many nodes from this direct connection already
-        final existingFromThis = nodes.where(
-          (n) => !n.isDirectConnection && n.connections.isNotEmpty
-        ).length;
-        
+        final existingFromThis = nodes
+            .where((n) => !n.isDirectConnection && n.connections.isNotEmpty)
+            .length;
+
         // Position around the direct connection
         final baseAngle = atan2(
           directNode.position.dy - size.height * 0.5,
           directNode.position.dx - size.width * 0.5,
         );
-        
+
         // Spread in an arc (more spread as more nodes)
         final spreadAngle = (existingFromThis * (pi / 5)) - (pi / 2.5);
-        
+
         // Determine connections: connect to direct friend if depth 1, otherwise to mock friends
         final nodeConnections = <String>[];
         if (depth == 1) {
@@ -290,7 +314,10 @@ class _NetworkTabState extends State<NetworkTab> {
             if (realToMockMap.containsValue(mockConn)) {
               // Find the real ID that maps to this mock ID
               final realId = realToMockMap.entries
-                  .firstWhere((e) => e.value == mockConn, orElse: () => MapEntry('', ''))
+                  .firstWhere(
+                    (e) => e.value == mockConn,
+                    orElse: () => MapEntry('', ''),
+                  )
                   .key;
               if (realId.isNotEmpty) {
                 nodeConnections.add(realId);
@@ -301,7 +328,7 @@ class _NetworkTabState extends State<NetworkTab> {
             }
           }
         }
-        
+
         final newNode = NetworkNode(
           id: mockId,
           name: profileData['name'] as String,
@@ -318,7 +345,7 @@ class _NetworkTabState extends State<NetworkTab> {
           isDirectConnection: false,
           depth: depth,
         );
-        
+
         nodes.add(newNode);
         mockIdToNodeId[mockId] = mockId;
       }
@@ -336,8 +363,12 @@ class _NetworkTabState extends State<NetworkTab> {
             if (node.id == currentProfile.id) {
               _showCurrentUserProfile(context);
             } else {
-              final profile = connectedProfiles.firstWhere((p) => p.id == node.id);
-              final connection = connections.firstWhere((c) => c.toProfileId == node.id);
+              final profile = connectedProfiles.firstWhere(
+                (p) => p.id == node.id,
+              );
+              final connection = connections.firstWhere(
+                (c) => c.toProfileId == node.id,
+              );
               _showConnectionDetails(context, profile, connection);
             }
           },
@@ -363,10 +394,7 @@ class _NetworkTabState extends State<NetworkTab> {
                   SizedBox(height: 4),
                   Text(
                     '${connections.length} ${connections.length == 1 ? 'Connection' : 'Connections'}',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -436,17 +464,14 @@ class _NetworkTabState extends State<NetworkTab> {
                 profile.userName,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'You',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 24),
               if (profile.school != null)
@@ -491,7 +516,11 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  void _showConnectionDetails(BuildContext context, Profile profile, Connection connection) {
+  void _showConnectionDetails(
+    BuildContext context,
+    Profile profile,
+    Connection connection,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -546,8 +575,8 @@ class _NetworkTabState extends State<NetworkTab> {
                 profile.userName,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 24),
               if (profile.school != null)
@@ -644,7 +673,7 @@ class _NetworkTabState extends State<NetworkTab> {
 
   void _openChat(BuildContext context, Profile profile, Connection connection) {
     final storage = context.read<StorageService>();
-    
+
     // Find or create chat room for this connection
     ChatRoom? chatRoom = storage.chatRooms.firstWhere(
       (room) => room.peerId == profile.id,
@@ -657,13 +686,13 @@ class _NetworkTabState extends State<NetworkTab> {
         messages: [],
       ),
     );
-    
+
     // Add chat room if it doesn't exist
     if (!storage.chatRooms.any((room) => room.peerId == profile.id)) {
       // We can't directly add to storage here, but the chat room screen will handle it
       // For now, just navigate with the chat room
     }
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -705,21 +734,22 @@ class _NetworkTabState extends State<NetworkTab> {
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final profile = connectedProfiles[index];
-                final connection = connections[index];
-                return _buildConnectionCard(context, profile, connection);
-              },
-              childCount: connectedProfiles.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final profile = connectedProfiles[index];
+              final connection = connections[index];
+              return _buildConnectionCard(context, profile, connection);
+            }, childCount: connectedProfiles.length),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildConnectionCard(BuildContext context, Profile profile, Connection connection) {
+  Widget _buildConnectionCard(
+    BuildContext context,
+    Profile profile,
+    Connection connection,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 3,
@@ -757,28 +787,27 @@ class _NetworkTabState extends State<NetworkTab> {
                       children: [
                         Text(
                           profile.userName,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         if (profile.major != null && profile.school != null)
                           Text(
                             '${profile.major} • ${profile.school}',
-                            style:
-                                Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Colors.grey[700],
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
                       ],
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Colors.grey[400]),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey[400],
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -787,14 +816,18 @@ class _NetworkTabState extends State<NetworkTab> {
               if (profile.interests != null)
                 Row(
                   children: [
-                    Icon(Icons.interests, size: 16, color: Theme.of(context).colorScheme.primary),
+                    Icon(
+                      Icons.interests,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         profile.interests!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[700],
-                            ),
+                          color: Colors.grey[700],
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -809,16 +842,16 @@ class _NetworkTabState extends State<NetworkTab> {
                   Text(
                     'Met at ${connection.restaurant}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                   const Spacer(),
                   Text(
                     _formatDate(connection.collectedAt),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[500],
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -855,17 +888,17 @@ class _NetworkTabState extends State<NetworkTab> {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -892,8 +925,18 @@ class _NetworkTabState extends State<NetworkTab> {
 
   String _formatFullDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
