@@ -84,20 +84,26 @@ class ApiService {
     return response.data!;
   }
 
-  Future<UserRead> updateUser(int userId, UserUpdate user) async {
-    final response = await _executeWithRetry(
-      () => _api.updateUserUsersUserIdPut(userId: userId, userUpdate: user),
-      'Update User',
-    );
-    return response.data!;
+  Future<UserRead> updateUser(int userId, Map<String, dynamic> userData) async {
+    // Note: updateUser endpoint not available in current API
+    // This is a placeholder for future implementation
+    _debugLog('Update user endpoint not available - using placeholder');
+    throw UnimplementedError('Update user endpoint not yet implemented in backend');
   }
 
   Future<UserRead> getUser(int userId) async {
+    // Note: getUser endpoint not available in current API
+    // We'll use getUsersUsersGet and filter by ID for now
     final response = await _executeWithRetry(
-      () => _api.getUserUsersUserIdGet(userId: userId),
-      'Get User',
+      () => _api.getUsersUsersGet(),
+      'Get All Users',
     );
-    return response.data!;
+    final users = response.data!;
+    final user = users.where((u) => u.id == userId).firstOrNull;
+    if (user == null) {
+      throw Exception('User with ID $userId not found');
+    }
+    return user;
   }
 
   Future<LocationRead> createLocation(LocationCreate location) async {
@@ -129,6 +135,81 @@ class ApiService {
     }
   }
 
+  // Phase 3: Location-based peer discovery endpoints
+
+  /// Get all users with optional filtering
+  Future<BuiltList<UserRead>> getAllUsers({
+    String? school,
+    String? major,
+    String? interests,
+    int? limit,
+    int? offset,
+  }) async {
+    final response = await _executeWithRetry(
+      () => _api.getUsersUsersGet(),
+      'Get All Users',
+    );
+    
+    // Apply filtering client-side for now (backend filtering not available)
+    var users = response.data!;
+    
+    if (school != null && school.isNotEmpty) {
+      users = users.rebuild((b) => b.clear());
+      final filtered = response.data!.where((u) => 
+        u.school?.toLowerCase().contains(school.toLowerCase()) == true
+      ).toList();
+      users = BuiltList<UserRead>(filtered);
+    }
+    
+    if (major != null && major.isNotEmpty) {
+      users = users.rebuild((b) => b.clear());
+      final filtered = response.data!.where((u) => 
+        u.major?.toLowerCase().contains(major.toLowerCase()) == true
+      ).toList();
+      users = BuiltList<UserRead>(filtered);
+    }
+    
+    if (interests != null && interests.isNotEmpty) {
+      users = users.rebuild((b) => b.clear());
+      final filtered = response.data!.where((u) => 
+        u.interests?.toLowerCase().contains(interests.toLowerCase()) == true
+      ).toList();
+      users = BuiltList<UserRead>(filtered);
+    }
+    
+    return users;
+  }
+
+  /// Get nearby users based on location
+  Future<BuiltList<UserReadWithDistance>> getNearbyUsers(
+    double latitude,
+    double longitude, {
+    double radiusKm = 5.0,
+    int? limit,
+  }) async {
+    final response = await _executeWithRetry(
+      () => _api.getNearbyUsersUsersNearbyGet(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: radiusKm,
+        limit: limit,
+      ),
+      'Get Nearby Users',
+    );
+    return response.data!;
+  }
+
+  /// Get locations for multiple users in batch
+  Future<BuiltList<LocationRead>> getBatchLocations(List<int> userIds) async {
+    final response = await _executeWithRetry(
+      () => _api.getBatchLocationsLocationsBatchGet(
+        userIds: userIds.join(','),
+      ),
+      'Get Batch Locations',
+    );
+    return response.data!;
+  }
+
   Profile userReadToProfile(UserRead user) {
     return Profile(
       id: user.id.toString(),
@@ -151,17 +232,18 @@ class ApiService {
       ..avatarUrl = profile.profileImagePath ?? '');
   }
 
-  UserUpdate profileToUserUpdate(Profile profile) {
-    return UserUpdate((b) => b
-      ..username = profile.userName
-      ..school = profile.school
-      ..major = profile.major
-      ..interests = profile.interests
-      ..bio = profile.background
-      ..avatarUrl = profile.profileImagePath);
+  Map<String, dynamic> profileToUserUpdate(Profile profile) {
+    return {
+      'username': profile.userName,
+      'school': profile.school,
+      'major': profile.major,
+      'interests': profile.interests,
+      'bio': profile.background,
+      'avatarUrl': profile.profileImagePath,
+    };
   }
 
-  Peer userReadToPeer(UserRead user, LocationRead? location) {
+  Peer userReadToPeer(UserRead user, LocationRead? location, {double? distance}) {
     return Peer(
       id: user.id.toString(),
       name: user.username,
@@ -170,7 +252,20 @@ class ApiService {
       interests: user.interests ?? '',
       background: user.bio ?? '',
       profileImageUrl: user.avatarUrl,
-      distance: 0.0,
+      distance: distance ?? 0.0,
+    );
+  }
+
+  Peer userReadWithDistanceToPeer(UserReadWithDistance userWithDistance) {
+    return Peer(
+      id: userWithDistance.id.toString(),
+      name: userWithDistance.username,
+      school: userWithDistance.school ?? '',
+      major: userWithDistance.major ?? '',
+      interests: userWithDistance.interests ?? '',
+      background: userWithDistance.bio ?? '',
+      profileImageUrl: userWithDistance.avatarUrl,
+      distance: userWithDistance.distanceKm?.toDouble() ?? 0.0,
     );
   }
 

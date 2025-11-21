@@ -9,6 +9,7 @@ import '../models/connection.dart';
 import '../models/activity.dart';
 import '../models/user_rating.dart';
 import 'api_service.dart';
+import 'location_service.dart';
 
 /// Storage service with persistent data using shared_preferences and API integration
 class StorageService extends ChangeNotifier {
@@ -18,6 +19,7 @@ class StorageService extends ChangeNotifier {
   static const String _keyApiUserId = 'api_user_id';
   
   final ApiService _apiService = ApiService();
+  late LocationService _locationService;
   Profile? _currentProfile;
   Map<String, Profile> _profiles = {};
   List<Connection> _connections = [];
@@ -39,6 +41,11 @@ class StorageService extends ChangeNotifier {
   List<UserRating> get userRatings => _userRatings;
   Peer? get selectedPeer => _selectedPeer;
   String? get selectedActivityId => _selectedActivityId;
+
+  /// Initialize services that depend on each other
+  void _initializeServices() {
+    _locationService = LocationService(_apiService);
+  }
 
   // Get connected profiles
   List<Profile> get connectedProfiles {
@@ -95,6 +102,9 @@ class StorageService extends ChangeNotifier {
   /// Load current profile from persistent storage and sync with API
   Future<void> loadUserProfile() async {
     try {
+      // Initialize services first
+      _initializeServices();
+      
       final prefs = await SharedPreferences.getInstance();
       
       // Load API user ID first
@@ -138,6 +148,11 @@ class StorageService extends ChangeNotifier {
         _profiles = profilesMap.map(
           (key, value) => MapEntry(key, Profile.fromJson(value as Map<String, dynamic>)),
         );
+      }
+
+      // Start location tracking if user is logged in
+      if (_currentProfile != null && _apiUserId != null) {
+        _startLocationTracking();
       }
 
       notifyListeners();
@@ -229,6 +244,9 @@ class StorageService extends ChangeNotifier {
       await _persistCurrentProfile();
       await _persistApiUserId();
       
+      // Start location tracking for the new user
+      _startLocationTracking();
+      
       notifyListeners();
     } catch (e) {
       debugPrint('Error creating user in API: $e');
@@ -289,6 +307,10 @@ class StorageService extends ChangeNotifier {
     _selectedPeer = null;
     _selectedActivityId = null;
     _apiUserId = null;
+    
+    // Stop location tracking when user logs out
+    _locationService.stopLocationTracking();
+    
     await _clearPersistedProfile();
     notifyListeners();
   }
@@ -372,18 +394,107 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  /// Search for nearby peers (mock implementation)
+  /// Search for nearby peers using real API and location services
   Future<List<Peer>> searchNearbyPeers() async {
-    // Don't create a new activity here - it's already created by createOrGetSearchActivity()
-    
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    if (_currentProfile == null || _apiUserId == null) {
+      _debugLog('Cannot search for peers: no current profile or API user ID');
+      return [];
+    }
 
-    // Generate mock peers based on user profile
+    try {
+      // Get current user location
+      final currentPosition = await _locationService.getCurrentLocation();
+      if (currentPosition == null) {
+        _debugLog('Cannot search for peers: unable to get current location');
+        // Fall back to mock data if location unavailable
+        return await _fallbackToMockPeers();
+      }
+
+      // Update current user's location
+      final userId = int.parse(_apiUserId!);
+      await _locationService.updateLocation(userId);
+
+      // Search for nearby users using the new API endpoint
+      final nearbyUsersWithDistance = await _apiService.getNearbyUsers(
+        currentPosition.latitude,
+        currentPosition.longitude,
+        radiusKm: 5.0,
+        limit: 20,
+      );
+
+      // Convert UserReadWithDistance objects to Peer objects
+      final peers = nearbyUsersWithDistance
+          .where((userWithDistance) => userWithDistance.id != userId) // Exclude self
+          .map((userWithDistance) => _apiService.userReadWithDistanceToPeer(userWithDistance))
+          .map((peer) => _applyMatchScore(peer))
+          .toList();
+
+      // Sort by distance and match score
+      peers.sort((a, b) {
+        // Primary sort by distance
+        final distanceCompare = a.distance.compareTo(b.distance);
+        if (distanceCompare != 0) return distanceCompare;
+        
+        // Secondary sort by match score (descending)
+        return b.matchScore.compareTo(a.matchScore);
+      });
+
+      _nearbyPeers = peers;
+      notifyListeners();
+      _debugLog('Found ${peers.length} nearby peers');
+      return peers;
+
+    } catch (e) {
+      _debugLog('Error searching for nearby peers: $e');
+      // Fall back to mock data on API failure
+      return await _fallbackToMockPeers();
+    }
+  }
+
+  /// Fallback to mock peers when API/location services fail
+  Future<List<Peer>> _fallbackToMockPeers() async {
+    _debugLog('Falling back to mock peers');
+    await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
     final mockPeers = _generateMockPeers();
     _nearbyPeers = mockPeers;
     notifyListeners();
     return mockPeers;
+  }
+
+
+
+  /// Apply match score to a peer based on current user profile
+  Peer _applyMatchScore(Peer peer) {
+    if (_currentProfile == null) return peer;
+    
+    final matchScore = Peer.calculateMatchScore(_currentProfile!, peer);
+    return Peer(
+      id: peer.id,
+      name: peer.name,
+      school: peer.school,
+      major: peer.major,
+      interests: peer.interests,
+      background: peer.background,
+      matchScore: matchScore,
+      distance: peer.distance,
+      wantsToEat: peer.wantsToEat,
+      profileImageUrl: peer.profileImageUrl,
+    );
+  }
+
+  /// Start location tracking for current user
+  void _startLocationTracking() {
+    if (_apiUserId != null && _currentProfile != null) {
+      final userId = int.parse(_apiUserId!);
+      _locationService.startLocationTracking(userId);
+      _debugLog('Started location tracking for user $_apiUserId');
+    }
+  }
+
+  void _debugLog(String message) {
+    if (kDebugMode) {
+      debugPrint('[StorageService] $message');
+    }
   }
 
   /// Generate mock peers for demonstration

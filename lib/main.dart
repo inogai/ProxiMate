@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import 'services/storage_service.dart';
 import 'screens/register_screen.dart';
 import 'screens/main_screen.dart';
@@ -7,11 +8,42 @@ import 'screens/main_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Request location permissions at app startup using geolocator
+  await _requestLocationPermissions();
+  
   // Create storage service and load persisted data
   final storage = StorageService();
   await storage.loadUserProfile();
   
   runApp(MyApp(storage: storage));
+}
+
+Future<void> _requestLocationPermissions() async {
+  try {
+    // Check if location services are enabled
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      debugPrint('Location services are disabled');
+      return;
+    }
+    
+    // Check location permissions
+    LocationPermission permission = await Geolocator.checkPermission();
+    debugPrint('Initial permission check: $permission');
+    
+    if (permission == LocationPermission.denied) {
+      debugPrint('Permission denied, requesting...');
+      permission = await Geolocator.requestPermission();
+      debugPrint('Permission after request: $permission');
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      debugPrint('Location permission permanently denied');
+    }
+  } catch (e) {
+    debugPrint('Error requesting location permissions: $e');
+    // Continue without permissions - app will handle gracefully
+  }
 }
 
 class MyApp extends StatelessWidget {

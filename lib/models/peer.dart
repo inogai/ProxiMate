@@ -79,4 +79,31 @@ class Peer {
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
     );
   }
+
+  /// Create a Peer with distance from API response
+  factory Peer.withDistance({
+    required String id,
+    required String name,
+    required String school,
+    required String major,
+    required String interests,
+    required String background,
+    double matchScore = 0.0,
+    required double distance,
+    bool wantsToEat = true,
+    String? profileImageUrl,
+  }) {
+    return Peer(
+      id: id,
+      name: name,
+      school: school,
+      major: major,
+      interests: interests,
+      background: background,
+      matchScore: matchScore,
+      distance: distance,
+      wantsToEat: wantsToEat,
+      profileImageUrl: profileImageUrl,
+    );
+  }
 }
