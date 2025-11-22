@@ -31,7 +31,7 @@ abstract class ChatRoomRead implements Built<ChatRoomRead, ChatRoomReadBuilder> 
   String get id;
 
   @BuiltValueField(wireName: r'created_at')
-  DateTime get createdAt;
+  String get createdAt;
 
   ChatRoomRead._();
 
@@ -79,7 +79,7 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
     yield r'created_at';
     yield serializers.serialize(
       object.createdAt,
-      specifiedType: const FullType(DateTime),
+      specifiedType: const FullType(String),
     );
   }
 
@@ -135,8 +135,8 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
         case r'created_at':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(DateTime),
-          ) as DateTime;
+            specifiedType: const FullType(String),
+          ) as String;
           result.createdAt = valueDes;
           break;
         default:

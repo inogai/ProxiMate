@@ -55,7 +55,7 @@ abstract class InvitationRead implements Built<InvitationRead, InvitationReadBui
   String get id;
 
   @BuiltValueField(wireName: r'created_at')
-  DateTime get createdAt;
+  String get createdAt;
 
   InvitationRead._();
 
@@ -148,7 +148,7 @@ class _$InvitationReadSerializer implements PrimitiveSerializer<InvitationRead> 
     yield r'created_at';
     yield serializers.serialize(
       object.createdAt,
-      specifiedType: const FullType(DateTime),
+      specifiedType: const FullType(String),
     );
   }
 
@@ -246,8 +246,8 @@ class _$InvitationReadSerializer implements PrimitiveSerializer<InvitationRead> 
         case r'created_at':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(DateTime),
-          ) as DateTime;
+            specifiedType: const FullType(String),
+          ) as String;
           result.createdAt = valueDes;
           break;
         default:

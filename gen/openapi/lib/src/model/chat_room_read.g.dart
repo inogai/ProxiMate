@@ -16,7 +16,7 @@ class _$ChatRoomRead extends ChatRoomRead {
   @override
   final String id;
   @override
-  final DateTime createdAt;
+  final String createdAt;
 
   factory _$ChatRoomRead([void Function(ChatRoomReadBuilder)? updates]) =>
       (ChatRoomReadBuilder()..update(updates))._build();
@@ -90,9 +90,9 @@ class ChatRoomReadBuilder
   String? get id => _$this._id;
   set id(String? id) => _$this._id = id;
 
-  DateTime? _createdAt;
-  DateTime? get createdAt => _$this._createdAt;
-  set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+  String? _createdAt;
+  String? get createdAt => _$this._createdAt;
+  set createdAt(String? createdAt) => _$this._createdAt = createdAt;
 
   ChatRoomReadBuilder() {
     ChatRoomRead._defaults(this);

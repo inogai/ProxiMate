@@ -43,7 +43,7 @@ abstract class UserRead implements Built<UserRead, UserReadBuilder> {
   int get id;
 
   @BuiltValueField(wireName: r'created_at')
-  DateTime get createdAt;
+  String get createdAt;
 
   UserRead._();
 
@@ -120,7 +120,7 @@ class _$UserReadSerializer implements PrimitiveSerializer<UserRead> {
     yield r'created_at';
     yield serializers.serialize(
       object.createdAt,
-      specifiedType: const FullType(DateTime),
+      specifiedType: const FullType(String),
     );
   }
 
@@ -198,8 +198,8 @@ class _$UserReadSerializer implements PrimitiveSerializer<UserRead> {
         case r'created_at':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(DateTime),
-          ) as DateTime;
+            specifiedType: const FullType(String),
+          ) as String;
           result.createdAt = valueDes;
           break;
         default:

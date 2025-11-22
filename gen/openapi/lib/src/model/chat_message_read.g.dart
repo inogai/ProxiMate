@@ -20,7 +20,7 @@ class _$ChatMessageRead extends ChatMessageRead {
   @override
   final String id;
   @override
-  final DateTime timestamp;
+  final String timestamp;
 
   factory _$ChatMessageRead([void Function(ChatMessageReadBuilder)? updates]) =>
       (ChatMessageReadBuilder()..update(updates))._build();
@@ -110,9 +110,9 @@ class ChatMessageReadBuilder
   String? get id => _$this._id;
   set id(String? id) => _$this._id = id;
 
-  DateTime? _timestamp;
-  DateTime? get timestamp => _$this._timestamp;
-  set timestamp(DateTime? timestamp) => _$this._timestamp = timestamp;
+  String? _timestamp;
+  String? get timestamp => _$this._timestamp;
+  set timestamp(String? timestamp) => _$this._timestamp = timestamp;
 
   ChatMessageReadBuilder() {
     ChatMessageRead._defaults(this);

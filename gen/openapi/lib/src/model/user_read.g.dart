@@ -22,7 +22,7 @@ class _$UserRead extends UserRead {
   @override
   final int id;
   @override
-  final DateTime createdAt;
+  final String createdAt;
 
   factory _$UserRead([void Function(UserReadBuilder)? updates]) =>
       (UserReadBuilder()..update(updates))._build();
@@ -119,9 +119,9 @@ class UserReadBuilder implements Builder<UserRead, UserReadBuilder> {
   int? get id => _$this._id;
   set id(int? id) => _$this._id = id;
 
-  DateTime? _createdAt;
-  DateTime? get createdAt => _$this._createdAt;
-  set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+  String? _createdAt;
+  String? get createdAt => _$this._createdAt;
+  set createdAt(String? createdAt) => _$this._createdAt = createdAt;
 
   UserReadBuilder() {
     UserRead._defaults(this);

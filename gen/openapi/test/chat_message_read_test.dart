@@ -37,7 +37,7 @@ void main() {
       // TODO
     });
 
-    // DateTime timestamp
+    // String timestamp
     test('to test the property `timestamp`', () async {
       // TODO
     });

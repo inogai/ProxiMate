@@ -28,7 +28,7 @@ class _$InvitationRead extends InvitationRead {
   @override
   final String id;
   @override
-  final DateTime createdAt;
+  final String createdAt;
 
   factory _$InvitationRead([void Function(InvitationReadBuilder)? updates]) =>
       (InvitationReadBuilder()..update(updates))._build();
@@ -151,9 +151,9 @@ class InvitationReadBuilder
   String? get id => _$this._id;
   set id(String? id) => _$this._id = id;
 
-  DateTime? _createdAt;
-  DateTime? get createdAt => _$this._createdAt;
-  set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+  String? _createdAt;
+  String? get createdAt => _$this._createdAt;
+  set createdAt(String? createdAt) => _$this._createdAt = createdAt;
 
   InvitationReadBuilder() {
     InvitationRead._defaults(this);

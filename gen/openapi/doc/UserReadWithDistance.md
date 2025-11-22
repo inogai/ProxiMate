@@ -15,7 +15,7 @@ Name | Type | Description | Notes
 **bio** | **String** |  | [optional] [default to '']
 **avatarUrl** | **String** |  | [optional] 
 **id** | **int** |  | 
-**createdAt** | [**DateTime**](DateTime.md) |  | 
+**createdAt** | **String** |  | 
 **distanceKm** | **num** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

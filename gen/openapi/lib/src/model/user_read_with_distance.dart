@@ -44,7 +44,7 @@ abstract class UserReadWithDistance implements Built<UserReadWithDistance, UserR
   int get id;
 
   @BuiltValueField(wireName: r'created_at')
-  DateTime get createdAt;
+  String get createdAt;
 
   @BuiltValueField(wireName: r'distance_km')
   num? get distanceKm;
@@ -124,7 +124,7 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
     yield r'created_at';
     yield serializers.serialize(
       object.createdAt,
-      specifiedType: const FullType(DateTime),
+      specifiedType: const FullType(String),
     );
     if (object.distanceKm != null) {
       yield r'distance_km';
@@ -209,8 +209,8 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
         case r'created_at':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(DateTime),
-          ) as DateTime;
+            specifiedType: const FullType(String),
+          ) as String;
           result.createdAt = valueDes;
           break;
         case r'distance_km':

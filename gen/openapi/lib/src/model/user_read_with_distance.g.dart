@@ -22,7 +22,7 @@ class _$UserReadWithDistance extends UserReadWithDistance {
   @override
   final int id;
   @override
-  final DateTime createdAt;
+  final String createdAt;
   @override
   final num? distanceKm;
 
@@ -129,9 +129,9 @@ class UserReadWithDistanceBuilder
   int? get id => _$this._id;
   set id(int? id) => _$this._id = id;
 
-  DateTime? _createdAt;
-  DateTime? get createdAt => _$this._createdAt;
-  set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+  String? _createdAt;
+  String? get createdAt => _$this._createdAt;
+  set createdAt(String? createdAt) => _$this._createdAt = createdAt;
 
   num? _distanceKm;
   num? get distanceKm => _$this._distanceKm;

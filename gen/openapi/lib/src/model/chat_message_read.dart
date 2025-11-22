@@ -39,7 +39,7 @@ abstract class ChatMessageRead implements Built<ChatMessageRead, ChatMessageRead
   String get id;
 
   @BuiltValueField(wireName: r'timestamp')
-  DateTime get timestamp;
+  String get timestamp;
 
   ChatMessageRead._();
 
@@ -102,7 +102,7 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
     yield r'timestamp';
     yield serializers.serialize(
       object.timestamp,
-      specifiedType: const FullType(DateTime),
+      specifiedType: const FullType(String),
     );
   }
 
@@ -173,8 +173,8 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
         case r'timestamp':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(DateTime),
-          ) as DateTime;
+            specifiedType: const FullType(String),
+          ) as String;
           result.timestamp = valueDes;
           break;
         default:

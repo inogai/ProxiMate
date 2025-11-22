@@ -899,9 +899,9 @@ class DefaultApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [ChatRoomRead] as data
+  /// Returns a [Future] containing a [Response] with a [JsonObject] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<ChatRoomRead>> findChatroomBetweenUsersChatroomsFindGet({ 
+  Future<Response<JsonObject>> findChatroomBetweenUsersChatroomsFindGet({ 
     required int user1Id,
     required int user2Id,
     CancelToken? cancelToken,
@@ -938,14 +938,14 @@ class DefaultApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    ChatRoomRead? _responseData;
+    JsonObject? _responseData;
 
     try {
       final rawResponse = _response.data;
       _responseData = rawResponse == null ? null : _serializers.deserialize(
         rawResponse,
-        specifiedType: const FullType(ChatRoomRead),
-      ) as ChatRoomRead;
+        specifiedType: const FullType(JsonObject),
+      ) as JsonObject;
 
     } catch (error, stackTrace) {
       throw DioException(
@@ -957,7 +957,7 @@ class DefaultApi {
       );
     }
 
-    return Response<ChatRoomRead>(
+    return Response<JsonObject>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

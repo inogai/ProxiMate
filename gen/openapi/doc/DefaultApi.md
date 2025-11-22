@@ -452,7 +452,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **findChatroomBetweenUsersChatroomsFindGet**
-> ChatRoomRead findChatroomBetweenUsersChatroomsFindGet(user1Id, user2Id)
+> JsonObject findChatroomBetweenUsersChatroomsFindGet(user1Id, user2Id)
 
 Find Chatroom Between Users
 
@@ -481,7 +481,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**ChatRoomRead**](ChatRoomRead.md)
+[**JsonObject**](JsonObject.md)
 
 ### Authorization
 

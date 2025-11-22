@@ -27,7 +27,7 @@ abstract class ActivityRead implements Built<ActivityRead, ActivityReadBuilder> 
   String get id;
 
   @BuiltValueField(wireName: r'created_at')
-  DateTime get createdAt;
+  String get createdAt;
 
   ActivityRead._();
 
@@ -70,7 +70,7 @@ class _$ActivityReadSerializer implements PrimitiveSerializer<ActivityRead> {
     yield r'created_at';
     yield serializers.serialize(
       object.createdAt,
-      specifiedType: const FullType(DateTime),
+      specifiedType: const FullType(String),
     );
   }
 
@@ -119,8 +119,8 @@ class _$ActivityReadSerializer implements PrimitiveSerializer<ActivityRead> {
         case r'created_at':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(DateTime),
-          ) as DateTime;
+            specifiedType: const FullType(String),
+          ) as String;
           result.createdAt = valueDes;
           break;
         default:

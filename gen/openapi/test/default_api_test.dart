@@ -79,7 +79,7 @@ void main() {
 
     // Find Chatroom Between Users
     //
-    //Future<ChatRoomRead> findChatroomBetweenUsersChatroomsFindGet(int user1Id, int user2Id) async
+    //Future<JsonObject> findChatroomBetweenUsersChatroomsFindGet(int user1Id, int user2Id) async
     test('test findChatroomBetweenUsersChatroomsFindGet', () async {
       // TODO
     });

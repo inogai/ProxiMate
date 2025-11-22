@@ -18,7 +18,7 @@ Name | Type | Description | Notes
 **nameCardCollected** | **bool** |  | [optional] [default to false]
 **chatOpened** | **bool** |  | [optional] [default to false]
 **id** | **String** |  | 
-**createdAt** | [**DateTime**](DateTime.md) |  | 
+**createdAt** | **String** |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

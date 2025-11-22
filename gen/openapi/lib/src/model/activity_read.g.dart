@@ -14,7 +14,7 @@ class _$ActivityRead extends ActivityRead {
   @override
   final String id;
   @override
-  final DateTime createdAt;
+  final String createdAt;
 
   factory _$ActivityRead([void Function(ActivityReadBuilder)? updates]) =>
       (ActivityReadBuilder()..update(updates))._build();
@@ -80,9 +80,9 @@ class ActivityReadBuilder
   String? get id => _$this._id;
   set id(String? id) => _$this._id = id;
 
-  DateTime? _createdAt;
-  DateTime? get createdAt => _$this._createdAt;
-  set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+  String? _createdAt;
+  String? get createdAt => _$this._createdAt;
+  set createdAt(String? createdAt) => _$this._createdAt = createdAt;
 
   ActivityReadBuilder() {
     ActivityRead._defaults(this);
