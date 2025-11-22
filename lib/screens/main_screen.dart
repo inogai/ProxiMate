@@ -69,9 +69,9 @@ class _MainScreenState extends State<MainScreen> {
             label: 'ProxiMate',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.mail_outline),
-            selectedIcon: Icon(Icons.mail),
-            label: 'Invitations',
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Chats',
           ),
           const NavigationDestination(
             icon: Icon(Icons.person_outline),

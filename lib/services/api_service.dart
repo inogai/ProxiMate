@@ -371,11 +371,31 @@ class ApiService {
   }
 
   ChatMessage chatMessageReadToChatMessage(ChatMessageRead messageRead, bool isMine) {
+    DateTime finalTimestamp;
+    
+    // Check if timestamp is already UTC or needs conversion
+    if (messageRead.timestamp.isUtc) {
+      // Convert UTC to local time
+      finalTimestamp = messageRead.timestamp.toLocal();
+    } else {
+      // Server is sending local-time formatted timestamps but they're actually UTC
+      // Convert to UTC first, then to local time to get correct offset
+      final utcTime = DateTime.utc(
+        messageRead.timestamp.year,
+        messageRead.timestamp.month,
+        messageRead.timestamp.day,
+        messageRead.timestamp.hour,
+        messageRead.timestamp.minute,
+        messageRead.timestamp.second,
+      );
+      finalTimestamp = utcTime.toLocal();
+    }
+    
     return ChatMessage(
       id: messageRead.id,
       text: messageRead.text,
       isMine: isMine,
-      timestamp: messageRead.timestamp,
+      timestamp: finalTimestamp,
       isSystemMessage: false, // Backend doesn't support this field yet
     );
   }
@@ -537,7 +557,17 @@ class ApiService {
       () => _api.acceptInvitationInvitationsInvitationIdAcceptPut(invitationId: invitationId),
       'Accept Invitation',
     );
-    return response.data!;
+    
+    // For now, let's assume the API returns the correct type
+    // If there are issues, we'll need to debug the actual response format
+    try {
+      return response.data! as InvitationRead;
+    } catch (e) {
+      _debugLog('Error parsing invitation response: $e');
+      _debugLog('Response data type: ${response.data.runtimeType}');
+      _debugLog('Response data: ${response.data}');
+      rethrow;
+    }
   }
 
   /// Decline invitation

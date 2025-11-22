@@ -88,25 +88,72 @@ class StorageService extends ChangeNotifier {
   /// Fetch messages for a specific chat room
   Future<void> _fetchMessagesForChatRoom(String chatRoomId) async {
     try {
+      _debugLog('=== FETCHING MESSAGES FOR CHAT ROOM $chatRoomId ===');
       final messages = await _apiService.getChatMessages(chatRoomId);
       final messageReads = messages.toList();
       
+      _debugLog('Server returned ${messageReads.length} messages');
+      for (int i = 0; i < messageReads.length; i++) {
+        _debugLog('Server message ${i + 1}: ID=${messageReads[i].id}, sender=${messageReads[i].senderId}, text="${messageReads[i].text}"');
+      }
+      
       final chatRoomIndex = _chatRooms.indexWhere((cr) => cr.id == chatRoomId);
-      if (chatRoomIndex == -1) return;
+      if (chatRoomIndex == -1) {
+        _debugLog('Chat room $chatRoomId not found locally');
+        return;
+      }
 
       final currentMessages = _chatRooms[chatRoomIndex].messages;
+      _debugLog('Current local messages count: ${currentMessages.length}');
+      for (int i = 0; i < currentMessages.length; i++) {
+        _debugLog('Local message ${i + 1}: ID=${currentMessages[i].id}, isMine=${currentMessages[i].isMine}, text="${currentMessages[i].text}"');
+      }
+      
       final newMessages = <ChatMessage>[];
       
       for (final messageRead in messageReads) {
-        // Check if message already exists
+        // Check if message already exists by ID or by content+timestamp+sender (for temporary IDs)
         final existingMessage = currentMessages.firstWhere(
           (msg) => msg.id == messageRead.id,
-          orElse: () => ChatMessage(
-            id: 'dummy',
-            text: '',
-            isMine: false,
-            timestamp: DateTime.now(),
-          ),
+          orElse: () {
+            // Try to find a match by content, timestamp, and sender (for locally sent messages with temp IDs)
+            final currentUserId = _currentProfile?.id ?? '';
+            final isMine = messageRead.senderId.toString() == currentUserId;
+            
+            // Get the server timestamp in local format for comparison
+            DateTime serverTimestampLocal;
+            if (messageRead.timestamp.isUtc) {
+              // Convert UTC to local time
+              serverTimestampLocal = messageRead.timestamp.toLocal();
+            } else {
+              // Server is sending local-time formatted timestamps but they're actually UTC
+              // Convert to UTC first, then to local time to get correct offset
+              final utcTime = DateTime.utc(
+                messageRead.timestamp.year,
+                messageRead.timestamp.month,
+                messageRead.timestamp.day,
+                messageRead.timestamp.hour,
+                messageRead.timestamp.minute,
+                messageRead.timestamp.second,
+              );
+              serverTimestampLocal = utcTime.toLocal();
+            }
+            
+            final matchByContent = currentMessages.firstWhere(
+              (msg) => 
+                msg.text.trim() == messageRead.text.trim() &&
+                msg.isMine == isMine &&
+                msg.timestamp.difference(serverTimestampLocal).abs().inMinutes < 1, // Within 1 minute
+              orElse: () => ChatMessage(
+                id: 'dummy',
+                text: '',
+                isMine: false,
+                timestamp: DateTime.now(),
+              ),
+            );
+            
+            return matchByContent;
+          },
         );
         
         if (existingMessage.id == 'dummy') {
@@ -114,7 +161,39 @@ class StorageService extends ChangeNotifier {
           final currentUserId = _currentProfile?.id ?? '';
           final isMine = messageRead.senderId.toString() == currentUserId;
           
+          _debugLog('Adding new message: ID=${messageRead.id}, isMine=$isMine');
           newMessages.add(_apiService.chatMessageReadToChatMessage(messageRead, isMine));
+        } else if (existingMessage.id != messageRead.id) {
+          // Found by content match but ID differs - update the local message with server ID and timestamp
+          DateTime serverTimestampLocal;
+          if (messageRead.timestamp.isUtc) {
+            // Convert UTC to local time
+            serverTimestampLocal = messageRead.timestamp.toLocal();
+          } else {
+            // Server is sending local-time formatted timestamps but they're actually UTC
+            // Convert to UTC first, then to local time to get correct offset
+            final utcTime = DateTime.utc(
+              messageRead.timestamp.year,
+              messageRead.timestamp.month,
+              messageRead.timestamp.day,
+              messageRead.timestamp.hour,
+              messageRead.timestamp.minute,
+              messageRead.timestamp.second,
+            );
+            serverTimestampLocal = utcTime.toLocal();
+          }
+          
+          _debugLog('Updating temporary message ID: localID=${existingMessage.id} -> serverID=${messageRead.id}');
+          _debugLog('Updating timestamp: local=${existingMessage.timestamp} -> server=$serverTimestampLocal');
+          final messageIndex = currentMessages.indexWhere((msg) => msg.id == existingMessage.id);
+          if (messageIndex != -1) {
+            currentMessages[messageIndex] = existingMessage.copyWith(
+              id: messageRead.id,
+              timestamp: serverTimestampLocal,
+            );
+          }
+        } else {
+          _debugLog('Message already exists locally: ID=${messageRead.id}');
         }
       }
 
@@ -190,6 +269,25 @@ class StorageService extends ChangeNotifier {
   // Get pending invitations
   List<Invitation> get pendingInvitations =>
       _invitations.where((i) => i.isPending).toList();
+
+  /// Get chat room by peer ID
+  ChatRoom? getChatRoomByPeerId(String peerId) {
+    final currentUserId = _currentProfile?.id ?? '';
+    if (currentUserId.isEmpty) return null;
+    
+    try {
+      return _chatRooms.firstWhere(
+        (cr) => cr.containsUser(currentUserId) && cr.containsUser(peerId),
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Refresh messages for a specific chat room
+  Future<void> refreshChatRoomMessages(String chatRoomId) async {
+    await _fetchMessagesForChatRoom(chatRoomId);
+  }
 
   /// Load current profile from persistent storage and sync with API
   Future<void> loadUserProfile() async {
@@ -1112,12 +1210,30 @@ class StorageService extends ChangeNotifier {
       _debugLog('API call successful - received response with ID: ${apiResponse.id}');
       _debugLog('API call successful, response: ${apiResponse.id}');
 
+      // NEW: Backend should create chat room immediately, fetch it
+      try {
+        final currentUserId = int.parse(_apiUserId!);
+        final chatRoomRead = await _apiService.findChatRoomBetweenUsers(
+          currentUserId, 
+          int.parse(peer.id)
+        );
+        
+        if (chatRoomRead != null) {
+          final chatRoom = _apiService.chatRoomReadToChatRoom(chatRoomRead);
+          _chatRooms.add(chatRoom);
+          _debugLog('Chat room created/fetched: ${chatRoom.id}');
+        }
+      } catch (e) {
+        _debugLog('Warning: Could not fetch chat room after invitation creation: $e');
+        // Continue even if chat room fetch fails
+      }
+
       // Create local invitation object from API response
       final invitation = Invitation(
         id: apiResponse.id.toString(),
         peerId: peer.id,
         peerName: peer.name,
-restaurant: activityName,
+        restaurant: activityName,
         activityId: _selectedActivityId!,
         createdAt: apiResponse.createdAt,
         sentByMe: true,
@@ -1197,12 +1313,18 @@ restaurant: activityName,
           // If we sent it, peer is the receiver, otherwise peer is the sender
           final peerId = sentByMe ? invitationRead.receiverId.toString() : invitationRead.senderId.toString();
           
-          // Try to get peer name from users we've seen before
-          // For now, use a generic name - in a real app you'd fetch user details
-          if (sentByMe) {
-            peerName = 'User ${invitationRead.receiverId}';
+          // Try to get peer name from profiles or nearby peers
+          final profile = await getProfileById(peerId);
+          if (profile != null) {
+            peerName = profile.userName;
           } else {
-            peerName = 'User ${invitationRead.senderId}';
+            final peer = getPeerById(peerId);
+            if (peer != null) {
+              peerName = peer.name;
+            } else {
+              // Fallback to generic name if we can't find the user
+              peerName = 'User $peerId';
+            }
           }
           
           final invitation = _apiService.invitationReadToInvitation(invitationRead);
@@ -1363,7 +1485,20 @@ restaurant: activityName,
       return;
     }
 
-    // Accept this invitation
+    try {
+      // NEW: Call API to accept invitation (backend will add acceptance message)
+      await _apiService.acceptInvitation(invitationId);
+      
+      // NEW: Refresh chat rooms to get the acceptance message
+      await _fetchChatRooms();
+      
+      _debugLog('Invitation accepted via API: $invitationId');
+    } catch (e) {
+      _debugLog('Failed to accept invitation via API: $e');
+      // Continue with local update even if API fails
+    }
+
+    // Accept this invitation locally
     _invitations[index] = _invitations[index].copyWith(
       status: InvitationStatus.accepted,
     );
@@ -1387,8 +1522,7 @@ restaurant: activityName,
 
     notifyListeners();
 
-    // Create chat room
-    _createChatRoom(acceptedInvitation);
+    // REMOVED: _createChatRoom(acceptedInvitation) - now handled by backend
   }
 
   /// Decline an invitation
@@ -1438,8 +1572,7 @@ restaurant: activityName,
 
     notifyListeners();
 
-    // Create chat room
-    _createChatRoom(acceptedInvitation);
+    // REMOVED: _createChatRoom(acceptedInvitation) - now handled by backend
   }
 
   /// Mock: Decline a sent invitation (simulate peer declining)
@@ -1548,50 +1681,18 @@ restaurant: activityName,
     notifyListeners();
   }
 
-  /// Create a chat room for accepted invitation
-  void _createChatRoom(Invitation invitation) {
-    final currentUserId = _currentProfile?.id ?? '';
-    if (currentUserId.isEmpty) return;
 
-    // Check if chat room already exists between these users
-    final exists = _chatRooms.any((c) => 
-      c.containsUser(currentUserId) && c.containsUser(invitation.peerId));
-    if (exists) return;
-
-    final chatRoom = ChatRoom(
-      id: 'chat_${invitation.id}',
-      user1Id: currentUserId,
-      user2Id: invitation.peerId,
-      restaurant: invitation.restaurant,
-      createdAt: DateTime.now(),
-    );
-
-    // Add invitation card message
-    final invitationMessage = ChatMessage(
-      id: 'invitation_${DateTime.now().millisecondsSinceEpoch}',
-      text: '🎉 Invitation accepted! Let\'s meet at ${invitation.restaurant}',
-      isMine: false, // System message, not from current user
-      timestamp: DateTime.now(),
-      isSystemMessage: true,
-    );
-
-    final chatRoomWithMessage = chatRoom.copyWith(
-      messages: [invitationMessage],
-    );
-
-    _chatRooms.add(chatRoomWithMessage);
-    notifyListeners();
-  }
 
   /// Send message in chat room
   Future<void> sendMessage(String chatRoomId, String text) async {
     final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
     if (index != -1) {
+      final localTimestamp = DateTime.now();
       final message = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: localTimestamp.millisecondsSinceEpoch.toString(),
         text: text,
         isMine: true,
-        timestamp: DateTime.now(),
+        timestamp: localTimestamp,
         isSystemMessage: false,
       );
 
@@ -1600,14 +1701,21 @@ restaurant: activityName,
       _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
       notifyListeners();
 
+      _debugLog('=== SENDING MESSAGE ===');
+      _debugLog('Chat Room ID: $chatRoomId');
+      _debugLog('Local Message ID: ${message.id}');
+      _debugLog('Message Text: ${message.text}');
+      _debugLog('Current messages count before send: ${_chatRooms[index].messages.length}');
+
       try {
         // Send to backend
         final currentUserId = int.tryParse(_currentProfile?.id ?? '0') ?? 0;
         final messageRequest = _apiService.chatMessageToCreateRequest(text, currentUserId);
         await _apiService.sendChatMessage(chatRoomId, messageRequest);
         
-        // Refresh messages to get the server-assigned ID
-        await _fetchMessagesForChatRoom(chatRoomId);
+        // Don't refresh messages immediately to avoid duplication
+        // The message is already added locally, and periodic polling will sync server-assigned ID
+        _debugLog('Message sent successfully to chat room $chatRoomId');
       } catch (e) {
         // Handle send error - could remove the message or mark as failed
         print('Error sending message: $e');
@@ -1644,16 +1752,7 @@ restaurant: activityName,
     }
   }
 
-  /// Get chat room by peer ID (updated for user pair structure)
-  ChatRoom? getChatRoomByPeerId(String peerId) {
-    try {
-      final currentUserId = _currentProfile?.id ?? '';
-      return _chatRooms.firstWhere((c) => 
-        c.containsUser(currentUserId) && c.containsUser(peerId));
-    } catch (e) {
-      return null;
-    }
-  }
+
 
   /// Get chat room between two users
   ChatRoom? getChatRoomBetweenUsers(String user1Id, String user2Id) {
@@ -1711,11 +1810,6 @@ restaurant: activityName,
     } catch (e) {
       print('Error refreshing chat rooms: $e');
     }
-  }
-
-  /// Refresh messages for a specific chat room
-  Future<void> refreshChatRoomMessages(String chatRoomId) async {
-    await _fetchMessagesForChatRoom(chatRoomId);
   }
 
   /// Refresh invitations from server
@@ -1789,10 +1883,36 @@ restaurant: activityName,
     notifyListeners();
   }
 
-  /// Get profile by ID
-  Profile? getProfileById(String id) {
+  /// Get profile by ID (fetches from API if not found locally)
+  Future<Profile?> getProfileById(String id) async {
     if (id == _currentProfile?.id) return _currentProfile;
-    return _profiles[id];
+    
+    // Check local cache first
+    if (_profiles.containsKey(id)) {
+      return _profiles[id];
+    }
+    
+    // Fetch from API if not found locally
+    try {
+      final userIdInt = int.tryParse(id);
+      if (userIdInt == null) {
+        _debugLog('Invalid user ID format: $id');
+        return null;
+      }
+      
+      final userRead = await _apiService.getUser(userIdInt);
+      final profile = _apiService.userReadToProfile(userRead);
+      
+      // Cache the profile locally
+      _profiles[id] = profile;
+      await _persistProfiles();
+      notifyListeners();
+      
+      return profile;
+    } catch (e) {
+      _debugLog('Error fetching profile for user $id: $e');
+      return null;
+    }
   }
 
   /// Mark chat as opened for the invitation

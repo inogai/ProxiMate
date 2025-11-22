@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
 import '../models/meeting.dart';
+import '../models/profile.dart';
 import '../screens/chat_room_screen.dart';
 
-/// Tab showing invitations as a contacts list with chat-style interface
+/// Tab showing chat rooms as a contacts list with chat-style interface
 class InvitationsTab extends StatefulWidget {
   const InvitationsTab({super.key});
 
@@ -20,20 +21,17 @@ class _InvitationsTabState extends State<InvitationsTab> {
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
     
-    // Get all relevant invitations
-    final receivedInvitations = storage.receivedInvitations;
-    final sentInvitations = storage.sentInvitations;
-    final acceptedInvitations = storage.acceptedInvitations;
-    
-    // Combine all invitations for the contacts list
-    final allInvitations = [...receivedInvitations, ...sentInvitations, ...acceptedInvitations];
+    // Get chat rooms
+    final chatRooms = storage.chatRooms;
+    final currentUserId = storage.currentProfile?.id ?? '';
     
     // Sort by most recent first
-    allInvitations.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final sortedChatRooms = List<ChatRoom>.from(chatRooms)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Invitations'),
+        title: const Text('Chats'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -53,8 +51,8 @@ class _InvitationsTabState extends State<InvitationsTab> {
           else
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: _refreshInvitations,
-              tooltip: 'Refresh invitations',
+              onPressed: _refreshChats,
+              tooltip: 'Refresh chats',
             ),
         ],
         bottom: const PreferredSize(
@@ -65,32 +63,32 @@ class _InvitationsTabState extends State<InvitationsTab> {
       backgroundColor: Colors.white,
       body: RefreshIndicator(
         key: _refreshIndicatorKey,
-        onRefresh: _refreshInvitations,
-        child: allInvitations.isEmpty
+        onRefresh: _refreshChats,
+        child: sortedChatRooms.isEmpty
             ? _buildEmptyState(context)
             : ListView.builder(
                 padding: EdgeInsets.zero,
-                itemCount: allInvitations.length,
+                itemCount: sortedChatRooms.length,
                 itemBuilder: (context, index) {
-                  final invitation = allInvitations[index];
-                  return _buildInvitationContact(context, invitation, storage);
+                  final chatRoom = sortedChatRooms[index];
+                  return _buildChatRoomContact(context, chatRoom, storage, currentUserId);
                 },
               ),
       ),
     );
   }
 
-  /// Refresh invitations from server
-  Future<void> _refreshInvitations() async {
+  /// Refresh chats from server
+  Future<void> _refreshChats() async {
     setState(() {
       _isRefreshing = true;
     });
 
     try {
       final storage = context.read<StorageService>();
-      await storage.refreshInvitations();
+      await storage.refreshChatRooms();
     } catch (e) {
-      print('Error refreshing invitations: $e');
+      print('Error refreshing chats: $e');
     } finally {
       setState(() {
         _isRefreshing = false;
@@ -119,7 +117,7 @@ class _InvitationsTabState extends State<InvitationsTab> {
             ),
             const SizedBox(height: 24),
             Text(
-              'No Invitations Yet',
+              'No Chats Yet',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -127,7 +125,7 @@ class _InvitationsTabState extends State<InvitationsTab> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start connecting with peers to see invitations here',
+              'Accept invitations to start chatting here',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
@@ -148,132 +146,141 @@ class _InvitationsTabState extends State<InvitationsTab> {
     );
   }
 
-  Widget _buildInvitationContact(
+  Widget _buildChatRoomContact(
     BuildContext context,
-    Invitation invitation,
+    ChatRoom chatRoom,
     StorageService storage,
+    String currentUserId,
   ) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: () => _handleInvitationTap(context, invitation, storage),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Avatar
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: _getAvatarColor(invitation),
-                  child: Text(
-                    _getInitials(invitation.peerName),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+    // Get the other user's information
+    final otherUserId = chatRoom.getOtherUserId(currentUserId);
+    
+    // Use FutureBuilder to handle async profile fetching
+    return FutureBuilder<Profile?>(
+      future: storage.getProfileById(otherUserId),
+      builder: (context, snapshot) {
+        String peerName = 'Unknown User';
+        
+        if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+          peerName = snapshot.data!.userName;
+        } else {
+          // Fallback to nearby peers if profile not found
+          final peer = storage.getPeerById(otherUserId);
+          if (peer != null) {
+            peerName = peer.name;
+          }
+        }
+        
+        // Get last message for preview
+        String lastMessage = 'Start chatting!';
+        DateTime lastMessageTime = chatRoom.createdAt;
+        if (chatRoom.messages.isNotEmpty) {
+          final lastMsg = chatRoom.messages.last;
+          if (!lastMsg.isSystemMessage) {
+            lastMessage = lastMsg.text;
+            lastMessageTime = lastMsg.timestamp;
+          }
+        }
+        
+        return Column(
+          children: [
+            InkWell(
+              onTap: () => _handleChatRoomTap(context, chatRoom),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.green,
+                      child: Text(
+                        _getInitials(peerName),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                
-                // Content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                    const SizedBox(width: 12),
+                    
+                    // Content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              invitation.peerName,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  peerName,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                _formatTime(lastMessageTime),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          
+                          // Last message preview
+                          Text(
+                            lastMessage,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w400,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          
+                          // Restaurant info (if available)
+                          if (chatRoom.restaurant.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '📍 ${chatRoom.restaurant}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
                               ),
                             ),
-                          ),
-                          Text(
-                            _formatTime(invitation.createdAt),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
+                          ],
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      
-                      // Status message
-                      Text(
-                        _getStatusMessage(invitation),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: _getStatusColor(invitation),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      
-                      // Restaurant info (if available)
-                      if (invitation.restaurant.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          '📍 ${invitation.restaurant}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                      
-                      
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-        const Divider(height: 1, indent: 72, thickness: 0.5),
-      ],
+            const Divider(height: 1, indent: 72, thickness: 0.5),
+          ],
+        );
+      },
     );
   }
 
-  Future<void> _handleInvitationTap(
+  Future<void> _handleChatRoomTap(
     BuildContext context,
-    Invitation invitation,
-    StorageService storage,
+    ChatRoom chatRoom,
   ) async {
-    if (invitation.isAccepted) {
-      // Open chat room for accepted invitations
-      final currentUserId = storage.currentProfile?.id ?? '';
-      
-      // Refresh chat rooms before opening
-      await storage.refreshChatRooms();
-      
-      final chatRoom = storage.chatRooms
-          .where((cr) => cr.containsUser(currentUserId) && 
-                        cr.containsUser(invitation.peerId))
-          .firstOrNull;
-      
-      if (chatRoom != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatRoomScreen(chatRoom: chatRoom),
-          ),
-        );
-      }
-    } else if (invitation.isPending) {
-      // Open chat view with invitation card for all pending invitations
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ChatRoomScreen(invitation: invitation),
-        ),
-      );
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatRoomScreen(chatRoom: chatRoom),
+      ),
+    );
   }
 
   
@@ -288,37 +295,7 @@ class _InvitationsTabState extends State<InvitationsTab> {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
-  Color _getAvatarColor(Invitation invitation) {
-    if (invitation.isAccepted) {
-      return Colors.green;
-    } else if (invitation.isPending) {
-      return invitation.sentByMe ? Colors.blue : Colors.orange;
-    } else {
-      return Colors.grey;
-    }
-  }
 
-  String _getStatusMessage(Invitation invitation) {
-    if (invitation.isAccepted) {
-      return invitation.chatOpened ? 'Chat available' : 'Invitation accepted 💬';
-    } else if (invitation.isPending) {
-      return invitation.sentByMe 
-          ? 'Invitation sent ⏳' 
-          : 'Wants to connect 🤝';
-    } else {
-      return 'Invitation declined';
-    }
-  }
-
-  Color _getStatusColor(Invitation invitation) {
-    if (invitation.isAccepted) {
-      return Colors.green;
-    } else if (invitation.isPending) {
-      return invitation.sentByMe ? Colors.blue : Colors.orange;
-    } else {
-      return Colors.grey;
-    }
-  }
 
   String _formatTime(DateTime date) {
     final now = DateTime.now();

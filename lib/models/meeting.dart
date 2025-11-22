@@ -145,4 +145,20 @@ class ChatMessage {
     required this.timestamp,
     this.isSystemMessage = false,
   });
+
+  ChatMessage copyWith({
+    String? id,
+    String? text,
+    bool? isMine,
+    DateTime? timestamp,
+    bool? isSystemMessage,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      isMine: isMine ?? this.isMine,
+      timestamp: timestamp ?? this.timestamp,
+      isSystemMessage: isSystemMessage ?? this.isSystemMessage,
+    );
+  }
 }

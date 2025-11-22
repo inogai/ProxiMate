@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/meeting.dart';
+import '../models/profile.dart';
 import '../services/storage_service.dart';
 import '../widgets/custom_buttons.dart';
 
@@ -48,7 +49,27 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       final storage = context.read<StorageService>();
       await storage.refreshChatRoomMessages(widget.chatRoom!.id);
     } catch (e) {
-      print('Error refreshing messages: $e');
+      // NEW: Handle 404 gracefully
+      if (e.toString().contains('404') || e.toString().contains('not found')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Chat room not available yet. Please try again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        print('Error refreshing messages: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to refresh messages: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -80,7 +101,27 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       storage.sendMessage(
         currentChatRoom.id,
         _messageController.text.trim(),
-      );
+      ).catchError((e) {
+        // NEW: Handle send errors gracefully
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to send message: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
+    } else {
+      // NEW: Handle case where chat room doesn't exist
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chat room not available. Please try again.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
 
     _messageController.clear();
@@ -131,36 +172,48 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     // Get peer name using the new user pair structure
     final currentUserId = storage.currentProfile?.id ?? '';
-    String peerName = widget.invitation?.peerName ?? 'Unknown';
+    String otherUserId = '';
+    String initialPeerName = widget.invitation?.peerName ?? 'Unknown';
+    
     if (chatRoom != null) {
-      final otherUserId = chatRoom.getOtherUserId(currentUserId);
-      // Try to get name from profiles or nearby peers
-      final profile = storage.getProfileById(otherUserId);
-      if (profile != null) {
-        peerName = profile.userName;
-      } else {
-        final peer = storage.getPeerById(otherUserId);
-        if (peer != null) {
-          peerName = peer.name;
-        }
-      }
+      otherUserId = chatRoom.getOtherUserId(currentUserId);
+    } else if (widget.invitation != null) {
+      otherUserId = widget.invitation!.peerId;
     }
+    
     final restaurant = chatRoom?.restaurant ?? widget.invitation?.restaurant ?? '';
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(peerName),
-            if (restaurant.isNotEmpty)
-              Text(
-                restaurant,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ),
-          ],
+        title: FutureBuilder<Profile?>(
+          future: otherUserId.isNotEmpty ? storage.getProfileById(otherUserId) : Future.value(null),
+          builder: (context, snapshot) {
+            String peerName = initialPeerName;
+            
+            if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+              peerName = snapshot.data!.userName;
+            } else if (otherUserId.isNotEmpty) {
+              // Fallback to nearby peers if profile not found
+              final peer = storage.getPeerById(otherUserId);
+              if (peer != null) {
+                peerName = peer.name;
+              }
+            }
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(peerName),
+                if (restaurant.isNotEmpty)
+                  Text(
+                    restaurant,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         actions: [
           if (_isLoading)
@@ -185,35 +238,51 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             onPressed: () {
               showDialog(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Meetup Details'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                builder: (context) => FutureBuilder<Profile?>(
+                  future: otherUserId.isNotEmpty ? storage.getProfileById(otherUserId) : Future.value(null),
+                  builder: (context, snapshot) {
+                    String dialogPeerName = initialPeerName;
+                    
+                    if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                      dialogPeerName = snapshot.data!.userName;
+                    } else if (otherUserId.isNotEmpty) {
+                      final peer = storage.getPeerById(otherUserId);
+                      if (peer != null) {
+                        dialogPeerName = peer.name;
+                      }
+                    }
+                    
+                    return AlertDialog(
+                      title: const Text('Meetup Details'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.person),
-                          const SizedBox(width: 8),
-                          Text(peerName),
+                          Row(
+                            children: [
+                              const Icon(Icons.person),
+                              const SizedBox(width: 8),
+                              Text(dialogPeerName),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              const Icon(Icons.restaurant),
+                              const SizedBox(width: 8),
+                              Text(restaurant),
+                            ],
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.restaurant),
-                          const SizedBox(width: 8),
-                          Text(restaurant),
-                        ],
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
-                    ),
-                  ],
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               );
             },
@@ -543,15 +612,37 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildMessage(ChatMessage message) {
     // Special styling for system messages (invitation cards)
     if (message.isSystemMessage) {
+      // Different styling for invitation vs acceptance messages
+      final isInvitationMessage = message.text.contains('Invitation sent') || 
+                                  message.text.contains('wants to connect');
+      final isAcceptanceMessage = message.text.contains('Invitation accepted');
+      
+      Color bgColor = Colors.green.withValues(alpha: 0.1);
+      Color borderColor = Colors.green.withValues(alpha: 0.3);
+      Color textColor = Colors.green[700]!;
+      IconData icon = Icons.celebration;
+      
+      if (isInvitationMessage) {
+        bgColor = Colors.blue.withValues(alpha: 0.1);
+        borderColor = Colors.blue.withValues(alpha: 0.3);
+        textColor = Colors.blue[700]!;
+        icon = Icons.mail_outline;
+      } else if (isAcceptanceMessage) {
+        bgColor = Colors.green.withValues(alpha: 0.1);
+        borderColor = Colors.green.withValues(alpha: 0.3);
+        textColor = Colors.green[700]!;
+        icon = Icons.check_circle;
+      }
+      
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.green.withValues(alpha: 0.1),
+            color: bgColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+            border: Border.all(color: borderColor),
           ),
           child: Column(
             children: [
@@ -559,8 +650,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.celebration,
-                    color: Colors.green[700],
+                    icon,
+                    color: textColor,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -569,7 +660,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       message.text,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.green[700],
+                        color: textColor,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -582,7 +673,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.green[600],
+                  color: textColor.withValues(alpha: 0.8),
                 ),
               ),
             ],

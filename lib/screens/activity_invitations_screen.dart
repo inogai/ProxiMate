@@ -757,6 +757,7 @@ class _ActivityInvitationsScreenState extends State<ActivityInvitationsScreen> {
   }
 
   Widget _buildSentCard(BuildContext context, Invitation invitation) {
+    final storage = context.read<StorageService>();
     final isPending = invitation.isPending;
 
     return Card(
@@ -850,6 +851,38 @@ class _ActivityInvitationsScreenState extends State<ActivityInvitationsScreen> {
                 ),
               ],
             ),
+            
+            // NEW: Add chat button for pending invitations
+            if (isPending) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: PrimaryButton.icon(
+                  text: 'Chat',
+                  icon: Icons.chat,
+                  onPressed: () async {
+                    final chatRoom = storage.getChatRoomByPeerId(invitation.peerId);
+                    if (chatRoom != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatRoomScreen(chatRoom: chatRoom),
+                        ),
+                      );
+                    } else {
+                      // Chat room not found, show error
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Chat room not available yet. Please try again.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  },
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
           ],
         ),
       ),
