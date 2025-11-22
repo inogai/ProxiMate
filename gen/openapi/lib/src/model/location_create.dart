@@ -8,17 +8,19 @@ import 'package:built_value/serializer.dart';
 
 part 'location_create.g.dart';
 
-/// LocationCreate
+/// Schema for creating a new location.
 ///
 /// Properties:
-/// * [latitude] 
-/// * [longitude] 
+/// * [latitude] - Latitude coordinate
+/// * [longitude] - Longitude coordinate
 /// * [userId] 
 @BuiltValue()
 abstract class LocationCreate implements Built<LocationCreate, LocationCreateBuilder> {
+  /// Latitude coordinate
   @BuiltValueField(wireName: r'latitude')
   num get latitude;
 
+  /// Longitude coordinate
   @BuiltValueField(wireName: r'longitude')
   num get longitude;
 

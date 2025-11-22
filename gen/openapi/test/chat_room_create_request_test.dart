@@ -1,12 +1,12 @@
 import 'package:test/test.dart';
 import 'package:openapi/openapi.dart';
 
-// tests for ChatRoomBase
+// tests for ChatRoomCreateRequest
 void main() {
-  final instance = ChatRoomBaseBuilder();
+  final instance = ChatRoomCreateRequestBuilder();
   // TODO add properties to the builder and call build()
 
-  group(ChatRoomBase, () {
+  group(ChatRoomCreateRequest, () {
     // int user1Id
     test('to test the property `user1Id`', () async {
       // TODO
@@ -19,6 +19,11 @@ void main() {
 
     // String restaurant
     test('to test the property `restaurant`', () async {
+      // TODO
+    });
+
+    // BuiltMap<String, JsonObject> invitationData
+    test('to test the property `invitationData`', () async {
       // TODO
     });
 

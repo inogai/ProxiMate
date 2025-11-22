@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'activity_read.g.dart';
 
-/// ActivityRead
+/// Schema for reading activity data.
 ///
 /// Properties:
 /// * [name] 

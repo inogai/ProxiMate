@@ -9,7 +9,13 @@ import 'package:openapi/src/auth/api_key_auth.dart';
 import 'package:openapi/src/auth/basic_auth.dart';
 import 'package:openapi/src/auth/bearer_auth.dart';
 import 'package:openapi/src/auth/oauth.dart';
+import 'package:openapi/src/api/activities_api.dart';
+import 'package:openapi/src/api/chatrooms_api.dart';
 import 'package:openapi/src/api/default_api.dart';
+import 'package:openapi/src/api/invitations_api.dart';
+import 'package:openapi/src/api/locations_api.dart';
+import 'package:openapi/src/api/messages_api.dart';
+import 'package:openapi/src/api/users_api.dart';
 
 class Openapi {
   static const String basePath = r'http://localhost';
@@ -65,9 +71,45 @@ class Openapi {
     }
   }
 
+  /// Get ActivitiesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  ActivitiesApi getActivitiesApi() {
+    return ActivitiesApi(dio, serializers);
+  }
+
+  /// Get ChatroomsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  ChatroomsApi getChatroomsApi() {
+    return ChatroomsApi(dio, serializers);
+  }
+
   /// Get DefaultApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   DefaultApi getDefaultApi() {
     return DefaultApi(dio, serializers);
+  }
+
+  /// Get InvitationsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  InvitationsApi getInvitationsApi() {
+    return InvitationsApi(dio, serializers);
+  }
+
+  /// Get LocationsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  LocationsApi getLocationsApi() {
+    return LocationsApi(dio, serializers);
+  }
+
+  /// Get MessagesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  MessagesApi getMessagesApi() {
+    return MessagesApi(dio, serializers);
+  }
+
+  /// Get UsersApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  UsersApi getUsersApi() {
+    return UsersApi(dio, serializers);
   }
 }

@@ -6,60 +6,64 @@
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
-part 'location_base.g.dart';
+part 'location_update.g.dart';
 
-/// LocationBase
+/// Schema for updating location data.
 ///
 /// Properties:
 /// * [latitude] 
 /// * [longitude] 
 @BuiltValue()
-abstract class LocationBase implements Built<LocationBase, LocationBaseBuilder> {
+abstract class LocationUpdate implements Built<LocationUpdate, LocationUpdateBuilder> {
   @BuiltValueField(wireName: r'latitude')
-  num get latitude;
+  num? get latitude;
 
   @BuiltValueField(wireName: r'longitude')
-  num get longitude;
+  num? get longitude;
 
-  LocationBase._();
+  LocationUpdate._();
 
-  factory LocationBase([void updates(LocationBaseBuilder b)]) = _$LocationBase;
+  factory LocationUpdate([void updates(LocationUpdateBuilder b)]) = _$LocationUpdate;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(LocationBaseBuilder b) => b;
+  static void _defaults(LocationUpdateBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<LocationBase> get serializer => _$LocationBaseSerializer();
+  static Serializer<LocationUpdate> get serializer => _$LocationUpdateSerializer();
 }
 
-class _$LocationBaseSerializer implements PrimitiveSerializer<LocationBase> {
+class _$LocationUpdateSerializer implements PrimitiveSerializer<LocationUpdate> {
   @override
-  final Iterable<Type> types = const [LocationBase, _$LocationBase];
+  final Iterable<Type> types = const [LocationUpdate, _$LocationUpdate];
 
   @override
-  final String wireName = r'LocationBase';
+  final String wireName = r'LocationUpdate';
 
   Iterable<Object?> _serializeProperties(
     Serializers serializers,
-    LocationBase object, {
+    LocationUpdate object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
-    yield r'latitude';
-    yield serializers.serialize(
-      object.latitude,
-      specifiedType: const FullType(num),
-    );
-    yield r'longitude';
-    yield serializers.serialize(
-      object.longitude,
-      specifiedType: const FullType(num),
-    );
+    if (object.latitude != null) {
+      yield r'latitude';
+      yield serializers.serialize(
+        object.latitude,
+        specifiedType: const FullType.nullable(num),
+      );
+    }
+    if (object.longitude != null) {
+      yield r'longitude';
+      yield serializers.serialize(
+        object.longitude,
+        specifiedType: const FullType.nullable(num),
+      );
+    }
   }
 
   @override
   Object serialize(
     Serializers serializers,
-    LocationBase object, {
+    LocationUpdate object, {
     FullType specifiedType = FullType.unspecified,
   }) {
     return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
@@ -70,7 +74,7 @@ class _$LocationBaseSerializer implements PrimitiveSerializer<LocationBase> {
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
     required List<Object?> serializedList,
-    required LocationBaseBuilder result,
+    required LocationUpdateBuilder result,
     required List<Object?> unhandled,
   }) {
     for (var i = 0; i < serializedList.length; i += 2) {
@@ -80,15 +84,17 @@ class _$LocationBaseSerializer implements PrimitiveSerializer<LocationBase> {
         case r'latitude':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(num),
-          ) as num;
+            specifiedType: const FullType.nullable(num),
+          ) as num?;
+          if (valueDes == null) continue;
           result.latitude = valueDes;
           break;
         case r'longitude':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(num),
-          ) as num;
+            specifiedType: const FullType.nullable(num),
+          ) as num?;
+          if (valueDes == null) continue;
           result.longitude = valueDes;
           break;
         default:
@@ -100,12 +106,12 @@ class _$LocationBaseSerializer implements PrimitiveSerializer<LocationBase> {
   }
 
   @override
-  LocationBase deserialize(
+  LocationUpdate deserialize(
     Serializers serializers,
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    final result = LocationBaseBuilder();
+    final result = LocationUpdateBuilder();
     final serializedList = (serialized as Iterable<Object?>).toList();
     final unhandled = <Object?>[];
     _deserializeProperties(

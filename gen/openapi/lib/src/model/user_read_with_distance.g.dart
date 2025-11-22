@@ -8,19 +8,19 @@ part of 'user_read_with_distance.dart';
 
 class _$UserReadWithDistance extends UserReadWithDistance {
   @override
+  final int id;
+  @override
   final String username;
   @override
-  final String? school;
+  final String school;
   @override
-  final String? major;
+  final String major;
   @override
-  final String? interests;
+  final String interests;
   @override
-  final String? bio;
+  final String bio;
   @override
   final String? avatarUrl;
-  @override
-  final int id;
   @override
   final String createdAt;
   @override
@@ -31,13 +31,13 @@ class _$UserReadWithDistance extends UserReadWithDistance {
       (UserReadWithDistanceBuilder()..update(updates))._build();
 
   _$UserReadWithDistance._(
-      {required this.username,
-      this.school,
-      this.major,
-      this.interests,
-      this.bio,
+      {required this.id,
+      required this.username,
+      required this.school,
+      required this.major,
+      required this.interests,
+      required this.bio,
       this.avatarUrl,
-      required this.id,
       required this.createdAt,
       this.distanceKm})
       : super._();
@@ -54,13 +54,13 @@ class _$UserReadWithDistance extends UserReadWithDistance {
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
     return other is UserReadWithDistance &&
+        id == other.id &&
         username == other.username &&
         school == other.school &&
         major == other.major &&
         interests == other.interests &&
         bio == other.bio &&
         avatarUrl == other.avatarUrl &&
-        id == other.id &&
         createdAt == other.createdAt &&
         distanceKm == other.distanceKm;
   }
@@ -68,13 +68,13 @@ class _$UserReadWithDistance extends UserReadWithDistance {
   @override
   int get hashCode {
     var _$hash = 0;
+    _$hash = $jc(_$hash, id.hashCode);
     _$hash = $jc(_$hash, username.hashCode);
     _$hash = $jc(_$hash, school.hashCode);
     _$hash = $jc(_$hash, major.hashCode);
     _$hash = $jc(_$hash, interests.hashCode);
     _$hash = $jc(_$hash, bio.hashCode);
     _$hash = $jc(_$hash, avatarUrl.hashCode);
-    _$hash = $jc(_$hash, id.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jc(_$hash, distanceKm.hashCode);
     _$hash = $jf(_$hash);
@@ -84,13 +84,13 @@ class _$UserReadWithDistance extends UserReadWithDistance {
   @override
   String toString() {
     return (newBuiltValueToStringHelper(r'UserReadWithDistance')
+          ..add('id', id)
           ..add('username', username)
           ..add('school', school)
           ..add('major', major)
           ..add('interests', interests)
           ..add('bio', bio)
           ..add('avatarUrl', avatarUrl)
-          ..add('id', id)
           ..add('createdAt', createdAt)
           ..add('distanceKm', distanceKm))
         .toString();
@@ -100,6 +100,10 @@ class _$UserReadWithDistance extends UserReadWithDistance {
 class UserReadWithDistanceBuilder
     implements Builder<UserReadWithDistance, UserReadWithDistanceBuilder> {
   _$UserReadWithDistance? _$v;
+
+  int? _id;
+  int? get id => _$this._id;
+  set id(int? id) => _$this._id = id;
 
   String? _username;
   String? get username => _$this._username;
@@ -125,10 +129,6 @@ class UserReadWithDistanceBuilder
   String? get avatarUrl => _$this._avatarUrl;
   set avatarUrl(String? avatarUrl) => _$this._avatarUrl = avatarUrl;
 
-  int? _id;
-  int? get id => _$this._id;
-  set id(int? id) => _$this._id = id;
-
   String? _createdAt;
   String? get createdAt => _$this._createdAt;
   set createdAt(String? createdAt) => _$this._createdAt = createdAt;
@@ -144,13 +144,13 @@ class UserReadWithDistanceBuilder
   UserReadWithDistanceBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
+      _id = $v.id;
       _username = $v.username;
       _school = $v.school;
       _major = $v.major;
       _interests = $v.interests;
       _bio = $v.bio;
       _avatarUrl = $v.avatarUrl;
-      _id = $v.id;
       _createdAt = $v.createdAt;
       _distanceKm = $v.distanceKm;
       _$v = null;
@@ -174,15 +174,19 @@ class UserReadWithDistanceBuilder
   _$UserReadWithDistance _build() {
     final _$result = _$v ??
         _$UserReadWithDistance._(
-          username: BuiltValueNullFieldError.checkNotNull(
-              username, r'UserReadWithDistance', 'username'),
-          school: school,
-          major: major,
-          interests: interests,
-          bio: bio,
-          avatarUrl: avatarUrl,
           id: BuiltValueNullFieldError.checkNotNull(
               id, r'UserReadWithDistance', 'id'),
+          username: BuiltValueNullFieldError.checkNotNull(
+              username, r'UserReadWithDistance', 'username'),
+          school: BuiltValueNullFieldError.checkNotNull(
+              school, r'UserReadWithDistance', 'school'),
+          major: BuiltValueNullFieldError.checkNotNull(
+              major, r'UserReadWithDistance', 'major'),
+          interests: BuiltValueNullFieldError.checkNotNull(
+              interests, r'UserReadWithDistance', 'interests'),
+          bio: BuiltValueNullFieldError.checkNotNull(
+              bio, r'UserReadWithDistance', 'bio'),
+          avatarUrl: avatarUrl,
           createdAt: BuiltValueNullFieldError.checkNotNull(
               createdAt, r'UserReadWithDistance', 'createdAt'),
           distanceKm: distanceKm,

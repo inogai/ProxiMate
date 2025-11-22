@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'user_create.g.dart';
 
-/// UserCreate
+/// Schema for creating a new user.
 ///
 /// Properties:
 /// * [username] 

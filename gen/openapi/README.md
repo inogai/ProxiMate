@@ -47,14 +47,14 @@ Please follow the [installation procedure](#installation--usage) and then run th
 import 'package:openapi/openapi.dart';
 
 
-final api = Openapi().getDefaultApi();
-final String invitationId = invitationId_example; // String | 
+final api = Openapi().getActivitiesApi();
+final ActivityCreate activityCreate = ; // ActivityCreate | 
 
 try {
-    final response = await api.acceptInvitationInvitationsInvitationIdAcceptPut(invitationId);
+    final response = await api.createActivityApiV1ActivitiesPost(activityCreate);
     print(response);
 } on DioException catch (e) {
-    print("Exception when calling DefaultApi->acceptInvitationInvitationsInvitationIdAcceptPut: $e\n");
+    print("Exception when calling ActivitiesApi->createActivityApiV1ActivitiesPost: $e\n");
 }
 
 ```
@@ -65,52 +65,77 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
-[*DefaultApi*](doc/DefaultApi.md) | [**acceptInvitationInvitationsInvitationIdAcceptPut**](doc/DefaultApi.md#acceptinvitationinvitationsinvitationidacceptput) | **PUT** /invitations/{invitation_id}/accept | Accept Invitation
-[*DefaultApi*](doc/DefaultApi.md) | [**collectNameCardInvitationsInvitationIdCollectNameCardPut**](doc/DefaultApi.md#collectnamecardinvitationsinvitationidcollectnamecardput) | **PUT** /invitations/{invitation_id}/collect-name-card | Collect Name Card
-[*DefaultApi*](doc/DefaultApi.md) | [**createActivityActivitiesPost**](doc/DefaultApi.md#createactivityactivitiespost) | **POST** /activities | Create Activity
-[*DefaultApi*](doc/DefaultApi.md) | [**createChatroomChatroomsPost**](doc/DefaultApi.md#createchatroomchatroomspost) | **POST** /chatrooms | Create Chatroom
-[*DefaultApi*](doc/DefaultApi.md) | [**createInvitationInvitationsPost**](doc/DefaultApi.md#createinvitationinvitationspost) | **POST** /invitations | Create Invitation
-[*DefaultApi*](doc/DefaultApi.md) | [**createLocationLocationsPost**](doc/DefaultApi.md#createlocationlocationspost) | **POST** /locations/ | Create Location
-[*DefaultApi*](doc/DefaultApi.md) | [**createUserUsersPost**](doc/DefaultApi.md#createuseruserspost) | **POST** /users/ | Create User
-[*DefaultApi*](doc/DefaultApi.md) | [**declineInvitationInvitationsInvitationIdDeclinePut**](doc/DefaultApi.md#declineinvitationinvitationsinvitationiddeclineput) | **PUT** /invitations/{invitation_id}/decline | Decline Invitation
-[*DefaultApi*](doc/DefaultApi.md) | [**deleteActivityActivitiesActivityIdDelete**](doc/DefaultApi.md#deleteactivityactivitiesactivityiddelete) | **DELETE** /activities/{activity_id} | Delete Activity
-[*DefaultApi*](doc/DefaultApi.md) | [**deleteAvatarUsersUserIdAvatarDelete**](doc/DefaultApi.md#deleteavatarusersuseridavatardelete) | **DELETE** /users/{user_id}/avatar | Delete Avatar
-[*DefaultApi*](doc/DefaultApi.md) | [**findChatroomBetweenUsersChatroomsFindGet**](doc/DefaultApi.md#findchatroombetweenuserschatroomsfindget) | **GET** /chatrooms/find | Find Chatroom Between Users
-[*DefaultApi*](doc/DefaultApi.md) | [**getActivitiesActivitiesGet**](doc/DefaultApi.md#getactivitiesactivitiesget) | **GET** /activities | Get Activities
-[*DefaultApi*](doc/DefaultApi.md) | [**getBatchLocationsLocationsBatchGet**](doc/DefaultApi.md#getbatchlocationslocationsbatchget) | **GET** /locations/batch | Get Batch Locations
-[*DefaultApi*](doc/DefaultApi.md) | [**getChatMessagesChatroomsChatroomIdMessagesGet**](doc/DefaultApi.md#getchatmessageschatroomschatroomidmessagesget) | **GET** /chatrooms/{chatroom_id}/messages | Get Chat Messages
-[*DefaultApi*](doc/DefaultApi.md) | [**getChatroomChatroomsChatroomIdGet**](doc/DefaultApi.md#getchatroomchatroomschatroomidget) | **GET** /chatrooms/{chatroom_id} | Get Chatroom
-[*DefaultApi*](doc/DefaultApi.md) | [**getChatroomsChatroomsGet**](doc/DefaultApi.md#getchatroomschatroomsget) | **GET** /chatrooms | Get Chatrooms
-[*DefaultApi*](doc/DefaultApi.md) | [**getInvitationsInvitationsGet**](doc/DefaultApi.md#getinvitationsinvitationsget) | **GET** /invitations | Get Invitations
-[*DefaultApi*](doc/DefaultApi.md) | [**getNearbyUsersUsersNearbyGet**](doc/DefaultApi.md#getnearbyusersusersnearbyget) | **GET** /users/nearby | Get Nearby Users
-[*DefaultApi*](doc/DefaultApi.md) | [**getUserLocationsLocationsUserIdGet**](doc/DefaultApi.md#getuserlocationslocationsuseridget) | **GET** /locations/{user_id} | Get User Locations
-[*DefaultApi*](doc/DefaultApi.md) | [**getUserUsersUserIdGet**](doc/DefaultApi.md#getuserusersuseridget) | **GET** /users/{user_id} | Get User
-[*DefaultApi*](doc/DefaultApi.md) | [**getUsersUsersGet**](doc/DefaultApi.md#getusersusersget) | **GET** /users/ | Get Users
-[*DefaultApi*](doc/DefaultApi.md) | [**healthCheckHealthGet**](doc/DefaultApi.md#healthcheckhealthget) | **GET** /health | Health Check
-[*DefaultApi*](doc/DefaultApi.md) | [**markChatOpenedInvitationsInvitationIdChatOpenedPut**](doc/DefaultApi.md#markchatopenedinvitationsinvitationidchatopenedput) | **PUT** /invitations/{invitation_id}/chat-opened | Mark Chat Opened
-[*DefaultApi*](doc/DefaultApi.md) | [**markNotGoodMatchInvitationsInvitationIdNotGoodMatchPut**](doc/DefaultApi.md#marknotgoodmatchinvitationsinvitationidnotgoodmatchput) | **PUT** /invitations/{invitation_id}/not-good-match | Mark Not Good Match
-[*DefaultApi*](doc/DefaultApi.md) | [**rootGet**](doc/DefaultApi.md#rootget) | **GET** / | Root
-[*DefaultApi*](doc/DefaultApi.md) | [**sendChatMessageChatroomsChatroomIdMessagesPost**](doc/DefaultApi.md#sendchatmessagechatroomschatroomidmessagespost) | **POST** /chatrooms/{chatroom_id}/messages | Send Chat Message
-[*DefaultApi*](doc/DefaultApi.md) | [**updateUserLocationUsersUserIdLocationPost**](doc/DefaultApi.md#updateuserlocationusersuseridlocationpost) | **POST** /users/{user_id}/location | Update User Location
-[*DefaultApi*](doc/DefaultApi.md) | [**updateUserUsersUserIdPut**](doc/DefaultApi.md#updateuserusersuseridput) | **PUT** /users/{user_id} | Update User
-[*DefaultApi*](doc/DefaultApi.md) | [**uploadAvatarUsersUserIdAvatarPost**](doc/DefaultApi.md#uploadavatarusersuseridavatarpost) | **POST** /users/{user_id}/avatar | Upload Avatar
-[*DefaultApi*](doc/DefaultApi.md) | [**visualizeDbVisualizeGet**](doc/DefaultApi.md#visualizedbvisualizeget) | **GET** /visualize | Visualize Db
+[*ActivitiesApi*](doc/ActivitiesApi.md) | [**createActivityApiV1ActivitiesPost**](doc/ActivitiesApi.md#createactivityapiv1activitiespost) | **POST** /api/v1/activities/ | Create Activity
+[*ActivitiesApi*](doc/ActivitiesApi.md) | [**deleteActivityApiV1ActivitiesActivityIdDelete**](doc/ActivitiesApi.md#deleteactivityapiv1activitiesactivityiddelete) | **DELETE** /api/v1/activities/{activity_id} | Delete Activity
+[*ActivitiesApi*](doc/ActivitiesApi.md) | [**getActivitiesApiV1ActivitiesGet**](doc/ActivitiesApi.md#getactivitiesapiv1activitiesget) | **GET** /api/v1/activities/ | Get Activities
+[*ActivitiesApi*](doc/ActivitiesApi.md) | [**getActivityApiV1ActivitiesActivityIdGet**](doc/ActivitiesApi.md#getactivityapiv1activitiesactivityidget) | **GET** /api/v1/activities/{activity_id} | Get Activity
+[*ActivitiesApi*](doc/ActivitiesApi.md) | [**searchActivitiesApiV1ActivitiesSearchGet**](doc/ActivitiesApi.md#searchactivitiesapiv1activitiessearchget) | **GET** /api/v1/activities/search | Search Activities
+[*ActivitiesApi*](doc/ActivitiesApi.md) | [**updateActivityApiV1ActivitiesActivityIdPut**](doc/ActivitiesApi.md#updateactivityapiv1activitiesactivityidput) | **PUT** /api/v1/activities/{activity_id} | Update Activity
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**createChatroomWithInvitationApiV1ChatroomsPost**](doc/ChatroomsApi.md#createchatroomwithinvitationapiv1chatroomspost) | **POST** /api/v1/chatrooms/ | Create Chatroom With Invitation
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**deleteChatRoomApiV1ChatroomsChatRoomIdDelete**](doc/ChatroomsApi.md#deletechatroomapiv1chatroomschatroomiddelete) | **DELETE** /api/v1/chatrooms/{chat_room_id} | Delete Chat Room
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**getChatRoomApiV1ChatroomsChatRoomIdGet**](doc/ChatroomsApi.md#getchatroomapiv1chatroomschatroomidget) | **GET** /api/v1/chatrooms/{chat_room_id} | Get Chat Room
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**getChatRoomsApiV1ChatroomsGet**](doc/ChatroomsApi.md#getchatroomsapiv1chatroomsget) | **GET** /api/v1/chatrooms/ | Get Chat Rooms
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**getChatRoomsByRestaurantApiV1ChatroomsRestaurantRestaurantGet**](doc/ChatroomsApi.md#getchatroomsbyrestaurantapiv1chatroomsrestaurantrestaurantget) | **GET** /api/v1/chatrooms/restaurant/{restaurant} | Get Chat Rooms By Restaurant
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**getOrCreateChatRoomApiV1ChatroomsGetOrCreatePost**](doc/ChatroomsApi.md#getorcreatechatroomapiv1chatroomsgetorcreatepost) | **POST** /api/v1/chatrooms/get-or-create | Get Or Create Chat Room
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**getUserChatRoomsApiV1ChatroomsUsersUserIdGet**](doc/ChatroomsApi.md#getuserchatroomsapiv1chatroomsusersuseridget) | **GET** /api/v1/chatrooms/users/{user_id} | Get User Chat Rooms
+[*ChatroomsApi*](doc/ChatroomsApi.md) | [**updateChatRoomApiV1ChatroomsChatRoomIdPut**](doc/ChatroomsApi.md#updatechatroomapiv1chatroomschatroomidput) | **PUT** /api/v1/chatrooms/{chat_room_id} | Update Chat Room
+[*DefaultApi*](doc/DefaultApi.md) | [**healthCheckApiV1HealthGet**](doc/DefaultApi.md#healthcheckapiv1healthget) | **GET** /api/v1/health | Health Check
+[*DefaultApi*](doc/DefaultApi.md) | [**readRootGet**](doc/DefaultApi.md#readrootget) | **GET** / | Read Root
+[*DefaultApi*](doc/DefaultApi.md) | [**visualizeDbApiV1VisualizeGet**](doc/DefaultApi.md#visualizedbapiv1visualizeget) | **GET** /api/v1/visualize | Visualize Db
+[*InvitationsApi*](doc/InvitationsApi.md) | [**acceptInvitationApiV1InvitationsInvitationIdAcceptPost**](doc/InvitationsApi.md#acceptinvitationapiv1invitationsinvitationidacceptpost) | **POST** /api/v1/invitations/{invitation_id}/accept | Accept Invitation
+[*InvitationsApi*](doc/InvitationsApi.md) | [**createInvitationApiV1InvitationsPost**](doc/InvitationsApi.md#createinvitationapiv1invitationspost) | **POST** /api/v1/invitations/ | Create Invitation
+[*InvitationsApi*](doc/InvitationsApi.md) | [**declineInvitationApiV1InvitationsInvitationIdDeclinePost**](doc/InvitationsApi.md#declineinvitationapiv1invitationsinvitationiddeclinepost) | **POST** /api/v1/invitations/{invitation_id}/decline | Decline Invitation
+[*InvitationsApi*](doc/InvitationsApi.md) | [**deleteInvitationApiV1InvitationsInvitationIdDelete**](doc/InvitationsApi.md#deleteinvitationapiv1invitationsinvitationiddelete) | **DELETE** /api/v1/invitations/{invitation_id} | Delete Invitation
+[*InvitationsApi*](doc/InvitationsApi.md) | [**getActivityInvitationsApiV1InvitationsActivityActivityIdGet**](doc/InvitationsApi.md#getactivityinvitationsapiv1invitationsactivityactivityidget) | **GET** /api/v1/invitations/activity/{activity_id} | Get Activity Invitations
+[*InvitationsApi*](doc/InvitationsApi.md) | [**getInvitationApiV1InvitationsInvitationIdGet**](doc/InvitationsApi.md#getinvitationapiv1invitationsinvitationidget) | **GET** /api/v1/invitations/{invitation_id} | Get Invitation
+[*InvitationsApi*](doc/InvitationsApi.md) | [**getInvitationsApiV1InvitationsGet**](doc/InvitationsApi.md#getinvitationsapiv1invitationsget) | **GET** /api/v1/invitations/ | Get Invitations
+[*InvitationsApi*](doc/InvitationsApi.md) | [**getPendingInvitationsApiV1InvitationsPendingUserIdGet**](doc/InvitationsApi.md#getpendinginvitationsapiv1invitationspendinguseridget) | **GET** /api/v1/invitations/pending/{user_id} | Get Pending Invitations
+[*InvitationsApi*](doc/InvitationsApi.md) | [**getReceivedInvitationsApiV1InvitationsReceivedUserIdGet**](doc/InvitationsApi.md#getreceivedinvitationsapiv1invitationsreceiveduseridget) | **GET** /api/v1/invitations/received/{user_id} | Get Received Invitations
+[*InvitationsApi*](doc/InvitationsApi.md) | [**getSentInvitationsApiV1InvitationsSentUserIdGet**](doc/InvitationsApi.md#getsentinvitationsapiv1invitationssentuseridget) | **GET** /api/v1/invitations/sent/{user_id} | Get Sent Invitations
+[*InvitationsApi*](doc/InvitationsApi.md) | [**updateInvitationApiV1InvitationsInvitationIdPut**](doc/InvitationsApi.md#updateinvitationapiv1invitationsinvitationidput) | **PUT** /api/v1/invitations/{invitation_id} | Update Invitation
+[*LocationsApi*](doc/LocationsApi.md) | [**createLocationApiV1LocationsPost**](doc/LocationsApi.md#createlocationapiv1locationspost) | **POST** /api/v1/locations/ | Create Location
+[*LocationsApi*](doc/LocationsApi.md) | [**deleteLocationApiV1LocationsLocationIdDelete**](doc/LocationsApi.md#deletelocationapiv1locationslocationiddelete) | **DELETE** /api/v1/locations/{location_id} | Delete Location
+[*LocationsApi*](doc/LocationsApi.md) | [**findNearbyUsersApiV1LocationsNearbyUsersGet**](doc/LocationsApi.md#findnearbyusersapiv1locationsnearbyusersget) | **GET** /api/v1/locations/nearby/users | Find Nearby Users
+[*LocationsApi*](doc/LocationsApi.md) | [**getBatchLocationsApiV1LocationsBatchGet**](doc/LocationsApi.md#getbatchlocationsapiv1locationsbatchget) | **GET** /api/v1/locations/batch | Get Batch Locations
+[*LocationsApi*](doc/LocationsApi.md) | [**getLocationApiV1LocationsLocationIdGet**](doc/LocationsApi.md#getlocationapiv1locationslocationidget) | **GET** /api/v1/locations/{location_id} | Get Location
+[*LocationsApi*](doc/LocationsApi.md) | [**getUserLatestLocationApiV1LocationsUsersUserIdLatestGet**](doc/LocationsApi.md#getuserlatestlocationapiv1locationsusersuseridlatestget) | **GET** /api/v1/locations/users/{user_id}/latest | Get User Latest Location
+[*LocationsApi*](doc/LocationsApi.md) | [**getUserLocationHistoryApiV1LocationsUsersUserIdGet**](doc/LocationsApi.md#getuserlocationhistoryapiv1locationsusersuseridget) | **GET** /api/v1/locations/users/{user_id} | Get User Location History
+[*LocationsApi*](doc/LocationsApi.md) | [**updateLocationApiV1LocationsLocationIdPut**](doc/LocationsApi.md#updatelocationapiv1locationslocationidput) | **PUT** /api/v1/locations/{location_id} | Update Location
+[*MessagesApi*](doc/MessagesApi.md) | [**collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut**](doc/MessagesApi.md#collectnamecardfrommessageapiv1messagesmessageidcollectcardput) | **PUT** /api/v1/messages/{message_id}/collect-card | Collect Name Card From Message
+[*MessagesApi*](doc/MessagesApi.md) | [**createMessageApiV1MessagesPost**](doc/MessagesApi.md#createmessageapiv1messagespost) | **POST** /api/v1/messages/ | Create Message
+[*MessagesApi*](doc/MessagesApi.md) | [**deleteMessageApiV1MessagesMessageIdDelete**](doc/MessagesApi.md#deletemessageapiv1messagesmessageiddelete) | **DELETE** /api/v1/messages/{message_id} | Delete Message
+[*MessagesApi*](doc/MessagesApi.md) | [**getChatRoomMessagesApiV1MessagesChatroomsChatRoomIdGet**](doc/MessagesApi.md#getchatroommessagesapiv1messageschatroomschatroomidget) | **GET** /api/v1/messages/chatrooms/{chat_room_id} | Get Chat Room Messages
+[*MessagesApi*](doc/MessagesApi.md) | [**getInvitationMessagesApiV1MessagesInvitationsInvitationIdGet**](doc/MessagesApi.md#getinvitationmessagesapiv1messagesinvitationsinvitationidget) | **GET** /api/v1/messages/invitations/{invitation_id} | Get Invitation Messages
+[*MessagesApi*](doc/MessagesApi.md) | [**getLatestMessageApiV1MessagesChatroomsChatRoomIdLatestGet**](doc/MessagesApi.md#getlatestmessageapiv1messageschatroomschatroomidlatestget) | **GET** /api/v1/messages/chatrooms/{chat_room_id}/latest | Get Latest Message
+[*MessagesApi*](doc/MessagesApi.md) | [**getMessageApiV1MessagesMessageIdGet**](doc/MessagesApi.md#getmessageapiv1messagesmessageidget) | **GET** /api/v1/messages/{message_id} | Get Message
+[*MessagesApi*](doc/MessagesApi.md) | [**getMessagesApiV1MessagesGet**](doc/MessagesApi.md#getmessagesapiv1messagesget) | **GET** /api/v1/messages/ | Get Messages
+[*MessagesApi*](doc/MessagesApi.md) | [**getUserMessagesApiV1MessagesUsersSenderIdGet**](doc/MessagesApi.md#getusermessagesapiv1messagesuserssenderidget) | **GET** /api/v1/messages/users/{sender_id} | Get User Messages
+[*MessagesApi*](doc/MessagesApi.md) | [**respondToInvitationMessageApiV1MessagesMessageIdRespondPut**](doc/MessagesApi.md#respondtoinvitationmessageapiv1messagesmessageidrespondput) | **PUT** /api/v1/messages/{message_id}/respond | Respond To Invitation Message
+[*MessagesApi*](doc/MessagesApi.md) | [**sendMessageApiV1MessagesSendPost**](doc/MessagesApi.md#sendmessageapiv1messagessendpost) | **POST** /api/v1/messages/send | Send Message
+[*MessagesApi*](doc/MessagesApi.md) | [**updateMessageApiV1MessagesMessageIdPut**](doc/MessagesApi.md#updatemessageapiv1messagesmessageidput) | **PUT** /api/v1/messages/{message_id} | Update Message
+[*UsersApi*](doc/UsersApi.md) | [**createUserApiV1UsersPost**](doc/UsersApi.md#createuserapiv1userspost) | **POST** /api/v1/users/ | Create User
+[*UsersApi*](doc/UsersApi.md) | [**deleteUserApiV1UsersUserIdDelete**](doc/UsersApi.md#deleteuserapiv1usersuseriddelete) | **DELETE** /api/v1/users/{user_id} | Delete User
+[*UsersApi*](doc/UsersApi.md) | [**getOrCreateUserApiV1UsersGetOrCreatePost**](doc/UsersApi.md#getorcreateuserapiv1usersgetorcreatepost) | **POST** /api/v1/users/get-or-create | Get Or Create User
+[*UsersApi*](doc/UsersApi.md) | [**getUserApiV1UsersUserIdGet**](doc/UsersApi.md#getuserapiv1usersuseridget) | **GET** /api/v1/users/{user_id} | Get User
+[*UsersApi*](doc/UsersApi.md) | [**getUserByUsernameApiV1UsersUsernameUsernameGet**](doc/UsersApi.md#getuserbyusernameapiv1usersusernameusernameget) | **GET** /api/v1/users/username/{username} | Get User By Username
+[*UsersApi*](doc/UsersApi.md) | [**getUsersApiV1UsersGet**](doc/UsersApi.md#getusersapiv1usersget) | **GET** /api/v1/users/ | Get Users
+[*UsersApi*](doc/UsersApi.md) | [**updateUserApiV1UsersUserIdPut**](doc/UsersApi.md#updateuserapiv1usersuseridput) | **PUT** /api/v1/users/{user_id} | Update User
 
 
 ## Documentation For Models
 
  - [ActivityCreate](doc/ActivityCreate.md)
  - [ActivityRead](doc/ActivityRead.md)
- - [ChatMessageCreateRequest](doc/ChatMessageCreateRequest.md)
+ - [ChatMessageCreate](doc/ChatMessageCreate.md)
  - [ChatMessageRead](doc/ChatMessageRead.md)
- - [ChatRoomBase](doc/ChatRoomBase.md)
+ - [ChatRoomCreateRequest](doc/ChatRoomCreateRequest.md)
  - [ChatRoomRead](doc/ChatRoomRead.md)
  - [HTTPValidationError](doc/HTTPValidationError.md)
  - [InvitationCreate](doc/InvitationCreate.md)
  - [InvitationRead](doc/InvitationRead.md)
- - [LocationBase](doc/LocationBase.md)
  - [LocationCreate](doc/LocationCreate.md)
  - [LocationRead](doc/LocationRead.md)
+ - [LocationUpdate](doc/LocationUpdate.md)
  - [UserCreate](doc/UserCreate.md)
  - [UserRead](doc/UserRead.md)
  - [UserReadWithDistance](doc/UserReadWithDistance.md)

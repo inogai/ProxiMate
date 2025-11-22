@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'activity_create.g.dart';
 
-/// ActivityCreate
+/// Schema for creating a new activity.
 ///
 /// Properties:
 /// * [name] 

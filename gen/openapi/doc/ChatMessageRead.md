@@ -12,7 +12,8 @@ Name | Type | Description | Notes
 **senderId** | **int** |  | 
 **text** | **String** |  | 
 **isMine** | **bool** |  | [optional] [default to false]
-**invitationId** | **String** |  | [optional] 
+**messageType** | **String** |  | [optional] [default to 'text']
+**invitationData** | **String** |  | [optional] 
 **id** | **String** |  | 
 **timestamp** | **String** |  | 
 

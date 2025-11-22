@@ -1,12 +1,12 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'chat_message_read.dart';
+part of 'chat_message_create.dart';
 
 // **************************************************************************
 // BuiltValueGenerator
 // **************************************************************************
 
-class _$ChatMessageRead extends ChatMessageRead {
+class _$ChatMessageCreate extends ChatMessageCreate {
   @override
   final String chatRoomId;
   @override
@@ -19,43 +19,37 @@ class _$ChatMessageRead extends ChatMessageRead {
   final String? messageType;
   @override
   final String? invitationData;
-  @override
-  final String id;
-  @override
-  final String timestamp;
 
-  factory _$ChatMessageRead([void Function(ChatMessageReadBuilder)? updates]) =>
-      (ChatMessageReadBuilder()..update(updates))._build();
+  factory _$ChatMessageCreate(
+          [void Function(ChatMessageCreateBuilder)? updates]) =>
+      (ChatMessageCreateBuilder()..update(updates))._build();
 
-  _$ChatMessageRead._(
+  _$ChatMessageCreate._(
       {required this.chatRoomId,
       required this.senderId,
       required this.text,
       this.isMine,
       this.messageType,
-      this.invitationData,
-      required this.id,
-      required this.timestamp})
+      this.invitationData})
       : super._();
   @override
-  ChatMessageRead rebuild(void Function(ChatMessageReadBuilder) updates) =>
+  ChatMessageCreate rebuild(void Function(ChatMessageCreateBuilder) updates) =>
       (toBuilder()..update(updates)).build();
 
   @override
-  ChatMessageReadBuilder toBuilder() => ChatMessageReadBuilder()..replace(this);
+  ChatMessageCreateBuilder toBuilder() =>
+      ChatMessageCreateBuilder()..replace(this);
 
   @override
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
-    return other is ChatMessageRead &&
+    return other is ChatMessageCreate &&
         chatRoomId == other.chatRoomId &&
         senderId == other.senderId &&
         text == other.text &&
         isMine == other.isMine &&
         messageType == other.messageType &&
-        invitationData == other.invitationData &&
-        id == other.id &&
-        timestamp == other.timestamp;
+        invitationData == other.invitationData;
   }
 
   @override
@@ -67,30 +61,26 @@ class _$ChatMessageRead extends ChatMessageRead {
     _$hash = $jc(_$hash, isMine.hashCode);
     _$hash = $jc(_$hash, messageType.hashCode);
     _$hash = $jc(_$hash, invitationData.hashCode);
-    _$hash = $jc(_$hash, id.hashCode);
-    _$hash = $jc(_$hash, timestamp.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
 
   @override
   String toString() {
-    return (newBuiltValueToStringHelper(r'ChatMessageRead')
+    return (newBuiltValueToStringHelper(r'ChatMessageCreate')
           ..add('chatRoomId', chatRoomId)
           ..add('senderId', senderId)
           ..add('text', text)
           ..add('isMine', isMine)
           ..add('messageType', messageType)
-          ..add('invitationData', invitationData)
-          ..add('id', id)
-          ..add('timestamp', timestamp))
+          ..add('invitationData', invitationData))
         .toString();
   }
 }
 
-class ChatMessageReadBuilder
-    implements Builder<ChatMessageRead, ChatMessageReadBuilder> {
-  _$ChatMessageRead? _$v;
+class ChatMessageCreateBuilder
+    implements Builder<ChatMessageCreate, ChatMessageCreateBuilder> {
+  _$ChatMessageCreate? _$v;
 
   String? _chatRoomId;
   String? get chatRoomId => _$this._chatRoomId;
@@ -117,19 +107,11 @@ class ChatMessageReadBuilder
   set invitationData(String? invitationData) =>
       _$this._invitationData = invitationData;
 
-  String? _id;
-  String? get id => _$this._id;
-  set id(String? id) => _$this._id = id;
-
-  String? _timestamp;
-  String? get timestamp => _$this._timestamp;
-  set timestamp(String? timestamp) => _$this._timestamp = timestamp;
-
-  ChatMessageReadBuilder() {
-    ChatMessageRead._defaults(this);
+  ChatMessageCreateBuilder() {
+    ChatMessageCreate._defaults(this);
   }
 
-  ChatMessageReadBuilder get _$this {
+  ChatMessageCreateBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
       _chatRoomId = $v.chatRoomId;
@@ -138,42 +120,36 @@ class ChatMessageReadBuilder
       _isMine = $v.isMine;
       _messageType = $v.messageType;
       _invitationData = $v.invitationData;
-      _id = $v.id;
-      _timestamp = $v.timestamp;
       _$v = null;
     }
     return this;
   }
 
   @override
-  void replace(ChatMessageRead other) {
-    _$v = other as _$ChatMessageRead;
+  void replace(ChatMessageCreate other) {
+    _$v = other as _$ChatMessageCreate;
   }
 
   @override
-  void update(void Function(ChatMessageReadBuilder)? updates) {
+  void update(void Function(ChatMessageCreateBuilder)? updates) {
     if (updates != null) updates(this);
   }
 
   @override
-  ChatMessageRead build() => _build();
+  ChatMessageCreate build() => _build();
 
-  _$ChatMessageRead _build() {
+  _$ChatMessageCreate _build() {
     final _$result = _$v ??
-        _$ChatMessageRead._(
+        _$ChatMessageCreate._(
           chatRoomId: BuiltValueNullFieldError.checkNotNull(
-              chatRoomId, r'ChatMessageRead', 'chatRoomId'),
+              chatRoomId, r'ChatMessageCreate', 'chatRoomId'),
           senderId: BuiltValueNullFieldError.checkNotNull(
-              senderId, r'ChatMessageRead', 'senderId'),
+              senderId, r'ChatMessageCreate', 'senderId'),
           text: BuiltValueNullFieldError.checkNotNull(
-              text, r'ChatMessageRead', 'text'),
+              text, r'ChatMessageCreate', 'text'),
           isMine: isMine,
           messageType: messageType,
           invitationData: invitationData,
-          id: BuiltValueNullFieldError.checkNotNull(
-              id, r'ChatMessageRead', 'id'),
-          timestamp: BuiltValueNullFieldError.checkNotNull(
-              timestamp, r'ChatMessageRead', 'timestamp'),
         );
     replace(_$result);
     return _$result;

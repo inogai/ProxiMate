@@ -8,8 +8,8 @@ import 'package:openapi/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**latitude** | **num** |  | 
-**longitude** | **num** |  | 
+**latitude** | **num** | Latitude coordinate | 
+**longitude** | **num** | Longitude coordinate | 
 **id** | **int** |  | 
 **userId** | **int** |  | 
 **timestamp** | [**DateTime**](DateTime.md) |  | 

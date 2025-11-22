@@ -8,14 +8,15 @@ import 'package:built_value/serializer.dart';
 
 part 'chat_message_read.g.dart';
 
-/// ChatMessageRead
+/// Schema for reading chat message data.
 ///
 /// Properties:
 /// * [chatRoomId] 
 /// * [senderId] 
 /// * [text] 
 /// * [isMine] 
-/// * [invitationId] 
+/// * [messageType] 
+/// * [invitationData] 
 /// * [id] 
 /// * [timestamp] 
 @BuiltValue()
@@ -32,8 +33,11 @@ abstract class ChatMessageRead implements Built<ChatMessageRead, ChatMessageRead
   @BuiltValueField(wireName: r'is_mine')
   bool? get isMine;
 
-  @BuiltValueField(wireName: r'invitation_id')
-  String? get invitationId;
+  @BuiltValueField(wireName: r'message_type')
+  String? get messageType;
+
+  @BuiltValueField(wireName: r'invitation_data')
+  String? get invitationData;
 
   @BuiltValueField(wireName: r'id')
   String get id;
@@ -47,7 +51,8 @@ abstract class ChatMessageRead implements Built<ChatMessageRead, ChatMessageRead
 
   @BuiltValueHook(initializeBuilder: true)
   static void _defaults(ChatMessageReadBuilder b) => b
-      ..isMine = false;
+      ..isMine = false
+      ..messageType = 'text';
 
   @BuiltValueSerializer(custom: true)
   static Serializer<ChatMessageRead> get serializer => _$ChatMessageReadSerializer();
@@ -87,10 +92,17 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
         specifiedType: const FullType(bool),
       );
     }
-    if (object.invitationId != null) {
-      yield r'invitation_id';
+    if (object.messageType != null) {
+      yield r'message_type';
       yield serializers.serialize(
-        object.invitationId,
+        object.messageType,
+        specifiedType: const FullType(String),
+      );
+    }
+    if (object.invitationData != null) {
+      yield r'invitation_data';
+      yield serializers.serialize(
+        object.invitationData,
         specifiedType: const FullType.nullable(String),
       );
     }
@@ -155,13 +167,20 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
           ) as bool;
           result.isMine = valueDes;
           break;
-        case r'invitation_id':
+        case r'message_type':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.messageType = valueDes;
+          break;
+        case r'invitation_data':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType.nullable(String),
           ) as String?;
           if (valueDes == null) continue;
-          result.invitationId = valueDes;
+          result.invitationData = valueDes;
           break;
         case r'id':
           final valueDes = serializers.deserialize(

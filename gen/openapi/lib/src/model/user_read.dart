@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'user_read.g.dart';
 
-/// UserRead
+/// Schema for reading user data.
 ///
 /// Properties:
 /// * [username] 

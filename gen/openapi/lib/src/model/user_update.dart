@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'user_update.g.dart';
 
-/// UserUpdate
+/// Schema for updating user information.
 ///
 /// Properties:
 /// * [username] 

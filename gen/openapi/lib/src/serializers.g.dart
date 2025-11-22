@@ -9,16 +9,16 @@ part of 'serializers.dart';
 Serializers _$serializers = (Serializers().toBuilder()
       ..add(ActivityCreate.serializer)
       ..add(ActivityRead.serializer)
-      ..add(ChatMessageCreateRequest.serializer)
+      ..add(ChatMessageCreate.serializer)
       ..add(ChatMessageRead.serializer)
-      ..add(ChatRoomBase.serializer)
+      ..add(ChatRoomCreateRequest.serializer)
       ..add(ChatRoomRead.serializer)
       ..add(HTTPValidationError.serializer)
       ..add(InvitationCreate.serializer)
       ..add(InvitationRead.serializer)
-      ..add(LocationBase.serializer)
       ..add(LocationCreate.serializer)
       ..add(LocationRead.serializer)
+      ..add(LocationUpdate.serializer)
       ..add(UserCreate.serializer)
       ..add(UserRead.serializer)
       ..add(UserReadWithDistance.serializer)
@@ -31,7 +31,13 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(ValidationErrorLocInner)]),
-          () => ListBuilder<ValidationErrorLocInner>()))
+          () => ListBuilder<ValidationErrorLocInner>())
+      ..addBuilderFactory(
+          const FullType(BuiltMap, const [
+            const FullType(String),
+            const FullType.nullable(JsonObject)
+          ]),
+          () => MapBuilder<String, JsonObject?>()))
     .build();
 
 // ignore_for_file: deprecated_member_use_from_same_package,type=lint

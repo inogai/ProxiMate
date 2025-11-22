@@ -3,19 +3,22 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:built_collection/built_collection.dart';
+import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
-part 'chat_room_base.g.dart';
+part 'chat_room_create_request.g.dart';
 
-/// ChatRoomBase
+/// Request model for creating chat room with optional invitation.
 ///
 /// Properties:
 /// * [user1Id] 
 /// * [user2Id] 
 /// * [restaurant] 
+/// * [invitationData] 
 @BuiltValue()
-abstract class ChatRoomBase implements Built<ChatRoomBase, ChatRoomBaseBuilder> {
+abstract class ChatRoomCreateRequest implements Built<ChatRoomCreateRequest, ChatRoomCreateRequestBuilder> {
   @BuiltValueField(wireName: r'user1_id')
   int get user1Id;
 
@@ -25,27 +28,30 @@ abstract class ChatRoomBase implements Built<ChatRoomBase, ChatRoomBaseBuilder> 
   @BuiltValueField(wireName: r'restaurant')
   String get restaurant;
 
-  ChatRoomBase._();
+  @BuiltValueField(wireName: r'invitation_data')
+  BuiltMap<String, JsonObject?>? get invitationData;
 
-  factory ChatRoomBase([void updates(ChatRoomBaseBuilder b)]) = _$ChatRoomBase;
+  ChatRoomCreateRequest._();
+
+  factory ChatRoomCreateRequest([void updates(ChatRoomCreateRequestBuilder b)]) = _$ChatRoomCreateRequest;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(ChatRoomBaseBuilder b) => b;
+  static void _defaults(ChatRoomCreateRequestBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<ChatRoomBase> get serializer => _$ChatRoomBaseSerializer();
+  static Serializer<ChatRoomCreateRequest> get serializer => _$ChatRoomCreateRequestSerializer();
 }
 
-class _$ChatRoomBaseSerializer implements PrimitiveSerializer<ChatRoomBase> {
+class _$ChatRoomCreateRequestSerializer implements PrimitiveSerializer<ChatRoomCreateRequest> {
   @override
-  final Iterable<Type> types = const [ChatRoomBase, _$ChatRoomBase];
+  final Iterable<Type> types = const [ChatRoomCreateRequest, _$ChatRoomCreateRequest];
 
   @override
-  final String wireName = r'ChatRoomBase';
+  final String wireName = r'ChatRoomCreateRequest';
 
   Iterable<Object?> _serializeProperties(
     Serializers serializers,
-    ChatRoomBase object, {
+    ChatRoomCreateRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
     yield r'user1_id';
@@ -63,12 +69,19 @@ class _$ChatRoomBaseSerializer implements PrimitiveSerializer<ChatRoomBase> {
       object.restaurant,
       specifiedType: const FullType(String),
     );
+    if (object.invitationData != null) {
+      yield r'invitation_data';
+      yield serializers.serialize(
+        object.invitationData,
+        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+      );
+    }
   }
 
   @override
   Object serialize(
     Serializers serializers,
-    ChatRoomBase object, {
+    ChatRoomCreateRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) {
     return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
@@ -79,7 +92,7 @@ class _$ChatRoomBaseSerializer implements PrimitiveSerializer<ChatRoomBase> {
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
     required List<Object?> serializedList,
-    required ChatRoomBaseBuilder result,
+    required ChatRoomCreateRequestBuilder result,
     required List<Object?> unhandled,
   }) {
     for (var i = 0; i < serializedList.length; i += 2) {
@@ -107,6 +120,14 @@ class _$ChatRoomBaseSerializer implements PrimitiveSerializer<ChatRoomBase> {
           ) as String;
           result.restaurant = valueDes;
           break;
+        case r'invitation_data':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>?;
+          if (valueDes == null) continue;
+          result.invitationData.replace(valueDes);
+          break;
         default:
           unhandled.add(key);
           unhandled.add(value);
@@ -116,12 +137,12 @@ class _$ChatRoomBaseSerializer implements PrimitiveSerializer<ChatRoomBase> {
   }
 
   @override
-  ChatRoomBase deserialize(
+  ChatRoomCreateRequest deserialize(
     Serializers serializers,
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    final result = ChatRoomBaseBuilder();
+    final result = ChatRoomCreateRequestBuilder();
     final serializedList = (serialized as Iterable<Object?>).toList();
     final unhandled = <Object?>[];
     _deserializeProperties(

@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'invitation_create.g.dart';
 
-/// InvitationCreate
+/// Schema for creating a new invitation.
 ///
 /// Properties:
 /// * [senderId] 

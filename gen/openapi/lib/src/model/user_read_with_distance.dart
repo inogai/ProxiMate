@@ -8,40 +8,40 @@ import 'package:built_value/serializer.dart';
 
 part 'user_read_with_distance.g.dart';
 
-/// UserReadWithDistance
+/// Schema for reading user data with distance information.
 ///
 /// Properties:
+/// * [id] 
 /// * [username] 
 /// * [school] 
 /// * [major] 
 /// * [interests] 
 /// * [bio] 
 /// * [avatarUrl] 
-/// * [id] 
 /// * [createdAt] 
 /// * [distanceKm] 
 @BuiltValue()
 abstract class UserReadWithDistance implements Built<UserReadWithDistance, UserReadWithDistanceBuilder> {
+  @BuiltValueField(wireName: r'id')
+  int get id;
+
   @BuiltValueField(wireName: r'username')
   String get username;
 
   @BuiltValueField(wireName: r'school')
-  String? get school;
+  String get school;
 
   @BuiltValueField(wireName: r'major')
-  String? get major;
+  String get major;
 
   @BuiltValueField(wireName: r'interests')
-  String? get interests;
+  String get interests;
 
   @BuiltValueField(wireName: r'bio')
-  String? get bio;
+  String get bio;
 
   @BuiltValueField(wireName: r'avatar_url')
   String? get avatarUrl;
-
-  @BuiltValueField(wireName: r'id')
-  int get id;
 
   @BuiltValueField(wireName: r'created_at')
   String get createdAt;
@@ -54,11 +54,7 @@ abstract class UserReadWithDistance implements Built<UserReadWithDistance, UserR
   factory UserReadWithDistance([void updates(UserReadWithDistanceBuilder b)]) = _$UserReadWithDistance;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(UserReadWithDistanceBuilder b) => b
-      ..school = ''
-      ..major = ''
-      ..interests = ''
-      ..bio = '';
+  static void _defaults(UserReadWithDistanceBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
   static Serializer<UserReadWithDistance> get serializer => _$UserReadWithDistanceSerializer();
@@ -76,39 +72,36 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
     UserReadWithDistance object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
+    yield r'id';
+    yield serializers.serialize(
+      object.id,
+      specifiedType: const FullType(int),
+    );
     yield r'username';
     yield serializers.serialize(
       object.username,
       specifiedType: const FullType(String),
     );
-    if (object.school != null) {
-      yield r'school';
-      yield serializers.serialize(
-        object.school,
-        specifiedType: const FullType(String),
-      );
-    }
-    if (object.major != null) {
-      yield r'major';
-      yield serializers.serialize(
-        object.major,
-        specifiedType: const FullType(String),
-      );
-    }
-    if (object.interests != null) {
-      yield r'interests';
-      yield serializers.serialize(
-        object.interests,
-        specifiedType: const FullType(String),
-      );
-    }
-    if (object.bio != null) {
-      yield r'bio';
-      yield serializers.serialize(
-        object.bio,
-        specifiedType: const FullType(String),
-      );
-    }
+    yield r'school';
+    yield serializers.serialize(
+      object.school,
+      specifiedType: const FullType(String),
+    );
+    yield r'major';
+    yield serializers.serialize(
+      object.major,
+      specifiedType: const FullType(String),
+    );
+    yield r'interests';
+    yield serializers.serialize(
+      object.interests,
+      specifiedType: const FullType(String),
+    );
+    yield r'bio';
+    yield serializers.serialize(
+      object.bio,
+      specifiedType: const FullType(String),
+    );
     if (object.avatarUrl != null) {
       yield r'avatar_url';
       yield serializers.serialize(
@@ -116,11 +109,6 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
         specifiedType: const FullType.nullable(String),
       );
     }
-    yield r'id';
-    yield serializers.serialize(
-      object.id,
-      specifiedType: const FullType(int),
-    );
     yield r'created_at';
     yield serializers.serialize(
       object.createdAt,
@@ -156,6 +144,13 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
+        case r'id':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(int),
+          ) as int;
+          result.id = valueDes;
+          break;
         case r'username':
           final valueDes = serializers.deserialize(
             value,
@@ -198,13 +193,6 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
           ) as String?;
           if (valueDes == null) continue;
           result.avatarUrl = valueDes;
-          break;
-        case r'id':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(int),
-          ) as int;
-          result.id = valueDes;
           break;
         case r'created_at':
           final valueDes = serializers.deserialize(

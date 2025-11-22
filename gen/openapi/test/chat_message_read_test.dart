@@ -27,8 +27,13 @@ void main() {
       // TODO
     });
 
-    // String invitationId
-    test('to test the property `invitationId`', () async {
+    // String messageType (default value: 'text')
+    test('to test the property `messageType`', () async {
+      // TODO
+    });
+
+    // String invitationData
+    test('to test the property `invitationData`', () async {
       // TODO
     });
 

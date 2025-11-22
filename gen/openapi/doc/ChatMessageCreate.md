@@ -1,4 +1,4 @@
-# openapi.model.ChatRoomBase
+# openapi.model.ChatMessageCreate
 
 ## Load the model package
 ```dart
@@ -8,9 +8,12 @@ import 'package:openapi/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**user1Id** | **int** |  | 
-**user2Id** | **int** |  | 
-**restaurant** | **String** |  | 
+**chatRoomId** | **String** |  | 
+**senderId** | **int** |  | 
+**text** | **String** |  | 
+**isMine** | **bool** |  | [optional] [default to false]
+**messageType** | **String** |  | [optional] [default to 'text']
+**invitationData** | **String** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

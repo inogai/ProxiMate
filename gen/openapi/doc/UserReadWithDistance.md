@@ -8,13 +8,13 @@ import 'package:openapi/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**username** | **String** |  | 
-**school** | **String** |  | [optional] [default to '']
-**major** | **String** |  | [optional] [default to '']
-**interests** | **String** |  | [optional] [default to '']
-**bio** | **String** |  | [optional] [default to '']
-**avatarUrl** | **String** |  | [optional] 
 **id** | **int** |  | 
+**username** | **String** |  | 
+**school** | **String** |  | 
+**major** | **String** |  | 
+**interests** | **String** |  | 
+**bio** | **String** |  | 
+**avatarUrl** | **String** |  | [optional] 
 **createdAt** | **String** |  | 
 **distanceKm** | **num** |  | [optional] 
 

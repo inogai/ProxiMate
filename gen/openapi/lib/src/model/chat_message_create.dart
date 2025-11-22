@@ -6,16 +6,22 @@
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
-part 'chat_message_create_request.g.dart';
+part 'chat_message_create.g.dart';
 
-/// ChatMessageCreateRequest
+/// Schema for creating a new chat message.
 ///
 /// Properties:
+/// * [chatRoomId] 
 /// * [senderId] 
 /// * [text] 
 /// * [isMine] 
+/// * [messageType] 
+/// * [invitationData] 
 @BuiltValue()
-abstract class ChatMessageCreateRequest implements Built<ChatMessageCreateRequest, ChatMessageCreateRequestBuilder> {
+abstract class ChatMessageCreate implements Built<ChatMessageCreate, ChatMessageCreateBuilder> {
+  @BuiltValueField(wireName: r'chat_room_id')
+  String get chatRoomId;
+
   @BuiltValueField(wireName: r'sender_id')
   int get senderId;
 
@@ -25,30 +31,42 @@ abstract class ChatMessageCreateRequest implements Built<ChatMessageCreateReques
   @BuiltValueField(wireName: r'is_mine')
   bool? get isMine;
 
-  ChatMessageCreateRequest._();
+  @BuiltValueField(wireName: r'message_type')
+  String? get messageType;
 
-  factory ChatMessageCreateRequest([void updates(ChatMessageCreateRequestBuilder b)]) = _$ChatMessageCreateRequest;
+  @BuiltValueField(wireName: r'invitation_data')
+  String? get invitationData;
+
+  ChatMessageCreate._();
+
+  factory ChatMessageCreate([void updates(ChatMessageCreateBuilder b)]) = _$ChatMessageCreate;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(ChatMessageCreateRequestBuilder b) => b
-      ..isMine = false;
+  static void _defaults(ChatMessageCreateBuilder b) => b
+      ..isMine = false
+      ..messageType = 'text';
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<ChatMessageCreateRequest> get serializer => _$ChatMessageCreateRequestSerializer();
+  static Serializer<ChatMessageCreate> get serializer => _$ChatMessageCreateSerializer();
 }
 
-class _$ChatMessageCreateRequestSerializer implements PrimitiveSerializer<ChatMessageCreateRequest> {
+class _$ChatMessageCreateSerializer implements PrimitiveSerializer<ChatMessageCreate> {
   @override
-  final Iterable<Type> types = const [ChatMessageCreateRequest, _$ChatMessageCreateRequest];
+  final Iterable<Type> types = const [ChatMessageCreate, _$ChatMessageCreate];
 
   @override
-  final String wireName = r'ChatMessageCreateRequest';
+  final String wireName = r'ChatMessageCreate';
 
   Iterable<Object?> _serializeProperties(
     Serializers serializers,
-    ChatMessageCreateRequest object, {
+    ChatMessageCreate object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
+    yield r'chat_room_id';
+    yield serializers.serialize(
+      object.chatRoomId,
+      specifiedType: const FullType(String),
+    );
     yield r'sender_id';
     yield serializers.serialize(
       object.senderId,
@@ -66,12 +84,26 @@ class _$ChatMessageCreateRequestSerializer implements PrimitiveSerializer<ChatMe
         specifiedType: const FullType(bool),
       );
     }
+    if (object.messageType != null) {
+      yield r'message_type';
+      yield serializers.serialize(
+        object.messageType,
+        specifiedType: const FullType(String),
+      );
+    }
+    if (object.invitationData != null) {
+      yield r'invitation_data';
+      yield serializers.serialize(
+        object.invitationData,
+        specifiedType: const FullType.nullable(String),
+      );
+    }
   }
 
   @override
   Object serialize(
     Serializers serializers,
-    ChatMessageCreateRequest object, {
+    ChatMessageCreate object, {
     FullType specifiedType = FullType.unspecified,
   }) {
     return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
@@ -82,13 +114,20 @@ class _$ChatMessageCreateRequestSerializer implements PrimitiveSerializer<ChatMe
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
     required List<Object?> serializedList,
-    required ChatMessageCreateRequestBuilder result,
+    required ChatMessageCreateBuilder result,
     required List<Object?> unhandled,
   }) {
     for (var i = 0; i < serializedList.length; i += 2) {
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
+        case r'chat_room_id':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.chatRoomId = valueDes;
+          break;
         case r'sender_id':
           final valueDes = serializers.deserialize(
             value,
@@ -110,6 +149,21 @@ class _$ChatMessageCreateRequestSerializer implements PrimitiveSerializer<ChatMe
           ) as bool;
           result.isMine = valueDes;
           break;
+        case r'message_type':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.messageType = valueDes;
+          break;
+        case r'invitation_data':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
+          result.invitationData = valueDes;
+          break;
         default:
           unhandled.add(key);
           unhandled.add(value);
@@ -119,12 +173,12 @@ class _$ChatMessageCreateRequestSerializer implements PrimitiveSerializer<ChatMe
   }
 
   @override
-  ChatMessageCreateRequest deserialize(
+  ChatMessageCreate deserialize(
     Serializers serializers,
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    final result = ChatMessageCreateRequestBuilder();
+    final result = ChatMessageCreateBuilder();
     final serializedList = (serialized as Iterable<Object?>).toList();
     final unhandled = <Object?>[];
     _deserializeProperties(

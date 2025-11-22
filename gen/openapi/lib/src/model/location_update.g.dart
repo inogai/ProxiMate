@@ -1,33 +1,32 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'location_base.dart';
+part of 'location_update.dart';
 
 // **************************************************************************
 // BuiltValueGenerator
 // **************************************************************************
 
-class _$LocationBase extends LocationBase {
+class _$LocationUpdate extends LocationUpdate {
   @override
-  final num latitude;
+  final num? latitude;
   @override
-  final num longitude;
+  final num? longitude;
 
-  factory _$LocationBase([void Function(LocationBaseBuilder)? updates]) =>
-      (LocationBaseBuilder()..update(updates))._build();
+  factory _$LocationUpdate([void Function(LocationUpdateBuilder)? updates]) =>
+      (LocationUpdateBuilder()..update(updates))._build();
 
-  _$LocationBase._({required this.latitude, required this.longitude})
-      : super._();
+  _$LocationUpdate._({this.latitude, this.longitude}) : super._();
   @override
-  LocationBase rebuild(void Function(LocationBaseBuilder) updates) =>
+  LocationUpdate rebuild(void Function(LocationUpdateBuilder) updates) =>
       (toBuilder()..update(updates)).build();
 
   @override
-  LocationBaseBuilder toBuilder() => LocationBaseBuilder()..replace(this);
+  LocationUpdateBuilder toBuilder() => LocationUpdateBuilder()..replace(this);
 
   @override
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
-    return other is LocationBase &&
+    return other is LocationUpdate &&
         latitude == other.latitude &&
         longitude == other.longitude;
   }
@@ -43,16 +42,16 @@ class _$LocationBase extends LocationBase {
 
   @override
   String toString() {
-    return (newBuiltValueToStringHelper(r'LocationBase')
+    return (newBuiltValueToStringHelper(r'LocationUpdate')
           ..add('latitude', latitude)
           ..add('longitude', longitude))
         .toString();
   }
 }
 
-class LocationBaseBuilder
-    implements Builder<LocationBase, LocationBaseBuilder> {
-  _$LocationBase? _$v;
+class LocationUpdateBuilder
+    implements Builder<LocationUpdate, LocationUpdateBuilder> {
+  _$LocationUpdate? _$v;
 
   num? _latitude;
   num? get latitude => _$this._latitude;
@@ -62,11 +61,11 @@ class LocationBaseBuilder
   num? get longitude => _$this._longitude;
   set longitude(num? longitude) => _$this._longitude = longitude;
 
-  LocationBaseBuilder() {
-    LocationBase._defaults(this);
+  LocationUpdateBuilder() {
+    LocationUpdate._defaults(this);
   }
 
-  LocationBaseBuilder get _$this {
+  LocationUpdateBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
       _latitude = $v.latitude;
@@ -77,25 +76,23 @@ class LocationBaseBuilder
   }
 
   @override
-  void replace(LocationBase other) {
-    _$v = other as _$LocationBase;
+  void replace(LocationUpdate other) {
+    _$v = other as _$LocationUpdate;
   }
 
   @override
-  void update(void Function(LocationBaseBuilder)? updates) {
+  void update(void Function(LocationUpdateBuilder)? updates) {
     if (updates != null) updates(this);
   }
 
   @override
-  LocationBase build() => _build();
+  LocationUpdate build() => _build();
 
-  _$LocationBase _build() {
+  _$LocationUpdate _build() {
     final _$result = _$v ??
-        _$LocationBase._(
-          latitude: BuiltValueNullFieldError.checkNotNull(
-              latitude, r'LocationBase', 'latitude'),
-          longitude: BuiltValueNullFieldError.checkNotNull(
-              longitude, r'LocationBase', 'longitude'),
+        _$LocationUpdate._(
+          latitude: latitude,
+          longitude: longitude,
         );
     replace(_$result);
     return _$result;

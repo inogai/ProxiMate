@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'chat_room_read.g.dart';
 
-/// ChatRoomRead
+/// Schema for reading chat room data.
 ///
 /// Properties:
 /// * [user1Id] 

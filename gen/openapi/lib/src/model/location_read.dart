@@ -8,19 +8,21 @@ import 'package:built_value/serializer.dart';
 
 part 'location_read.g.dart';
 
-/// LocationRead
+/// Schema for reading location data.
 ///
 /// Properties:
-/// * [latitude] 
-/// * [longitude] 
+/// * [latitude] - Latitude coordinate
+/// * [longitude] - Longitude coordinate
 /// * [id] 
 /// * [userId] 
 /// * [timestamp] 
 @BuiltValue()
 abstract class LocationRead implements Built<LocationRead, LocationReadBuilder> {
+  /// Latitude coordinate
   @BuiltValueField(wireName: r'latitude')
   num get latitude;
 
+  /// Longitude coordinate
   @BuiltValueField(wireName: r'longitude')
   num get longitude;
 

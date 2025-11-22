@@ -16,16 +16,16 @@ import 'package:openapi/src/model/date.dart';
 
 import 'package:openapi/src/model/activity_create.dart';
 import 'package:openapi/src/model/activity_read.dart';
-import 'package:openapi/src/model/chat_message_create_request.dart';
+import 'package:openapi/src/model/chat_message_create.dart';
 import 'package:openapi/src/model/chat_message_read.dart';
-import 'package:openapi/src/model/chat_room_base.dart';
+import 'package:openapi/src/model/chat_room_create_request.dart';
 import 'package:openapi/src/model/chat_room_read.dart';
 import 'package:openapi/src/model/http_validation_error.dart';
 import 'package:openapi/src/model/invitation_create.dart';
 import 'package:openapi/src/model/invitation_read.dart';
-import 'package:openapi/src/model/location_base.dart';
 import 'package:openapi/src/model/location_create.dart';
 import 'package:openapi/src/model/location_read.dart';
+import 'package:openapi/src/model/location_update.dart';
 import 'package:openapi/src/model/user_create.dart';
 import 'package:openapi/src/model/user_read.dart';
 import 'package:openapi/src/model/user_read_with_distance.dart';
@@ -38,16 +38,16 @@ part 'serializers.g.dart';
 @SerializersFor([
   ActivityCreate,
   ActivityRead,
-  ChatMessageCreateRequest,
+  ChatMessageCreate,
   ChatMessageRead,
-  ChatRoomBase,
+  ChatRoomCreateRequest,
   ChatRoomRead,
   HTTPValidationError,
   InvitationCreate,
   InvitationRead,
-  LocationBase,
   LocationCreate,
   LocationRead,
+  LocationUpdate,
   UserCreate,
   UserRead,
   UserReadWithDistance,
@@ -69,6 +69,10 @@ Serializers serializers = (_$serializers.toBuilder()
         () => ListBuilder<ChatMessageRead>(),
       )
       ..addBuilderFactory(
+        const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        () => MapBuilder<String, JsonObject>(),
+      )
+      ..addBuilderFactory(
         const FullType(BuiltList, [FullType(LocationRead)]),
         () => ListBuilder<LocationRead>(),
       )
@@ -83,10 +87,6 @@ Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(UserRead)]),
         () => ListBuilder<UserRead>(),
-      )
-      ..addBuilderFactory(
-        const FullType(BuiltMap, [FullType(String), FullType(JsonObject)]),
-        () => MapBuilder<String, JsonObject>(),
       )
       ..add(const OneOfSerializer())
       ..add(const AnyOfSerializer())

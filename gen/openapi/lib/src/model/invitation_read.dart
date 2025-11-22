@@ -8,7 +8,7 @@ import 'package:built_value/serializer.dart';
 
 part 'invitation_read.g.dart';
 
-/// InvitationRead
+/// Schema for reading invitation data.
 ///
 /// Properties:
 /// * [senderId] 
