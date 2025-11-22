@@ -78,16 +78,16 @@ enum InvitationStatus {
 /// Model class representing a chat room for accepted meetups
 class ChatRoom {
   final String id;
-  final String peerId;
-  final String peerName;
+  final String user1Id;
+  final String user2Id;
   final String restaurant;
   final List<ChatMessage> messages;
   final DateTime createdAt;
 
   ChatRoom({
     required this.id,
-    required this.peerId,
-    required this.peerName,
+    required this.user1Id,
+    required this.user2Id,
     required this.restaurant,
     List<ChatMessage>? messages,
     required this.createdAt,
@@ -95,20 +95,38 @@ class ChatRoom {
 
   ChatRoom copyWith({
     String? id,
-    String? peerId,
-    String? peerName,
+    String? user1Id,
+    String? user2Id,
     String? restaurant,
     List<ChatMessage>? messages,
     DateTime? createdAt,
   }) {
     return ChatRoom(
       id: id ?? this.id,
-      peerId: peerId ?? this.peerId,
-      peerName: peerName ?? this.peerName,
+      user1Id: user1Id ?? this.user1Id,
+      user2Id: user2Id ?? this.user2Id,
       restaurant: restaurant ?? this.restaurant,
       messages: messages ?? this.messages,
       createdAt: createdAt ?? this.createdAt,
     );
+  }
+
+  /// Get the other user's ID in the chat room
+  String getOtherUserId(String currentUserId) {
+    if (currentUserId == user1Id) return user2Id;
+    if (currentUserId == user2Id) return user1Id;
+    return currentUserId; // fallback
+  }
+
+  /// Check if current user is part of this chat room
+  bool containsUser(String userId) {
+    return userId == user1Id || userId == user2Id;
+  }
+
+  /// Get the other user's name (requires profile lookup)
+  String getOtherUserName(String currentUserId, Map<String, String> userIdToName) {
+    final otherUserId = getOtherUserId(currentUserId);
+    return userIdToName[otherUserId] ?? 'Unknown User';
   }
 }
 
@@ -118,11 +136,13 @@ class ChatMessage {
   final String text;
   final bool isMine;
   final DateTime timestamp;
+  final bool isSystemMessage; // For invitation cards and system notifications
 
   ChatMessage({
     required this.id,
     required this.text,
     required this.isMine,
     required this.timestamp,
+    this.isSystemMessage = false,
   });
 }

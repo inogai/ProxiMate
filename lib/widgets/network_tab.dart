@@ -671,16 +671,20 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  void _openChat(BuildContext context, Profile profile, Connection connection) {
+  void _openChat(BuildContext context, Profile profile, Connection connection) async {
     final storage = context.read<StorageService>();
+    final currentUserId = storage.currentProfile?.id ?? '';
+
+    // Refresh chat rooms before opening
+    await storage.refreshChatRooms();
 
     // Find or create chat room for this connection
     ChatRoom? chatRoom = storage.chatRooms.firstWhere(
-      (room) => room.peerId == profile.id,
+      (room) => room.containsUser(currentUserId) && room.containsUser(profile.id),
       orElse: () => ChatRoom(
-        id: 'chat_${profile.id}',
-        peerId: profile.id,
-        peerName: profile.userName,
+        id: 'chat_${currentUserId}_${profile.id}',
+        user1Id: currentUserId,
+        user2Id: profile.id,
         restaurant: connection.restaurant,
         createdAt: DateTime.now(),
         messages: [],
@@ -688,7 +692,7 @@ class _NetworkTabState extends State<NetworkTab> {
     );
 
     // Add chat room if it doesn't exist
-    if (!storage.chatRooms.any((room) => room.peerId == profile.id)) {
+    if (!storage.chatRooms.any((room) => room.containsUser(currentUserId) && room.containsUser(profile.id))) {
       // We can't directly add to storage here, but the chat room screen will handle it
       // For now, just navigate with the chat room
     }

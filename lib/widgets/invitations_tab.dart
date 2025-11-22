@@ -5,8 +5,16 @@ import '../models/meeting.dart';
 import '../screens/chat_room_screen.dart';
 
 /// Tab showing invitations as a contacts list with chat-style interface
-class InvitationsTab extends StatelessWidget {
+class InvitationsTab extends StatefulWidget {
   const InvitationsTab({super.key});
+
+  @override
+  State<InvitationsTab> createState() => _InvitationsTabState();
+}
+
+class _InvitationsTabState extends State<InvitationsTab> {
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
+  bool _isRefreshing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -29,23 +37,65 @@ class InvitationsTab extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        actions: [
+          if (_isRefreshing)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshInvitations,
+              tooltip: 'Refresh invitations',
+            ),
+        ],
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1, thickness: 1),
         ),
       ),
       backgroundColor: Colors.white,
-      body: allInvitations.isEmpty
-          ? _buildEmptyState(context)
-          : ListView.builder(
-              padding: EdgeInsets.zero,
-              itemCount: allInvitations.length,
-              itemBuilder: (context, index) {
-                final invitation = allInvitations[index];
-                return _buildInvitationContact(context, invitation, storage);
-              },
-            ),
+      body: RefreshIndicator(
+        key: _refreshIndicatorKey,
+        onRefresh: _refreshInvitations,
+        child: allInvitations.isEmpty
+            ? _buildEmptyState(context)
+            : ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: allInvitations.length,
+                itemBuilder: (context, index) {
+                  final invitation = allInvitations[index];
+                  return _buildInvitationContact(context, invitation, storage);
+                },
+              ),
+      ),
     );
+  }
+
+  /// Refresh invitations from server
+  Future<void> _refreshInvitations() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    try {
+      final storage = context.read<StorageService>();
+      await storage.refreshInvitations();
+    } catch (e) {
+      print('Error refreshing invitations: $e');
+    } finally {
+      setState(() {
+        _isRefreshing = false;
+      });
+    }
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -81,6 +131,15 @@ class InvitationsTab extends StatelessWidget {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Pull down to refresh',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey[500],
+                fontStyle: FontStyle.italic,
               ),
             ),
           ],
@@ -181,15 +240,21 @@ class InvitationsTab extends StatelessWidget {
     );
   }
 
-  void _handleInvitationTap(
+  Future<void> _handleInvitationTap(
     BuildContext context,
     Invitation invitation,
     StorageService storage,
-  ) {
+  ) async {
     if (invitation.isAccepted) {
       // Open chat room for accepted invitations
+      final currentUserId = storage.currentProfile?.id ?? '';
+      
+      // Refresh chat rooms before opening
+      await storage.refreshChatRooms();
+      
       final chatRoom = storage.chatRooms
-          .where((cr) => cr.peerId == invitation.peerId)
+          .where((cr) => cr.containsUser(currentUserId) && 
+                        cr.containsUser(invitation.peerId))
           .firstOrNull;
       
       if (chatRoom != null) {

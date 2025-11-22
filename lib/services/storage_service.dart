@@ -25,6 +25,7 @@ class StorageService extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   late LocationService _locationService;
   Timer? _invitationFetchTimer;
+  Timer? _messageFetchTimer;
   Profile? _currentProfile;
   Map<String, Profile> _profiles = {};
   List<Connection> _connections = [];
@@ -37,6 +38,7 @@ class StorageService extends ChangeNotifier {
   String?
   _selectedActivityId; // Currently selected activity for viewing invitations
   String? _apiUserId; // Store API user ID for backend integration
+  final Map<String, DateTime> _lastMessageFetch = {}; // Track last fetch time per chat room
 
   Profile? get currentProfile => _currentProfile;
   List<Connection> get connections => _connections;
@@ -52,6 +54,85 @@ class StorageService extends ChangeNotifier {
   /// Initialize services that depend on each other
   void _initializeServices() {
     _locationService = LocationService(_apiService);
+    _startMessagePolling();
+  }
+
+  /// Start periodic message polling for real-time updates
+  void _startMessagePolling() {
+    _messageFetchTimer?.cancel();
+    _messageFetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      await _fetchNewMessages();
+    });
+  }
+
+  /// Stop message polling
+  void _stopMessagePolling() {
+    _messageFetchTimer?.cancel();
+    _messageFetchTimer = null;
+  }
+
+  /// Fetch new messages for all chat rooms
+  Future<void> _fetchNewMessages() async {
+    if (_currentProfile == null || _apiUserId == null) return;
+
+    try {
+      for (final chatRoom in _chatRooms) {
+        await _fetchMessagesForChatRoom(chatRoom.id);
+      }
+    } catch (e) {
+      // Silently handle errors to avoid disrupting UI
+      print('Error fetching messages: $e');
+    }
+  }
+
+  /// Fetch messages for a specific chat room
+  Future<void> _fetchMessagesForChatRoom(String chatRoomId) async {
+    try {
+      final messages = await _apiService.getChatMessages(chatRoomId);
+      final messageReads = messages.toList();
+      
+      final chatRoomIndex = _chatRooms.indexWhere((cr) => cr.id == chatRoomId);
+      if (chatRoomIndex == -1) return;
+
+      final currentMessages = _chatRooms[chatRoomIndex].messages;
+      final newMessages = <ChatMessage>[];
+      
+      for (final messageRead in messageReads) {
+        // Check if message already exists
+        final existingMessage = currentMessages.firstWhere(
+          (msg) => msg.id == messageRead.id,
+          orElse: () => ChatMessage(
+            id: 'dummy',
+            text: '',
+            isMine: false,
+            timestamp: DateTime.now(),
+          ),
+        );
+        
+        if (existingMessage.id == 'dummy') {
+          // New message found
+          final currentUserId = _currentProfile?.id ?? '';
+          final isMine = messageRead.senderId.toString() == currentUserId;
+          
+          newMessages.add(_apiService.chatMessageReadToChatMessage(messageRead, isMine));
+        }
+      }
+
+      if (newMessages.isNotEmpty) {
+        // Sort all messages by timestamp
+        final allMessages = [...currentMessages, ...newMessages];
+        allMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        
+        _chatRooms[chatRoomIndex] = _chatRooms[chatRoomIndex].copyWith(
+          messages: allMessages,
+        );
+        
+        _lastMessageFetch[chatRoomId] = DateTime.now();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching messages for chat room $chatRoomId: $e');
+    }
   }
 
   // Get connected profiles
@@ -169,6 +250,9 @@ class StorageService extends ChangeNotifier {
 
       // Load activities from API
       await _loadActivitiesFromApi();
+      
+      // Load chat rooms from API
+      await _fetchChatRooms();
       
       // Start invitation polling if user is logged in
       if (_apiUserId != null) {
@@ -1466,24 +1550,41 @@ restaurant: activityName,
 
   /// Create a chat room for accepted invitation
   void _createChatRoom(Invitation invitation) {
-    // Check if chat room already exists
-    final exists = _chatRooms.any((c) => c.peerId == invitation.peerId);
+    final currentUserId = _currentProfile?.id ?? '';
+    if (currentUserId.isEmpty) return;
+
+    // Check if chat room already exists between these users
+    final exists = _chatRooms.any((c) => 
+      c.containsUser(currentUserId) && c.containsUser(invitation.peerId));
     if (exists) return;
 
     final chatRoom = ChatRoom(
       id: 'chat_${invitation.id}',
-      peerId: invitation.peerId,
-      peerName: invitation.peerName,
+      user1Id: currentUserId,
+      user2Id: invitation.peerId,
       restaurant: invitation.restaurant,
       createdAt: DateTime.now(),
     );
 
-    _chatRooms.add(chatRoom);
+    // Add invitation card message
+    final invitationMessage = ChatMessage(
+      id: 'invitation_${DateTime.now().millisecondsSinceEpoch}',
+      text: '🎉 Invitation accepted! Let\'s meet at ${invitation.restaurant}',
+      isMine: false, // System message, not from current user
+      timestamp: DateTime.now(),
+      isSystemMessage: true,
+    );
+
+    final chatRoomWithMessage = chatRoom.copyWith(
+      messages: [invitationMessage],
+    );
+
+    _chatRooms.add(chatRoomWithMessage);
     notifyListeners();
   }
 
   /// Send message in chat room
-  void sendMessage(String chatRoomId, String text) {
+  Future<void> sendMessage(String chatRoomId, String text) async {
     final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
     if (index != -1) {
       final message = ChatMessage(
@@ -1491,14 +1592,27 @@ restaurant: activityName,
         text: text,
         isMine: true,
         timestamp: DateTime.now(),
+        isSystemMessage: false,
       );
 
+      // Add message locally immediately for instant UI feedback
       final updatedMessages = [..._chatRooms[index].messages, message];
       _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
       notifyListeners();
 
-      // Simulate peer response
-      _simulatePeerMessage(chatRoomId);
+      try {
+        // Send to backend
+        final currentUserId = int.tryParse(_currentProfile?.id ?? '0') ?? 0;
+        final messageRequest = _apiService.chatMessageToCreateRequest(text, currentUserId);
+        await _apiService.sendChatMessage(chatRoomId, messageRequest);
+        
+        // Refresh messages to get the server-assigned ID
+        await _fetchMessagesForChatRoom(chatRoomId);
+      } catch (e) {
+        // Handle send error - could remove the message or mark as failed
+        print('Error sending message: $e');
+        // For now, we'll keep the message locally and let polling sync it
+      }
     }
   }
 
@@ -1521,6 +1635,7 @@ restaurant: activityName,
         text: responses[DateTime.now().millisecond % responses.length],
         isMine: false,
         timestamp: DateTime.now(),
+        isSystemMessage: false,
       );
 
       final updatedMessages = [..._chatRooms[index].messages, message];
@@ -1529,12 +1644,88 @@ restaurant: activityName,
     }
   }
 
-  /// Get chat room by peer ID
+  /// Get chat room by peer ID (updated for user pair structure)
   ChatRoom? getChatRoomByPeerId(String peerId) {
     try {
-      return _chatRooms.firstWhere((c) => c.peerId == peerId);
+      final currentUserId = _currentProfile?.id ?? '';
+      return _chatRooms.firstWhere((c) => 
+        c.containsUser(currentUserId) && c.containsUser(peerId));
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Get chat room between two users
+  ChatRoom? getChatRoomBetweenUsers(String user1Id, String user2Id) {
+    try {
+      return _chatRooms.firstWhere((c) => 
+        c.containsUser(user1Id) && c.containsUser(user2Id));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Fetch chat rooms from API
+  Future<void> _fetchChatRooms() async {
+    if (_apiUserId == null) return;
+
+    try {
+      // Convert string API user ID to int for API call
+      final apiUserIdInt = int.tryParse(_apiUserId!);
+      if (apiUserIdInt == null) {
+        print('Invalid API user ID format: $_apiUserId');
+        return;
+      }
+      
+      final response = await _apiService.getChatRooms(apiUserIdInt);
+      
+      // Convert ChatRoomRead objects to local ChatRoom objects
+      _chatRooms = response.map((chatRoomRead) {
+        return ChatRoom(
+          id: chatRoomRead.id,
+          user1Id: chatRoomRead.user1Id.toString(),
+          user2Id: chatRoomRead.user2Id.toString(),
+          restaurant: chatRoomRead.restaurant,
+          createdAt: chatRoomRead.createdAt,
+          messages: [],
+        );
+      }).toList();
+      
+      // Fetch messages for each chat room
+      for (final chatRoom in _chatRooms) {
+        await _fetchMessagesForChatRoom(chatRoom.id);
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching chat rooms: $e');
+    }
+  }
+
+  /// Refresh all chat rooms and messages
+  Future<void> refreshChatRooms() async {
+    if (_currentProfile == null || _apiUserId == null) return;
+
+    try {
+      await _fetchChatRooms();
+    } catch (e) {
+      print('Error refreshing chat rooms: $e');
+    }
+  }
+
+  /// Refresh messages for a specific chat room
+  Future<void> refreshChatRoomMessages(String chatRoomId) async {
+    await _fetchMessagesForChatRoom(chatRoomId);
+  }
+
+  /// Refresh invitations from server
+  Future<void> refreshInvitations() async {
+    if (_currentProfile == null || _apiUserId == null) return;
+
+    try {
+      await fetchInvitations();
+    } catch (e) {
+      print('Error refreshing invitations: $e');
     }
   }
 
@@ -1621,7 +1812,9 @@ restaurant: activityName,
 
     // Remove from chat rooms
     final invitation = _invitations.firstWhere((i) => i.id == invitationId);
-    _chatRooms.removeWhere((c) => c.peerId == invitation.peerId);
+    final currentUserId = _currentProfile?.id ?? '';
+    _chatRooms.removeWhere((c) => 
+      c.containsUser(currentUserId) && c.containsUser(invitation.peerId));
 
     notifyListeners();
   }
@@ -1651,6 +1844,7 @@ restaurant: activityName,
   @override
   void dispose() {
     stopInvitationPolling();
+    _stopMessagePolling();
     super.dispose();
     _debugLog('StorageService disposed');
   }

@@ -348,16 +348,16 @@ class ApiService {
   // Chat model converters
   ChatRoomBase chatRoomToChatRoomBase(ChatRoom chatRoom) {
     return ChatRoomBase((b) => b
-      ..peerId = int.tryParse(chatRoom.peerId) ?? 0
-      ..peerName = chatRoom.peerName
+      ..user1Id = int.tryParse(chatRoom.user1Id) ?? 0
+      ..user2Id = int.tryParse(chatRoom.user2Id) ?? 0
       ..restaurant = chatRoom.restaurant);
   }
 
   ChatRoom chatRoomReadToChatRoom(ChatRoomRead chatRoomRead) {
     return ChatRoom(
       id: chatRoomRead.id,
-      peerId: chatRoomRead.peerId.toString(),
-      peerName: chatRoomRead.peerName,
+      user1Id: chatRoomRead.user1Id.toString(),
+      user2Id: chatRoomRead.user2Id.toString(),
       restaurant: chatRoomRead.restaurant,
       createdAt: chatRoomRead.createdAt,
     );
@@ -376,6 +376,7 @@ class ApiService {
       text: messageRead.text,
       isMine: isMine,
       timestamp: messageRead.timestamp,
+      isSystemMessage: false, // Backend doesn't support this field yet
     );
   }
 
@@ -584,6 +585,20 @@ class ApiService {
       'Create Chat Room',
     );
     return response.data!;
+  }
+
+  /// Find chat room between two users
+  Future<ChatRoomRead?> findChatRoomBetweenUsers(int user1Id, int user2Id) async {
+    try {
+      final response = await _executeWithRetry(
+        () => _api.findChatroomBetweenUsersChatroomsFindGet(user1Id: user1Id, user2Id: user2Id),
+        'Find Chat Room Between Users',
+      );
+      return response.data;
+    } catch (e) {
+      // Return null if no chat room found
+      return null;
+    }
   }
 
   /// Get chat rooms for user
