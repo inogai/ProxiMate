@@ -27,6 +27,11 @@ void main() {
       // TODO
     });
 
+    // String invitationId
+    test('to test the property `invitationId`', () async {
+      // TODO
+    });
+
     // String id
     test('to test the property `id`', () async {
       // TODO

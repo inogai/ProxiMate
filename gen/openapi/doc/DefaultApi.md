@@ -42,7 +42,7 @@ Method | HTTP request | Description
 
 
 # **acceptInvitationInvitationsInvitationIdAcceptPut**
-> InvitationRead acceptInvitationInvitationsInvitationIdAcceptPut(invitationId)
+> JsonObject acceptInvitationInvitationsInvitationIdAcceptPut(invitationId)
 
 Accept Invitation
 
@@ -69,7 +69,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**InvitationRead**](InvitationRead.md)
+[**JsonObject**](JsonObject.md)
 
 ### Authorization
 

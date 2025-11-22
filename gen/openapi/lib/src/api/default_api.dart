@@ -48,9 +48,9 @@ class DefaultApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [InvitationRead] as data
+  /// Returns a [Future] containing a [Response] with a [JsonObject] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<InvitationRead>> acceptInvitationInvitationsInvitationIdAcceptPut({ 
+  Future<Response<JsonObject>> acceptInvitationInvitationsInvitationIdAcceptPut({ 
     required String invitationId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -80,14 +80,14 @@ class DefaultApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    InvitationRead? _responseData;
+    JsonObject? _responseData;
 
     try {
       final rawResponse = _response.data;
       _responseData = rawResponse == null ? null : _serializers.deserialize(
         rawResponse,
-        specifiedType: const FullType(InvitationRead),
-      ) as InvitationRead;
+        specifiedType: const FullType(JsonObject),
+      ) as JsonObject;
 
     } catch (error, stackTrace) {
       throw DioException(
@@ -99,7 +99,7 @@ class DefaultApi {
       );
     }
 
-    return Response<InvitationRead>(
+    return Response<JsonObject>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **senderId** | **int** |  | 
 **text** | **String** |  | 
 **isMine** | **bool** |  | [optional] [default to false]
+**invitationId** | **String** |  | [optional] 
 **id** | **String** |  | 
 **timestamp** | [**DateTime**](DateTime.md) |  | 
 

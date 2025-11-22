@@ -15,6 +15,7 @@ part 'chat_message_read.g.dart';
 /// * [senderId] 
 /// * [text] 
 /// * [isMine] 
+/// * [invitationId] 
 /// * [id] 
 /// * [timestamp] 
 @BuiltValue()
@@ -30,6 +31,9 @@ abstract class ChatMessageRead implements Built<ChatMessageRead, ChatMessageRead
 
   @BuiltValueField(wireName: r'is_mine')
   bool? get isMine;
+
+  @BuiltValueField(wireName: r'invitation_id')
+  String? get invitationId;
 
   @BuiltValueField(wireName: r'id')
   String get id;
@@ -81,6 +85,13 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
       yield serializers.serialize(
         object.isMine,
         specifiedType: const FullType(bool),
+      );
+    }
+    if (object.invitationId != null) {
+      yield r'invitation_id';
+      yield serializers.serialize(
+        object.invitationId,
+        specifiedType: const FullType.nullable(String),
       );
     }
     yield r'id';
@@ -143,6 +154,14 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
             specifiedType: const FullType(bool),
           ) as bool;
           result.isMine = valueDes;
+          break;
+        case r'invitation_id':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
+          result.invitationId = valueDes;
           break;
         case r'id':
           final valueDes = serializers.deserialize(

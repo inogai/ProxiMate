@@ -16,6 +16,8 @@ class _$ChatMessageRead extends ChatMessageRead {
   @override
   final bool? isMine;
   @override
+  final String? invitationId;
+  @override
   final String id;
   @override
   final DateTime timestamp;
@@ -28,6 +30,7 @@ class _$ChatMessageRead extends ChatMessageRead {
       required this.senderId,
       required this.text,
       this.isMine,
+      this.invitationId,
       required this.id,
       required this.timestamp})
       : super._();
@@ -46,6 +49,7 @@ class _$ChatMessageRead extends ChatMessageRead {
         senderId == other.senderId &&
         text == other.text &&
         isMine == other.isMine &&
+        invitationId == other.invitationId &&
         id == other.id &&
         timestamp == other.timestamp;
   }
@@ -57,6 +61,7 @@ class _$ChatMessageRead extends ChatMessageRead {
     _$hash = $jc(_$hash, senderId.hashCode);
     _$hash = $jc(_$hash, text.hashCode);
     _$hash = $jc(_$hash, isMine.hashCode);
+    _$hash = $jc(_$hash, invitationId.hashCode);
     _$hash = $jc(_$hash, id.hashCode);
     _$hash = $jc(_$hash, timestamp.hashCode);
     _$hash = $jf(_$hash);
@@ -70,6 +75,7 @@ class _$ChatMessageRead extends ChatMessageRead {
           ..add('senderId', senderId)
           ..add('text', text)
           ..add('isMine', isMine)
+          ..add('invitationId', invitationId)
           ..add('id', id)
           ..add('timestamp', timestamp))
         .toString();
@@ -96,6 +102,10 @@ class ChatMessageReadBuilder
   bool? get isMine => _$this._isMine;
   set isMine(bool? isMine) => _$this._isMine = isMine;
 
+  String? _invitationId;
+  String? get invitationId => _$this._invitationId;
+  set invitationId(String? invitationId) => _$this._invitationId = invitationId;
+
   String? _id;
   String? get id => _$this._id;
   set id(String? id) => _$this._id = id;
@@ -115,6 +125,7 @@ class ChatMessageReadBuilder
       _senderId = $v.senderId;
       _text = $v.text;
       _isMine = $v.isMine;
+      _invitationId = $v.invitationId;
       _id = $v.id;
       _timestamp = $v.timestamp;
       _$v = null;
@@ -145,6 +156,7 @@ class ChatMessageReadBuilder
           text: BuiltValueNullFieldError.checkNotNull(
               text, r'ChatMessageRead', 'text'),
           isMine: isMine,
+          invitationId: invitationId,
           id: BuiltValueNullFieldError.checkNotNull(
               id, r'ChatMessageRead', 'id'),
           timestamp: BuiltValueNullFieldError.checkNotNull(

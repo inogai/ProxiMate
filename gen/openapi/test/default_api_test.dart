@@ -9,7 +9,7 @@ void main() {
   group(DefaultApi, () {
     // Accept Invitation
     //
-    //Future<InvitationRead> acceptInvitationInvitationsInvitationIdAcceptPut(String invitationId) async
+    //Future<JsonObject> acceptInvitationInvitationsInvitationIdAcceptPut(String invitationId) async
     test('test acceptInvitationInvitationsInvitationIdAcceptPut', () async {
       // TODO
     });
