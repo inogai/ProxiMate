@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:openapi/openapi.dart';
-import 'package:dio/dio.dart';
 import '../models/profile.dart';
 import '../models/peer.dart';
 import '../models/meeting.dart';
@@ -15,7 +14,6 @@ class ApiService {
   late UsersApi _usersApi;
   late LocationsApi _locationsApi;
   late ActivitiesApi _activitiesApi;
-  late InvitationsApi _invitationsApi;
   late ChatroomsApi _chatroomsApi;
   late MessagesApi _messagesApi;
   late DefaultApi _defaultApi;
@@ -39,7 +37,6 @@ class ApiService {
       _usersApi = openapi.getUsersApi();
       _locationsApi = openapi.getLocationsApi();
       _activitiesApi = openapi.getActivitiesApi();
-      _invitationsApi = openapi.getInvitationsApi();
       _chatroomsApi = openapi.getChatroomsApi();
       _messagesApi = openapi.getMessagesApi();
       _defaultApi = openapi.getDefaultApi();
@@ -153,7 +150,7 @@ class ApiService {
   Future<bool> checkHealth() async {
     try {
       await _executeWithRetry(
-        () => _defaultApi.healthCheckHealthGet(),
+        () => _defaultApi.healthCheckApiV1HealthGet(),
         'Health Check',
       );
       return true;
@@ -316,73 +313,7 @@ class ApiService {
     );
   }
 
-  // Invitation model converters
-  InvitationCreate invitationToInvitationCreate(Invitation invitation, int senderId, int receiverId) {
-    return InvitationCreate((b) => b
-      ..senderId = senderId
-      ..receiverId = receiverId
-      ..activityId = invitation.activityId
-      ..restaurant = invitation.restaurant
-      ..status = invitation.status.name
-      ..iceBreakers = invitation.iceBreakers.map((ib) => ib.question).join('|')
-      ..sentByMe = invitation.sentByMe
-      ..nameCardCollected = invitation.nameCardCollected
-      ..chatOpened = invitation.chatOpened);
-  }
 
-  Invitation invitationReadToInvitation(InvitationRead invitationRead) {
-    // Parse createdAt string to DateTime
-    DateTime parsedCreatedAt;
-    try {
-      parsedCreatedAt = DateTime.parse(invitationRead.createdAt);
-      // Assume the timestamp is in UTC and convert to local
-      if (parsedCreatedAt.isUtc) {
-        parsedCreatedAt = parsedCreatedAt.toLocal();
-      }
-    } catch (e) {
-      // Fallback to current time if parsing fails
-      parsedCreatedAt = DateTime.now();
-      _debugLog('Failed to parse createdAt: ${invitationRead.createdAt}, using current time');
-    }
-
-    return Invitation(
-      id: invitationRead.id,
-      peerId: invitationRead.senderId.toString(),
-      peerName: '', // Will be filled by caller
-      restaurant: invitationRead.restaurant,
-      activityId: invitationRead.activityId,
-      createdAt: parsedCreatedAt,
-      sentByMe: invitationRead.sentByMe ?? false,
-      status: _parseInvitationStatus(invitationRead.status),
-      iceBreakers: _parseIceBreakers(invitationRead.iceBreakers),
-      nameCardCollected: invitationRead.nameCardCollected ?? false,
-      chatOpened: invitationRead.chatOpened ?? false,
-    );
-  }
-
-  InvitationStatus _parseInvitationStatus(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'accepted':
-        return InvitationStatus.accepted;
-      case 'declined':
-        return InvitationStatus.declined;
-      case 'pending':
-      default:
-        return InvitationStatus.pending;
-    }
-  }
-
-  List<IceBreaker> _parseIceBreakers(String? iceBreakersStr) {
-    if (iceBreakersStr == null || iceBreakersStr.isEmpty) {
-      return [];
-    }
-    
-    final questions = iceBreakersStr.split('|');
-    return questions.map((question) => IceBreaker(
-      question: question,
-      answer: 'Ice breaker question',
-    )).toList();
-  }
 
   // Chat model converters
   ChatRoomCreateRequest chatRoomToChatRoomCreateRequest(ChatRoom chatRoom) {
@@ -438,7 +369,7 @@ class ApiService {
       text: messageRead.text,
       isMine: isMine,
       timestamp: parsedTimestamp,
-      isSystemMessage: false, // Backend doesn't support this field yet
+      messageType: MessageType.text, // Backend doesn't support invitation messages yet
     );
   }
 
@@ -510,93 +441,7 @@ class ApiService {
     return false;
   }
 
-  // Invitation endpoints
 
-  /// Create invitation
-  Future<InvitationRead> createInvitation(InvitationCreate invitation) async {
-    final response = await _executeWithRetry(
-      () => _invitationsApi.createInvitationApiV1InvitationsPost(invitationCreate: invitation),
-      'Create Invitation',
-    );
-    return response.data!;
-  }
-
-  /// Get invitations for user
-  Future<BuiltList<InvitationRead>> getInvitations(int userId) async {
-    // Get sent and received invitations separately
-    final sentResponse = await _executeWithRetry(
-      () => _invitationsApi.getSentInvitationsApiV1InvitationsSentUserIdGet(userId: userId),
-      'Get Sent Invitations',
-    );
-    final receivedResponse = await _executeWithRetry(
-      () => _invitationsApi.getReceivedInvitationsApiV1InvitationsReceivedUserIdGet(userId: userId),
-      'Get Received Invitations',
-    );
-
-    // Combine the results
-    final allInvitations = BuiltList<InvitationRead>.from([
-      ...sentResponse.data!,
-      ...receivedResponse.data!,
-    ]);
-
-    return allInvitations;
-  }
-
-  /// Accept invitation
-  Future<InvitationRead> acceptInvitation(String invitationId) async {
-    final response = await _executeWithRetry(
-      () => _invitationsApi.acceptInvitationApiV1InvitationsInvitationIdAcceptPost(invitationId: invitationId),
-      'Accept Invitation',
-    );
-    return response.data!;
-  }
-
-  /// Decline invitation
-  Future<InvitationRead> declineInvitation(String invitationId) async {
-    final response = await _executeWithRetry(
-      () => _invitationsApi.declineInvitationApiV1InvitationsInvitationIdDeclinePost(invitationId: invitationId),
-      'Decline Invitation',
-    );
-    return response.data!;
-  }
-
-  /// Collect name card
-  Future<InvitationRead> collectNameCard(String invitationId) async {
-    // Use updateInvitation to mark name card as collected
-    final updateData = BuiltMap<String, JsonObject>.from({
-      'name_card_collected': JsonObject(true),
-    });
-    final response = await _executeWithRetry(
-      () => _invitationsApi.updateInvitationApiV1InvitationsInvitationIdPut(
-        invitationId: invitationId,
-        requestBody: updateData,
-      ),
-      'Collect Name Card',
-    );
-    return response.data!;
-  }
-
-  /// Mark chat opened
-  Future<InvitationRead> markChatOpened(String invitationId) async {
-    // Use updateInvitation to mark chat as opened
-    final updateData = BuiltMap<String, JsonObject>.from({
-      'chat_opened': JsonObject(true),
-    });
-    final response = await _executeWithRetry(
-      () => _invitationsApi.updateInvitationApiV1InvitationsInvitationIdPut(
-        invitationId: invitationId,
-        requestBody: updateData,
-      ),
-      'Mark Chat Opened',
-    );
-    return response.data!;
-  }
-
-  /// Mark not good match (decline invitation)
-  Future<InvitationRead> markNotGoodMatch(String invitationId) async {
-    // For now, treat as declining the invitation
-    return declineInvitation(invitationId);
-  }
 
   // Chat endpoints
 
@@ -664,6 +509,33 @@ class ApiService {
     final response = await _executeWithRetry(
       () => _messagesApi.getChatRoomMessagesApiV1MessagesChatroomsChatRoomIdGet(chatRoomId: chatroomId),
       'Get Chat Messages',
+    );
+    return response.data!;
+  }
+
+  /// Create invitation message
+  Future<ChatMessageRead> createInvitationMessage(
+    String chatroomId,
+    int senderId,
+    String activityName,
+    String restaurant,
+    BuiltList<String> iceBreakers,
+    String? responseDeadline,
+  ) async {
+    // For now, create a simple text message with invitation details
+    // TODO: Update backend to support invitation message types
+    final invitationText = 'You have been invited to $activityName at $restaurant! '
+        'Ice breakers: ${iceBreakers.join(", ")}'
+        '${responseDeadline != null ? " Please respond by: $responseDeadline" : ""}';
+
+    final response = await _executeWithRetry(
+      () => _messagesApi.sendMessageApiV1MessagesSendPost(
+        chatRoomId: chatroomId,
+        senderId: senderId,
+        text: invitationText,
+        isMine: true,
+      ),
+      'Create Invitation Message',
     );
     return response.data!;
   }

@@ -52,7 +52,7 @@ void main() {
         text: '🎉 Invitation accepted! Let\'s meet at Test Restaurant',
         isMine: false,
         timestamp: DateTime.now(),
-        isSystemMessage: true,
+        messageType: MessageType.system,
       );
 
       final regularMessage = ChatMessage(
@@ -60,7 +60,7 @@ void main() {
         text: 'Hello there!',
         isMine: true,
         timestamp: DateTime.now(),
-        isSystemMessage: false,
+        messageType: MessageType.text,
       );
 
       expect(systemMessage.isSystemMessage, isTrue);
@@ -74,7 +74,7 @@ void main() {
         text: '🎉 Invitation accepted! Let\'s meet at Test Restaurant',
         isMine: false,
         timestamp: DateTime.now(),
-        isSystemMessage: true,
+        messageType: MessageType.system,
       );
 
       final chatRoom = ChatRoom(

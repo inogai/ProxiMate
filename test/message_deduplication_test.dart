@@ -6,11 +6,11 @@ void main() {
 
     test('ChatMessage copyWith should work correctly', () {
       final originalMessage = ChatMessage(
-        id: 'temp_id_123',
+        id: 'local_id_123',
         text: 'Hello world',
         isMine: true,
         timestamp: DateTime.now(),
-        isSystemMessage: false,
+        messageType: MessageType.text,
       );
 
       final updatedMessage = originalMessage.copyWith(
@@ -21,7 +21,7 @@ void main() {
       expect(updatedMessage.id, 'server_id_456');
       expect(updatedMessage.text, 'Hello world');
       expect(updatedMessage.isMine, true);
-      expect(updatedMessage.isSystemMessage, false);
+      expect(updatedMessage.messageType, MessageType.text);
       expect(updatedMessage.timestamp, isNot(equals(originalMessage.timestamp)));
     });
 
@@ -31,11 +31,11 @@ void main() {
       
       // Simulate server message (UTC) and local message (local time)
       final localMessage = ChatMessage(
-        id: 'temp_local_id',
+        id: 'local_msg',
         text: 'Test message',
         isMine: true,
         timestamp: localTime,
-        isSystemMessage: false,
+        messageType: MessageType.text,
       );
 
       // Simulate server message with same content but different timestamp format
@@ -72,7 +72,7 @@ void main() {
         text: 'Hello world',
         isMine: true,
         timestamp: localTime,
-        isSystemMessage: false,
+        messageType: MessageType.text,
       );
 
       // Convert server UTC time to local time for comparison
@@ -93,7 +93,7 @@ void main() {
         text: 'Hello world',
         isMine: true,
         timestamp: localMessageTime,
-        isSystemMessage: false,
+        messageType: MessageType.text,
       );
 
       // If server timestamp is already local, no conversion should happen

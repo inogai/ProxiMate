@@ -4,6 +4,7 @@ import '../models/meeting.dart';
 import '../models/profile.dart';
 import '../services/storage_service.dart';
 import '../widgets/custom_buttons.dart';
+import '../widgets/invitation_message_card.dart';
 
 /// Chat room screen for communicating about meetup
 class ChatRoomScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isLoading = false;
+  bool _isChatRoomClosed = false;
 
   @override
   void initState() {
@@ -273,6 +275,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               Text(restaurant),
                             ],
                           ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Icon(
+                                _isChatRoomClosed ? Icons.lock : Icons.lock_open,
+                                color: _isChatRoomClosed ? Colors.red : Colors.green,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _isChatRoomClosed ? 'Chat room closed' : 'Chat room open',
+                                style: TextStyle(
+                                  color: _isChatRoomClosed ? Colors.red : Colors.green,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       actions: [
@@ -291,11 +310,36 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       ),
       body: Column(
         children: [
+          // Chat room closed banner
+          if (_isChatRoomClosed)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              color: Colors.red.withValues(alpha: 0.1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.lock,
+                    color: Colors.red[700],
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Chat room closed - Read only mode',
+                    style: TextStyle(
+                      color: Colors.red[700],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Invitation card (if pending invitation)
           if (widget.invitation != null && widget.invitation!.isPending)
             _buildInvitationCard(context, widget.invitation!, storage),
           // Info banner (for accepted invitations)
-          if (chatRoom != null)
+          if (chatRoom != null && !_isChatRoomClosed)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -329,13 +373,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.chat_bubble_outline,
+                            _isChatRoomClosed ? Icons.lock : Icons.chat_bubble_outline,
                             size: 60,
                             color: Colors.grey[400],
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Start chatting about your meetup!',
+                            _isChatRoomClosed 
+                                ? 'This chat room has been closed'
+                                : 'Start chatting about your meetup!',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(color: Colors.grey[600]),
                           ),
@@ -352,51 +398,75 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     ),
             ),
           ),
-          // Input field
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+          // Input field (disabled if chat room is closed)
+          if (!_isChatRoomClosed)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Invitation creation button (only show if no pending invitation)
+                  if (!_hasPendingInvitation())
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showInvitationDialog(context),
+                        icon: const Icon(Icons.restaurant_menu),
+                        label: const Text('Send Invitation'),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Theme.of(context).primaryColor),
+                          foregroundColor: Theme.of(context).primaryColor,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
                       ),
                     ),
-                    onSubmitted: (_) => _sendMessage(),
-                    textInputAction: TextInputAction.send,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          decoration: InputDecoration(
+                            hintText: 'Type a message...',
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          onSubmitted: (_) => _sendMessage(),
+                          textInputAction: TextInputAction.send,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      PrimaryIconButton(
+                        icon: Icons.send,
+                        onPressed: _sendMessage,
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                PrimaryIconButton(
-                  icon: Icons.send,
-                  onPressed: _sendMessage,
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -609,25 +679,287 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
-  Widget _buildMessage(ChatMessage message) {
-    // Special styling for system messages (invitation cards)
-    if (message.isSystemMessage) {
-      // Different styling for invitation vs acceptance messages
-      final isInvitationMessage = message.text.contains('Invitation sent') || 
-                                  message.text.contains('wants to connect');
-      final isAcceptanceMessage = message.text.contains('Invitation accepted');
+  /// Handle invitation response (accept/decline)
+  Future<void> _handleInvitationResponse(String messageId, bool accept) async {
+    try {
+      final storage = context.read<StorageService>();
       
+      if (accept) {
+        await storage.acceptInvitation(messageId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invitation accepted!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        await storage.declineInvitation(messageId);
+        // Close chat room when invitation is declined
+        setState(() {
+          _isChatRoomClosed = true;
+        });
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invitation declined. Chat room closed.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+      
+      // Refresh messages to update UI
+      await _refreshMessages();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to respond to invitation: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Handle name card collection
+  Future<void> _handleCollectNameCard(String messageId) async {
+    try {
+      final storage = context.read<StorageService>();
+      await storage.collectNameCard(messageId);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Name card collected!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      
+      // Refresh messages to update UI
+      await _refreshMessages();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to collect name card: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Handle not good match (close connection)
+  Future<void> _handleNotGoodMatch(String messageId) async {
+    try {
+      final storage = context.read<StorageService>();
+      await storage.markNotGoodMatch(messageId);
+      
+      // Close chat room
+      setState(() {
+        _isChatRoomClosed = true;
+      });
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connection closed. Chat room is now read-only.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      
+      // Refresh messages to update UI
+      await _refreshMessages();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to close connection: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Check if there's already a pending invitation in this chat
+  bool _hasPendingInvitation() {
+    final storage = context.read<StorageService>();
+    final currentUserId = storage.currentProfile?.id ?? '';
+    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+    
+    // Check if there are any pending invitations between these users
+    return storage.invitations.any((inv) => 
+      inv.isPending && 
+      ((inv.peerId == otherUserId && inv.sentByMe) || 
+       (inv.peerId == currentUserId && !inv.sentByMe))
+    );
+  }
+
+  /// Show invitation creation dialog
+  void _showInvitationDialog(BuildContext context) {
+    final storage = context.read<StorageService>();
+    final currentUserId = storage.currentProfile?.id ?? '';
+    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+    final restaurantController = TextEditingController();
+    String? selectedActivityId;
+    bool isCreating = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Send Invitation'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Invite this person to meet up for a meal!',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: restaurantController,
+                decoration: const InputDecoration(
+                  labelText: 'Restaurant *',
+                  hintText: 'e.g., Campus Cafe, Pizza Place',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Consumer<StorageService>(
+                builder: (context, storage, child) {
+                  return DropdownButtonFormField<String>(
+                    value: selectedActivityId,
+                    decoration: const InputDecoration(
+                      labelText: 'Activity *',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: storage.activities.map((activity) {
+                      return DropdownMenuItem(
+                        value: activity.id.toString(),
+                        child: Text(activity.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedActivityId = value;
+                      });
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isCreating ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: (isCreating || restaurantController.text.trim().isEmpty || selectedActivityId == null)
+                  ? null
+                  : () async {
+                      setState(() => isCreating = true);
+                      
+                      try {
+                        final storage = context.read<StorageService>();
+                        final peer = storage.getPeerById(otherUserId);
+                        
+                        if (peer != null) {
+                          final activity = storage.activities.firstWhere(
+                            (a) => a.id.toString() == selectedActivityId,
+                          );
+                          
+                          await storage.sendInvitation(peer, activity.name);
+                          
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Invitation sent!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                          
+                          // Refresh to show the new invitation
+                          await _refreshMessages();
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to send invitation: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } finally {
+                        setState(() => isCreating = false);
+                      }
+                    },
+              child: isCreating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Send'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessage(ChatMessage message) {
+    final storage = context.read<StorageService>();
+    final currentUserId = storage.currentProfile?.id ?? '';
+    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+    
+    // Handle invitation messages with enhanced card
+    if (message.isInvitation) {
+      final isFromMe = message.isMine;
+      
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: InvitationMessageCard(
+          message: message,
+          senderName: isFromMe ? 'You' : otherUserId.isNotEmpty ? storage.getPeerById(otherUserId)?.name : 'Unknown',
+          isFromMe: isFromMe,
+          onAccept: !isFromMe && message.isPending ? () => _handleInvitationResponse(message.invitationId ?? message.id, true) : null,
+          onDecline: !isFromMe && message.isPending ? () => _handleInvitationResponse(message.invitationId ?? message.id, false) : null,
+          onCollectCard: message.isAccepted && !(message.isNameCardCollected ?? false) 
+              ? () => _handleCollectNameCard(message.invitationId ?? message.id) 
+              : null,
+          onNotGoodMatch: message.isAccepted ? () => _handleNotGoodMatch(message.invitationId ?? message.id) : null,
+        ),
+      );
+    }
+
+    // Handle invitation response messages (system messages)
+    if (message.isInvitationResponse) {
       Color bgColor = Colors.green.withValues(alpha: 0.1);
       Color borderColor = Colors.green.withValues(alpha: 0.3);
       Color textColor = Colors.green[700]!;
       IconData icon = Icons.celebration;
       
-      if (isInvitationMessage) {
-        bgColor = Colors.blue.withValues(alpha: 0.1);
-        borderColor = Colors.blue.withValues(alpha: 0.3);
-        textColor = Colors.blue[700]!;
-        icon = Icons.mail_outline;
-      } else if (isAcceptanceMessage) {
+      if (message.text.contains('declined')) {
+        bgColor = Colors.red.withValues(alpha: 0.1);
+        borderColor = Colors.red.withValues(alpha: 0.3);
+        textColor = Colors.red[700]!;
+        icon = Icons.cancel;
+      } else if (message.text.contains('accepted')) {
         bgColor = Colors.green.withValues(alpha: 0.1);
         borderColor = Colors.green.withValues(alpha: 0.3);
         textColor = Colors.green[700]!;

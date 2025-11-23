@@ -14,6 +14,7 @@ import 'api_service.dart';
 import 'location_service.dart';
 import 'package:openapi/openapi.dart';
 import 'package:dio/dio.dart';
+import 'package:built_collection/built_collection.dart';
 
 /// Storage service with persistent data using shared_preferences and API integration
 class StorageService extends ChangeNotifier {
@@ -1198,63 +1199,57 @@ class StorageService extends ChangeNotifier {
     final iceBreakers = _generateIceBreakers(peer);
 
     try {
-      _debugLog('Creating API invitation request...');
+      _debugLog('Creating invitation using new message-based system...');
       
-      // Create API invitation request
+      final currentUserId = int.parse(_apiUserId!);
       final activityId = _selectedActivityId!.toString();
-      final invitationCreate = InvitationCreate((b) => b
-        ..senderId = int.parse(_apiUserId!)
-        ..receiverId = int.parse(peer.id)
-        ..activityId = activityId
-        ..restaurant = activityName
-        ..status = 'pending'
-        ..sentByMe = true
-        ..nameCardCollected = false
-        ..chatOpened = false
-..iceBreakers = _serializeIceBreakers(iceBreakers));
-
-      _debugLog('Calling ApiService.createInvitation...');
-      _debugLog('InvitationCreate data: senderId=${invitationCreate.senderId}, receiverId=${invitationCreate.receiverId}, activityId=${invitationCreate.activityId}');
       
-      // Call API to create invitation
-      final apiResponse = await _apiService.createInvitation(invitationCreate);
+      // Step 1: Get or create chat room between users
+      _debugLog('Getting/creating chat room for invitation...');
+      final chatRoomRead = await _apiService.findChatRoomBetweenUsers(
+        currentUserId,
+        int.parse(peer.id),
+        activityName
+      );
       
-      _debugLog('API call successful - received response with ID: ${apiResponse.id}');
-      _debugLog('API call successful, response: ${apiResponse.id}');
-
-      // NEW: Backend should create chat room immediately, fetch it
-      try {
-        final currentUserId = int.parse(_apiUserId!);
-        final chatRoomRead = await _apiService.findChatRoomBetweenUsers(
-          currentUserId,
-          int.parse(peer.id),
-          activityName
-        );
-        
-        if (chatRoomRead != null) {
-          final chatRoom = _apiService.chatRoomReadToChatRoom(chatRoomRead);
-          _chatRooms.add(chatRoom);
-          _debugLog('Chat room created/fetched: ${chatRoom.id}');
-        }
-      } catch (e) {
-        _debugLog('Warning: Could not fetch chat room after invitation creation: $e');
-        // Continue even if chat room fetch fails
+      if (chatRoomRead == null) {
+        throw Exception('Failed to create or get chat room');
       }
-
-      // Create local invitation object from API response
+      
+      final chatRoom = _apiService.chatRoomReadToChatRoom(chatRoomRead);
+      _chatRooms.add(chatRoom);
+      _debugLog('Chat room created/fetched: ${chatRoom.id}');
+      
+      // Step 2: Create invitation message in the chat room
+      _debugLog('Creating invitation message...');
+      final invitationId = 'inv_${DateTime.now().millisecondsSinceEpoch}';
+      final iceBreakerStrings = iceBreakers.map((ib) => ib.question).toList();
+      
+      // Create local invitation object for compatibility first
       final invitation = Invitation(
-        id: apiResponse.id.toString(),
+        id: invitationId,
         peerId: peer.id,
         peerName: peer.name,
         restaurant: activityName,
         activityId: _selectedActivityId!,
-        createdAt: _parseTimestamp(apiResponse.createdAt),
+        createdAt: DateTime.now(),
         sentByMe: true,
-        status: _parseInvitationStatus(apiResponse.status ?? 'pending'),
+        status: InvitationStatus.pending,
         iceBreakers: iceBreakers,
-        nameCardCollected: apiResponse.nameCardCollected ?? false,
-        chatOpened: apiResponse.chatOpened ?? false,
+        nameCardCollected: false,
+        chatOpened: false,
       );
+      
+      final invitationMessage = await _apiService.createInvitationMessage(
+        chatRoom.id,
+        currentUserId,
+        activityName,
+        invitation.restaurant,
+        BuiltList<String>(iceBreakerStrings),
+        null, // responseDeadline - not set for now
+      );
+      
+      _debugLog('Invitation message created: ${invitationMessage.id}');
 
       _invitations.add(invitation);
       notifyListeners();
@@ -1311,7 +1306,9 @@ class StorageService extends ChangeNotifier {
     try {
       _debugLog('Fetching invitations for user $_apiUserId...');
       
-      final invitationReads = await _apiService.getInvitations(int.parse(_apiUserId!));
+      // TODO: Implement message-based invitation fetching
+      // final invitationReads = await _apiService.getInvitations(int.parse(_apiUserId!));
+      final invitationReads = <dynamic>[];
       _debugLog('Fetched ${invitationReads.length} invitations from server');
       
       // Convert API invitations to local Invitation objects
@@ -1340,14 +1337,33 @@ class StorageService extends ChangeNotifier {
             }
           }
           
-          final invitation = _apiService.invitationReadToInvitation(invitationRead);
-          final updatedInvitation = invitation.copyWith(
-            peerName: peerName,
+          // Create invitation from message data (since we removed old invitation API)
+          DateTime parsedCreatedAt;
+          try {
+            parsedCreatedAt = DateTime.parse(invitationRead.createdAt);
+            if (parsedCreatedAt.isUtc) {
+              parsedCreatedAt = parsedCreatedAt.toLocal();
+            }
+          } catch (e) {
+            parsedCreatedAt = DateTime.now();
+            _debugLog('Failed to parse createdAt: ${invitationRead.createdAt}, using current time');
+          }
+
+          final invitation = Invitation(
+            id: invitationRead.id,
             peerId: peerId.toString(),
+            peerName: peerName,
+            restaurant: invitationRead.restaurant,
+            activityId: invitationRead.activityId,
+            createdAt: parsedCreatedAt,
             sentByMe: sentByMe,
+            status: _parseInvitationStatus(invitationRead.status),
+            iceBreakers: [], // Not available in new API
+            nameCardCollected: false, // Not available in new API
+            chatOpened: false, // Not available in new API
           );
           
-          fetchedInvitations.add(updatedInvitation);
+          fetchedInvitations.add(invitation);
         } catch (e) {
           _debugLog('Error processing invitation ${invitationRead.id}: $e');
         }
@@ -1511,11 +1527,9 @@ class StorageService extends ChangeNotifier {
     }
 
     try {
-      // NEW: Call API to accept invitation (backend will add acceptance message)
-      await _apiService.acceptInvitation(invitationId);
-      
-      // NEW: Refresh chat rooms to get the acceptance message
-      await _fetchChatRooms();
+      // TODO: Implement acceptance via message-based system
+      // For now, just update local state
+      _debugLog('Accepting invitation locally (API method removed)');
       
       _debugLog('Invitation accepted via API: $invitationId');
     } catch (e) {
@@ -1718,7 +1732,7 @@ class StorageService extends ChangeNotifier {
         text: text,
         isMine: true,
         timestamp: localTimestamp,
-        isSystemMessage: false,
+        messageType: MessageType.text,
       );
 
       // Add message locally immediately for instant UI feedback
@@ -1767,7 +1781,7 @@ class StorageService extends ChangeNotifier {
         text: responses[DateTime.now().millisecond % responses.length],
         isMine: false,
         timestamp: DateTime.now(),
-        isSystemMessage: false,
+        messageType: MessageType.text,
       );
 
       final updatedMessages = [..._chatRooms[index].messages, message];

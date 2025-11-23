@@ -130,26 +130,38 @@ class ChatRoom {
   }
 }
 
+/// Message types for chat system
+enum MessageType {
+  text,
+  invitation,
+  invitationResponse,
+  system,
+}
+
 /// Model for chat messages
 class ChatMessage {
   final String id;
   final String text;
   final bool isMine;
   final DateTime timestamp;
-  final bool isSystemMessage; // For invitation cards and system notifications
-  final Map<String, dynamic>? invitationData; // Invitation data for system messages
+  final MessageType messageType; // Type of message
+  final Map<String, dynamic>? invitationData; // Invitation data for invitation messages
   final List<IceBreaker>? iceBreakers; // Ice breakers for invitation messages
   final bool? isNameCardCollected; // Name card collection status
+  final DateTime? responseDeadline; // Response deadline for invitations
+  final String? invitationId; // Reference to invitation ID
 
   ChatMessage({
     required this.id,
     required this.text,
     required this.isMine,
     required this.timestamp,
-    this.isSystemMessage = false,
+    this.messageType = MessageType.text,
     this.invitationData,
     this.iceBreakers,
     this.isNameCardCollected,
+    this.responseDeadline,
+    this.invitationId,
   });
 
   ChatMessage copyWith({
@@ -157,20 +169,39 @@ class ChatMessage {
     String? text,
     bool? isMine,
     DateTime? timestamp,
-    bool? isSystemMessage,
+    MessageType? messageType,
     Map<String, dynamic>? invitationData,
     List<IceBreaker>? iceBreakers,
     bool? isNameCardCollected,
+    DateTime? responseDeadline,
+    String? invitationId,
   }) {
     return ChatMessage(
       id: id ?? this.id,
       text: text ?? this.text,
       isMine: isMine ?? this.isMine,
       timestamp: timestamp ?? this.timestamp,
-      isSystemMessage: isSystemMessage ?? this.isSystemMessage,
+      messageType: messageType ?? this.messageType,
       invitationData: invitationData ?? this.invitationData,
       iceBreakers: iceBreakers ?? this.iceBreakers,
       isNameCardCollected: isNameCardCollected ?? this.isNameCardCollected,
+      responseDeadline: responseDeadline ?? this.responseDeadline,
+      invitationId: invitationId ?? this.invitationId,
     );
   }
+
+  // Convenience getters for backward compatibility
+  bool get isSystemMessage => messageType == MessageType.system || messageType == MessageType.invitationResponse;
+  
+  bool get isInvitation => messageType == MessageType.invitation;
+  
+  bool get isInvitationResponse => messageType == MessageType.invitationResponse;
+  
+  String? get invitationStatus => invitationData?["status"] as String?;
+  
+  bool get isPending => invitationStatus == "pending";
+  
+  bool get isAccepted => invitationStatus == "accepted";
+  
+  bool get isDeclined => invitationStatus == "declined";
 }
