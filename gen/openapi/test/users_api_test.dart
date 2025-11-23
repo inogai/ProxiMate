@@ -61,12 +61,30 @@ void main() {
       // TODO
     });
 
+    // Remove Avatar
+    //
+    // Remove avatar for a user.
+    //
+    //Future<UserRead> removeAvatarApiV1UsersUserIdAvatarDelete(int userId) async
+    test('test removeAvatarApiV1UsersUserIdAvatarDelete', () async {
+      // TODO
+    });
+
     // Update User
     //
     // Update a user.
     //
     //Future<UserRead> updateUserApiV1UsersUserIdPut(int userId, UserUpdate userUpdate) async
     test('test updateUserApiV1UsersUserIdPut', () async {
+      // TODO
+    });
+
+    // Upload Avatar
+    //
+    // Upload avatar for a user.
+    //
+    //Future<UserRead> uploadAvatarApiV1UsersUserIdAvatarPost(int userId, MultipartFile file) async
+    test('test uploadAvatarApiV1UsersUserIdAvatarPost', () async {
       // TODO
     });
 

@@ -15,7 +15,9 @@ Method | HTTP request | Description
 [**getUserApiV1UsersUserIdGet**](UsersApi.md#getuserapiv1usersuseridget) | **GET** /api/v1/users/{user_id} | Get User
 [**getUserByUsernameApiV1UsersUsernameUsernameGet**](UsersApi.md#getuserbyusernameapiv1usersusernameusernameget) | **GET** /api/v1/users/username/{username} | Get User By Username
 [**getUsersApiV1UsersGet**](UsersApi.md#getusersapiv1usersget) | **GET** /api/v1/users/ | Get Users
+[**removeAvatarApiV1UsersUserIdAvatarDelete**](UsersApi.md#removeavatarapiv1usersuseridavatardelete) | **DELETE** /api/v1/users/{user_id}/avatar | Remove Avatar
 [**updateUserApiV1UsersUserIdPut**](UsersApi.md#updateuserapiv1usersuseridput) | **PUT** /api/v1/users/{user_id} | Update User
+[**uploadAvatarApiV1UsersUserIdAvatarPost**](UsersApi.md#uploadavatarapiv1usersuseridavatarpost) | **POST** /api/v1/users/{user_id}/avatar | Upload Avatar
 
 
 # **createUserApiV1UsersPost**
@@ -277,6 +279,49 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **removeAvatarApiV1UsersUserIdAvatarDelete**
+> UserRead removeAvatarApiV1UsersUserIdAvatarDelete(userId)
+
+Remove Avatar
+
+Remove avatar for a user.
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getUsersApi();
+final int userId = 56; // int | 
+
+try {
+    final response = api.removeAvatarApiV1UsersUserIdAvatarDelete(userId);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling UsersApi->removeAvatarApiV1UsersUserIdAvatarDelete: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **userId** | **int**|  | 
+
+### Return type
+
+[**UserRead**](UserRead.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **updateUserApiV1UsersUserIdPut**
 > UserRead updateUserApiV1UsersUserIdPut(userId, userUpdate)
 
@@ -318,6 +363,51 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **uploadAvatarApiV1UsersUserIdAvatarPost**
+> UserRead uploadAvatarApiV1UsersUserIdAvatarPost(userId, file)
+
+Upload Avatar
+
+Upload avatar for a user.
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getUsersApi();
+final int userId = 56; // int | 
+final MultipartFile file = BINARY_DATA_HERE; // MultipartFile | 
+
+try {
+    final response = api.uploadAvatarApiV1UsersUserIdAvatarPost(userId, file);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling UsersApi->uploadAvatarApiV1UsersUserIdAvatarPost: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **userId** | **int**|  | 
+ **file** | **MultipartFile**|  | 
+
+### Return type
+
+[**UserRead**](UserRead.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

@@ -116,7 +116,9 @@ Class | Method | HTTP request | Description
 [*UsersApi*](doc/UsersApi.md) | [**getUserApiV1UsersUserIdGet**](doc/UsersApi.md#getuserapiv1usersuseridget) | **GET** /api/v1/users/{user_id} | Get User
 [*UsersApi*](doc/UsersApi.md) | [**getUserByUsernameApiV1UsersUsernameUsernameGet**](doc/UsersApi.md#getuserbyusernameapiv1usersusernameusernameget) | **GET** /api/v1/users/username/{username} | Get User By Username
 [*UsersApi*](doc/UsersApi.md) | [**getUsersApiV1UsersGet**](doc/UsersApi.md#getusersapiv1usersget) | **GET** /api/v1/users/ | Get Users
+[*UsersApi*](doc/UsersApi.md) | [**removeAvatarApiV1UsersUserIdAvatarDelete**](doc/UsersApi.md#removeavatarapiv1usersuseridavatardelete) | **DELETE** /api/v1/users/{user_id}/avatar | Remove Avatar
 [*UsersApi*](doc/UsersApi.md) | [**updateUserApiV1UsersUserIdPut**](doc/UsersApi.md#updateuserapiv1usersuseridput) | **PUT** /api/v1/users/{user_id} | Update User
+[*UsersApi*](doc/UsersApi.md) | [**uploadAvatarApiV1UsersUserIdAvatarPost**](doc/UsersApi.md#uploadavatarapiv1usersuseridavatarpost) | **POST** /api/v1/users/{user_id}/avatar | Upload Avatar
 
 
 ## Documentation For Models
