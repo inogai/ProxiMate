@@ -108,7 +108,7 @@ class ChatRoom {
   String getOtherUserId(String currentUserId) {
     if (currentUserId == user1Id) return user2Id;
     if (currentUserId == user2Id) return user1Id;
-    return currentUserId; // fallback
+    throw Exception('User $currentUserId is not part of this chat room');
   }
 
   /// Check if current user is part of this chat room

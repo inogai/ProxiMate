@@ -1,3 +1,5 @@
+import 'package:anyhow/rust.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/meeting.dart';
@@ -707,6 +709,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       if (accept) {
         await storage.respondToConnectionRequest(messageId, 'accept');
 
+        // Immediately update local message status after successful API call
+        _updateLocalConnectionResponseStatus(messageId, 'accepted');
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -717,6 +722,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         }
       } else {
         await storage.respondToConnectionRequest(messageId, 'decline');
+
+        // Immediately update local message status after successful API call
+        _updateLocalConnectionResponseStatus(messageId, 'declined');
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -735,6 +743,56 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  /// Update local connection request status immediately after successful API call
+  void _updateLocalConnectionResponseStatus(
+    String messageId,
+    String newStatus,
+  ) {
+    final storage = context.read<StorageService>();
+
+    // Find the chat room containing this message
+    ChatRoom? targetChatRoom;
+    int chatRoomIndex = -1;
+
+    for (int i = 0; i < storage.chatRooms.length; i++) {
+      final chatRoom = storage.chatRooms[i];
+      if (chatRoom.messages.any((msg) => msg.id == messageId)) {
+        targetChatRoom = chatRoom;
+        chatRoomIndex = i;
+        break;
+      }
+    }
+
+    if (targetChatRoom != null && chatRoomIndex != -1) {
+      final messageIndex = targetChatRoom.messages.indexWhere(
+        (msg) => msg.id == messageId,
+      );
+
+      if (messageIndex != -1) {
+        // Create updated message with new status
+        final originalMessage = targetChatRoom.messages[messageIndex];
+        final updatedMessage = originalMessage.copyWith(
+          invitationData: {
+            ...originalMessage.invitationData ?? {},
+            'status': newStatus,
+          },
+        );
+
+        // Update messages list
+        final updatedMessages = [...targetChatRoom.messages];
+        updatedMessages[messageIndex] = updatedMessage;
+
+        // Update chat room in storage
+        storage.chatRooms[chatRoomIndex] = targetChatRoom.copyWith(
+          messages: updatedMessages,
+        );
+
+        // Trigger UI update by refreshing messages
+        _refreshMessages();
       }
     }
   }
@@ -833,37 +891,80 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           messages: updatedMessages,
         );
 
-        // Notify listeners to rebuild UI
-        storage.notifyListeners();
+        // Trigger UI update by refreshing messages
+        _refreshMessages();
       }
     }
   }
 
   /// Handle name card collection
   Future<void> _handleCollectNameCard(String messageId) async {
-    try {
-      final storage = context.read<StorageService>();
-      await storage.collectNameCard(messageId);
+    final storage = context.read<StorageService>();
+    final currentUserId = storage.currentProfile?.id ?? '';
+    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Name card collected!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+    print('!! Collecting name card for user: $otherUserId');
 
-      // Refresh messages to update UI
-      await _refreshMessages();
-    } catch (e) {
-      if (context.mounted) {
+    final result = await storage.collectNameCard(otherUserId);
+
+    switch (result) {
+      case Err(v: final error):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to collect name card: $e'),
+            content: Text('Failed to send request: $error'),
             backgroundColor: Colors.red,
           ),
         );
+      case Ok():
+        // Immediately update local message status after successful API call
+        _updateLocalMessageNameCardCollected(messageId);
+        await _refreshMessages();
+    }
+  }
+
+  /// Update local message name card collection status immediately after successful API call
+  void _updateLocalMessageNameCardCollected(String messageId) {
+    final storage = context.read<StorageService>();
+
+    // Find the chat room containing this message
+    ChatRoom? targetChatRoom;
+    int chatRoomIndex = -1;
+
+    for (int i = 0; i < storage.chatRooms.length; i++) {
+      final chatRoom = storage.chatRooms[i];
+      if (chatRoom.messages.any((msg) => msg.id == messageId)) {
+        targetChatRoom = chatRoom;
+        chatRoomIndex = i;
+        break;
+      }
+    }
+
+    if (targetChatRoom != null && chatRoomIndex != -1) {
+      final messageIndex = targetChatRoom.messages.indexWhere(
+        (msg) => msg.id == messageId,
+      );
+
+      if (messageIndex != -1) {
+        // Create updated message with name card collected flag
+        final originalMessage = targetChatRoom.messages[messageIndex];
+        final updatedMessage = originalMessage.copyWith(
+          invitationData: {
+            ...originalMessage.invitationData ?? {},
+            'name_card_collected': true,
+          },
+        );
+
+        // Update messages list
+        final updatedMessages = [...targetChatRoom.messages];
+        updatedMessages[messageIndex] = updatedMessage;
+
+        // Update chat room in storage
+        storage.chatRooms[chatRoomIndex] = targetChatRoom.copyWith(
+          messages: updatedMessages,
+        );
+
+        // Trigger UI update by refreshing messages
+        _refreshMessages();
       }
     }
   }
@@ -872,7 +973,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Future<void> _handleNotGoodMatch(String messageId) async {
     try {
       final storage = context.read<StorageService>();
-      await storage.markNotGoodMatch(messageId);
+      final currentUserId = storage.currentProfile?.id ?? '';
+      final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+
+      // Call with peer ID instead of message ID
+      await storage.markNotGoodMatch(otherUserId);
 
       // Close chat room
       setState(() {
@@ -1040,7 +1145,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               Consumer<StorageService>(
                 builder: (context, storage, child) {
                   return DropdownButtonFormField<String>(
-                    value: selectedActivityId,
+                    initialValue: selectedActivityId,
                     decoration: const InputDecoration(
                       labelText: 'Activity *',
                       border: OutlineInputBorder(),
@@ -1138,6 +1243,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (message.isConnectionRequest) {
       final isFromMe = message.isMine;
 
+      final status = message.['status'] as String? ?? 'pending';
+
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: Container(
@@ -1170,7 +1277,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ),
                 ],
               ),
-              if (!isFromMe) ...[
+              if (!isFromMe && status == 'pending') ...[
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1196,6 +1303,66 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       ),
                     ),
                   ],
+                ),
+              ],
+              if (status == 'accepted') ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade300),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green[700],
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Connection request accepted',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (status == 'declined') ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.cancel, color: Colors.red[700], size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Connection request declined',
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
               const SizedBox(height: 8),

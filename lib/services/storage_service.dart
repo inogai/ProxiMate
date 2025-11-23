@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:anyhow/rust.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:math';
@@ -894,7 +895,7 @@ class StorageService extends ChangeNotifier {
 
   void _debugLog(String message) {
     if (kDebugMode) {
-      debugPrint('[StorageService] $message');
+      // debugPrint('[StorageService] $message');
     }
   }
 
@@ -1997,6 +1998,8 @@ class StorageService extends ChangeNotifier {
   }
 
   /// Get peer by ID
+  /// Returns null if not found locally
+  /// Deprecated: Use getProfileById instead
   Peer? getPeerById(String peerId) {
     try {
       return _nearbyPeers.firstWhere((p) => p.id == peerId);
@@ -2100,63 +2103,62 @@ class StorageService extends ChangeNotifier {
   }
 
   /// Create connection from peer
-  Future<void> collectNameCard(String invitationId) async {
-    if (_currentProfile == null) return;
+  Future<Result<void>> collectNameCard(String peerId) async {
+    if (_currentProfile == null) {
+      return bail('No current profile available');
+    }
+
+    final peerResult = await getProfileResultById(peerId);
+
+    if (peerResult case Err()) {
+      return peerResult;
+    }
+
+    final peer = peerResult.unwrap();
+
+    if (_connections.any((c) => c.toProfileId == peer.id)) {
+      return bail(
+        'Either a request or connection already exists with this peer',
+      );
+    }
+
+    final currentUserId = _currentProfile!.id;
+    final chatRoom = getChatRoomBetweenUsers(currentUserId, peerId);
+    if (chatRoom == null) {
+      return bail('No chat room found between users for connection');
+    }
 
     try {
-      // Use new message-based name card collection API
-      final result = await _apiService.collectNameCardFromMessage(invitationId);
-      _debugLog('Name card collected via API: $result');
+      final apiUserIdInt = int.tryParse(_apiUserId ?? '0') ?? 0;
+      final targetUserIdInt = int.tryParse(peerId) ?? 0;
+
+      if (apiUserIdInt == 0 || targetUserIdInt == 0) {
+        return bail('Invalid user IDs for connection request');
+      }
+
+      await _apiService.createConnectionRequest(
+        chatRoom.id,
+        apiUserIdInt,
+        targetUserIdInt,
+      );
+      return Ok(null);
     } catch (e) {
-      _debugLog('Failed to collect name card via API: $e');
-      // Continue with local implementation even if API fails
+      return bail(
+        'Failed to send connection request: ${e.toString()}',
+      ).context('Error occurred while collecting name card for peer $peerId');
     }
+  }
 
-    final invitation = _invitations.firstWhere((i) => i.id == invitationId);
-    final peer = getPeerById(invitation.peerId);
-
-    if (peer == null) return;
-
-    // Check if already connected
-    final alreadyConnected = _connections.any((c) => c.toProfileId == peer.id);
-    if (alreadyConnected) return;
-
-    // Create or get profile for peer
-    if (!_profiles.containsKey(peer.id)) {
-      _profiles[peer.id] = Profile(
-        id: peer.id,
-        userName: peer.name,
-        school: peer.school,
-        major: peer.major,
-        interests: peer.interests,
-        background: peer.background,
-        profileImagePath: null,
-      );
+  Future<Result<Profile>> getProfileResultById(String id) async {
+    try {
+      final profile = await getProfileById(id);
+      if (profile == null) {
+        return bail('Profile not found for ID: $id');
+      }
+      return Ok(profile);
+    } catch (e) {
+      return bail('Error fetching profile for ID $id: ${e.toString()}');
     }
-
-    // Create connection
-    final connection = Connection(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      fromProfileId: _currentProfile!.id,
-      toProfileId: peer.id,
-      restaurant: invitation.restaurant,
-      collectedAt: DateTime.now(),
-      status: ConnectionStatus.accepted,
-    );
-
-    _connections.add(connection);
-
-    // Mark invitation as name card collected
-    final invIndex = _invitations.indexWhere((i) => i.id == invitationId);
-    if (invIndex != -1) {
-      _invitations[invIndex] = _invitations[invIndex].copyWith(
-        nameCardCollected: true,
-      );
-    }
-
-    await _persistConnections();
-    await _persistProfiles();
-    notifyListeners();
   }
 
   /// Get profile by ID (fetches from API if not found locally)
@@ -2203,14 +2205,26 @@ class StorageService extends ChangeNotifier {
   }
 
   /// Mark match as not good and decline
-  Future<void> markNotGoodMatch(String invitationId) async {
-    await declineInvitation(invitationId);
+  Future<void> markNotGoodMatch(String peerId) async {
+    final peer = getPeerById(peerId);
+    if (peer == null) {
+      _debugLog('Peer not found for ID: $peerId');
+      return;
+    }
+
+    // Find and decline any pending invitations with this peer
+    final pendingInvitations = _invitations
+        .where((i) => i.peerId == peerId && i.isPending)
+        .toList();
+
+    for (final invitation in pendingInvitations) {
+      await declineInvitation(invitation.id);
+    }
 
     // Remove from chat rooms
-    final invitation = _invitations.firstWhere((i) => i.id == invitationId);
     final currentUserId = _currentProfile?.id ?? '';
     _chatRooms.removeWhere(
-      (c) => c.containsUser(currentUserId) && c.containsUser(invitation.peerId),
+      (c) => c.containsUser(currentUserId) && c.containsUser(peerId),
     );
 
     notifyListeners();

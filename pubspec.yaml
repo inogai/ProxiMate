@@ -59,6 +59,10 @@ dependencies:
   geolocator: ^10.1.0
   permission_handler: ^11.3.1
 
+  # Rust-like patterns
+  rust: ^3.1.0
+  anyhow: ^3.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
