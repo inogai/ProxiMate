@@ -50,7 +50,6 @@ class _NetworkTabState extends State<NetworkTab> {
     final storage = context.watch<StorageService>();
     final currentProfile = storage.currentProfile;
     final connections = storage.connections;
-    final connectedProfiles = storage.connectedProfiles;
     final nearbyPeers = storage.nearbyPeers;
 
     if (currentProfile == null) {
@@ -59,6 +58,8 @@ class _NetworkTabState extends State<NetworkTab> {
 
     final size = MediaQuery.of(context).size;
     final nodes = <NetworkNode>[];
+
+    print('Building network graph with ${connections.length} connections');
 
     // Always add current user as center node
     nodes.add(
@@ -75,165 +76,170 @@ class _NetworkTabState extends State<NetworkTab> {
       ),
     );
 
-    // If no connections, add a text node above current user
-    if (connectedProfiles.isEmpty) {
-      // Add a dummy text node positioned north of the user
-      nodes.add(
-        NetworkNode(
-          id: 'empty_message',
-          name: 'Start by finding new connections at "Find Peers"',
-          school: '',
-          color: Colors.transparent,
-          position: Offset(size.width * 0.5, size.height * 0.5 - 150),
-          connections: [],
-          isDirectConnection: false,
-          isTextNode: true,
-        ),
-      );
+    return FutureBuilder<List<Profile>>(
+      future: storage.getConnectedProfiles(),
+      builder: (context, snapshot) {
+        final connectedProfiles = snapshot.data ?? [];
 
-      return Stack(
-        children: [
-          NetworkGraphWidget(
-            nodes: nodes,
-            initialSelectedNodeId: currentProfile.id,
-            currentUserId: currentProfile.id,
-            currentUserMajor: currentProfile.major,
-            currentUserInterests: currentProfile.interests,
-            onInfoBarTap: (node) => _showCurrentUserProfile(context),
-          ),
-          Positioned(
-            top: 16,
-            left: 16,
-            child: Card(
-              color: Colors.black.withOpacity(0.7),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ProxiMate',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'No connections yet',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
+        // If no connections, add a text node above current user
+        if (connectedProfiles.isEmpty) {
+          // Add a dummy text node positioned north of the user
+          nodes.add(
+            NetworkNode(
+              id: 'empty_message',
+              name: 'Start by finding new connections at "Find Peers"',
+              school: '',
+              color: Colors.transparent,
+              position: Offset(size.width * 0.5, size.height * 0.5 - 150),
+              connections: [],
+              isDirectConnection: false,
+              isTextNode: true,
             ),
-          ),
-        ],
-      );
-    }
-
-    // Position connected profiles around current user
-    final List<String> directConnectionIds = [];
-    for (int i = 0; i < connectedProfiles.length; i++) {
-      final profile = connectedProfiles[i];
-      final angle = (i / connectedProfiles.length) * 2 * pi;
-      final radius = min(size.width, size.height) * 0.25;
-
-      // Try to find matching peer to get profileImageUrl, or use profile's own image path
-      String? imageUrl;
-      if (nearbyPeers.isNotEmpty) {
-        try {
-          final matchingPeer = nearbyPeers.firstWhere(
-            (peer) => peer.id == profile.id,
           );
-          imageUrl = matchingPeer.profileImageUrl;
-        } catch (e) {
-          // No matching peer found, use profile's image path
-          imageUrl = profile.profileImagePath;
-        }
-      } else {
-        imageUrl = profile.profileImagePath;
-      }
 
-      directConnectionIds.add(profile.id);
-
-      nodes.add(
-        NetworkNode(
-          id: profile.id,
-          name: profile.userName,
-          school: profile.school ?? '',
-          major: profile.major,
-          interests: profile.interests,
-          color: Colors.orange,
-          position: Offset(
-            size.width * 0.5 + radius * cos(angle),
-            size.height * 0.5 + radius * sin(angle),
-          ),
-          connections: [currentProfile.id],
-          profileImagePath: imageUrl,
-          isDirectConnection: true,
-        ),
-      );
-    }
-
-    // API-only: No mock secondary connections - show only real connections
-    // Network visualization now only shows direct connections without mock data
-
-    return Stack(
-      children: [
-        NetworkGraphWidget(
-          nodes: nodes,
-          initialSelectedNodeId: currentProfile.id,
-          currentUserId: currentProfile.id,
-          currentUserMajor: currentProfile.major,
-          currentUserInterests: currentProfile.interests,
-          onInfoBarTap: (node) {
-            if (node.id == currentProfile.id) {
-              _showCurrentUserProfile(context);
-            } else {
-              final profile = connectedProfiles.firstWhere(
-                (p) => p.id == node.id,
-              );
-              final connection = connections.firstWhere(
-                (c) => c.toProfileId == node.id,
-              );
-              _showConnectionDetails(context, profile, connection);
-            }
-          },
-        ),
-        Positioned(
-          top: 16,
-          left: 16,
-          child: Card(
-            color: Colors.black.withOpacity(0.7),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ProxiMate',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+          return Stack(
+            children: [
+              NetworkGraphWidget(
+                nodes: nodes,
+                initialSelectedNodeId: currentProfile.id,
+                currentUserId: currentProfile.id,
+                currentUserMajor: currentProfile.major,
+                currentUserInterests: currentProfile.interests,
+                onInfoBarTap: (node) => _showCurrentUserProfile(context),
+              ),
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Card(
+                  color: Colors.black.withOpacity(0.7),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'ProxiMate',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'No connections yet',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${connections.length} ${connections.length == 1 ? 'Connection' : 'Connections'}',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ),
+            ],
+          );
+        }
+
+        // Position connected profiles around current user
+        final List<String> directConnectionIds = [];
+        for (int i = 0; i < connectedProfiles.length; i++) {
+          final profile = connectedProfiles[i];
+          final angle = (i / connectedProfiles.length) * 2 * pi;
+          final radius = min(size.width, size.height) * 0.25;
+
+          // Try to find matching peer to get profileImageUrl, or use profile's own image path
+          String? imageUrl;
+          if (nearbyPeers.isNotEmpty) {
+            try {
+              final matchingPeer = nearbyPeers.firstWhere(
+                (peer) => peer.id == profile.id,
+              );
+              imageUrl = matchingPeer.profileImageUrl;
+            } catch (e) {
+              // No matching peer found, use profile's image path
+              imageUrl = profile.profileImagePath;
+            }
+          } else {
+            imageUrl = profile.profileImagePath;
+          }
+
+          directConnectionIds.add(profile.id);
+
+          nodes.add(
+            NetworkNode(
+              id: profile.id,
+              name: profile.userName,
+              school: profile.school ?? '',
+              major: profile.major,
+              interests: profile.interests,
+              color: Colors.orange,
+              position: Offset(
+                size.width * 0.5 + radius * cos(angle),
+                size.height * 0.5 + radius * sin(angle),
+              ),
+              connections: [currentProfile.id],
+              profileImagePath: imageUrl,
+              isDirectConnection: true,
+            ),
+          );
+        }
+
+        // API-only: No mock secondary connections - show only real connections
+        // Network visualization now only shows direct connections without mock data
+
+        return Stack(
+          children: [
+            NetworkGraphWidget(
+              nodes: nodes,
+              initialSelectedNodeId: currentProfile.id,
+              currentUserId: currentProfile.id,
+              currentUserMajor: currentProfile.major,
+              currentUserInterests: currentProfile.interests,
+              onInfoBarTap: (node) {
+                if (node.id == currentProfile.id) {
+                  _showCurrentUserProfile(context);
+                } else {
+                  final profile = connectedProfiles.firstWhere(
+                    (p) => p.id == node.id,
+                  );
+                  final connection = connections.firstWhere(
+                    (c) => c.toProfileId == node.id,
+                  );
+                  _showConnectionDetails(context, profile, connection);
+                }
+              },
+            ),
+            Positioned(
+              top: 16,
+              left: 16,
+              child: Card(
+                color: Colors.black.withOpacity(0.7),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ProxiMate',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${connections.length} ${connections.length == 1 ? 'Connection' : 'Connections'}',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -569,7 +575,6 @@ class _NetworkTabState extends State<NetworkTab> {
   Widget _buildNetworkGrid(BuildContext context) {
     final storage = context.watch<StorageService>();
     final connections = storage.connections;
-    final connectedProfiles = storage.connectedProfiles;
 
     return CustomScrollView(
       slivers: [
@@ -585,10 +590,36 @@ class _NetworkTabState extends State<NetworkTab> {
           padding: const EdgeInsets.all(16),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
-              final profile = connectedProfiles[index];
               final connection = connections[index];
-              return _buildConnectionCard(context, profile, connection);
-            }, childCount: connectedProfiles.length),
+              return FutureBuilder<List<Profile>>(
+                future: storage.getConnectedProfiles(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    final connectedProfiles = snapshot.data!;
+                    final profile = connectedProfiles.firstWhere(
+                      (p) => p.id == (connection.fromProfileId == storage.currentProfile?.id ? connection.toProfileId : connection.fromProfileId),
+                      orElse: () => Profile(
+                        id: connection.fromProfileId == storage.currentProfile?.id ? connection.toProfileId : connection.fromProfileId,
+                        userName: 'Unknown',
+                        school: '',
+                        major: '',
+                        interests: '',
+                        background: '',
+                      ),
+                    );
+                    return _buildConnectionCard(context, profile, connection);
+                  } else {
+                    // Show loading state
+                    return const Card(
+                      child: ListTile(
+                        title: Text('Loading...'),
+                        subtitle: Text('Fetching profile data...'),
+                      ),
+                    );
+                  }
+                },
+              );
+            }, childCount: connections.length),
           ),
         ),
       ],

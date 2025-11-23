@@ -56,6 +56,102 @@ class StorageService extends ChangeNotifier {
   String? get selectedActivityId => _selectedActivityId;
   String? get apiUserId => _apiUserId;
 
+  /// Check if user is logged in
+  bool get hasUser => _currentProfile != null && _apiUserId != null;
+
+  /// Get new friends (peers that connected to current user)
+  List<Peer> get newFriends => _nearbyPeers.where((p) => 
+    _connections.any((c) => 
+      ((c.fromProfileId == _currentProfile?.id && c.toProfileId == p.id) ||
+       (c.toProfileId == _currentProfile?.id && c.fromProfileId == p.id)) &&
+      c.status == ConnectionStatus.accepted
+    )
+  ).toList();
+
+  /// Get current user's connections as peers
+  List<Peer> get yourConnections {
+    final connectedIds = _connections
+        .where((c) => 
+            (c.fromProfileId == _currentProfile?.id || c.toProfileId == _currentProfile?.id) &&
+            c.status == ConnectionStatus.accepted)
+        .map((c) => c.fromProfileId == _currentProfile?.id ? c.toProfileId : c.fromProfileId)
+        .toSet();
+    
+    return _nearbyPeers.where((p) => connectedIds.contains(p.id)).toList();
+  }
+
+  /// Get profiles that current user is connected to (async version)
+  Future<List<Profile>> getConnectedProfiles() async {
+    _debugLog('getConnectedProfiles called: _currentProfile=${_currentProfile?.id}, _connections=${_connections.length}');
+    if (_currentProfile == null) {
+      _debugLog('getConnectedProfiles: No current profile');
+      return [];
+    }
+    
+    // Get accepted connections for current user
+    final currentUserId = _currentProfile!.id;
+    final acceptedConnections = _connections.where((c) => c.status == ConnectionStatus.accepted).toList();
+    final connectionIds = acceptedConnections
+        .map((c) => c.fromProfileId == currentUserId ? c.toProfileId : c.fromProfileId)
+        .toSet();
+    
+    _debugLog('getConnectedProfiles: Found ${acceptedConnections.length} accepted connections, connectionIds: $connectionIds');
+    
+    // Fetch profile data for each connected user from API
+    final List<Profile> connectedProfiles = [];
+    
+    for (final connectionId in connectionIds) {
+      try {
+        // Get user data from API
+        final userRead = await _apiService.getUser(int.parse(connectionId));
+        final profile = _apiService.userReadToProfile(userRead);
+        connectedProfiles.add(profile);
+      } catch (e) {
+        _debugLog('Failed to fetch profile for connection $connectionId: $e');
+        // Continue with other profiles even if one fails
+      }
+    }
+    
+    _debugLog('getConnectedProfiles: Successfully fetched ${connectedProfiles.length} profiles from API');
+    return connectedProfiles;
+  }
+
+  /// Get profiles that current user is connected to (sync version using nearby peers)
+  List<Profile> get connectedProfiles {
+    _debugLog('connectedProfiles called: _currentProfile=${_currentProfile?.id}, _connections=${_connections.length}, _nearbyPeers=${_nearbyPeers.length}');
+    if (_currentProfile == null) {
+      _debugLog('connectedProfiles: No current profile');
+      return [];
+    }
+    
+    // Get accepted connections for current user
+    final currentUserId = _currentProfile!.id;
+    final acceptedConnections = _connections.where((c) => c.status == ConnectionStatus.accepted).toList();
+    final connectionIds = acceptedConnections
+        .map((c) => c.fromProfileId == currentUserId ? c.toProfileId : c.fromProfileId)
+        .toSet();
+    
+    _debugLog('connectedProfiles: Found ${acceptedConnections.length} accepted connections, connectionIds: $connectionIds');
+    
+    // Get profiles from nearby peers that match connection IDs
+    final connectedPeers = _nearbyPeers
+        .where((p) => connectionIds.contains(p.id))
+        .toList();
+    
+    _debugLog('connectedProfiles: Found ${connectedPeers.length} matching peers from ${_nearbyPeers.length} nearby peers');
+    
+    // Convert Peer objects to Profile objects
+    return connectedPeers.map((peer) => Profile(
+      id: peer.id,
+      userName: peer.name,
+      school: peer.school,
+      major: peer.major,
+      interests: peer.interests,
+      background: peer.background,
+      profileImagePath: peer.profileImageUrl,
+    )).toList();
+  }
+
   /// Initialize services that depend on each other
   void _initializeServices() {
     _locationService = LocationService(_apiService);
@@ -120,6 +216,11 @@ class StorageService extends ChangeNotifier {
     _activitiesTimer = null;
   }
 
+  /// Refresh messages for a specific chat room
+  Future<void> refreshChatRoomMessages(String chatRoomId) async {
+    await _fetchMessagesForChatRoom(chatRoomId);
+  }
+
   /// Fetch new messages for all chat rooms
   Future<void> _fetchNewMessages() async {
     if (_currentProfile == null || _apiUserId == null) return;
@@ -137,7 +238,11 @@ class StorageService extends ChangeNotifier {
 
   /// Synchronize connections with API
   Future<void> _syncConnections() async {
-    if (_currentProfile == null || _apiUserId == null) return;
+    _debugLog('_syncConnections called: _currentProfile=${_currentProfile?.id}, _apiUserId=$_apiUserId');
+    if (_currentProfile == null || _apiUserId == null) {
+      _debugLog('Skipping connection sync - missing profile or user ID');
+      return;
+    }
 
     try {
       _debugLog('Syncing connections with API...');
@@ -435,200 +540,11 @@ class StorageService extends ChangeNotifier {
               timestamp: serverTimestampLocal,
             );
           }
-        } else {
-          _debugLog('Message already exists locally: ID=${messageRead.id}');
-        }
-      }
-
-      // Process invitation response messages to update invitation statuses
-      if (newMessages.isNotEmpty) {
-        for (final newMessage in newMessages) {
-          if (newMessage.messageType == MessageType.invitationResponse &&
-              newMessage.invitationId != null) {
-            // This is a response to an invitation
-            final invitationId = newMessage.invitationId!;
-            final responseStatus = newMessage.text.contains('accepted')
-                ? 'accepted'
-                : newMessage.text.contains('declined')
-                ? 'declined'
-                : 'pending';
-
-            _debugLog(
-              'Processing invitation response: invitationId=$invitationId, status=$responseStatus',
-            );
-
-            // Find all messages in chat room (current + new)
-            final allMessages = [...currentMessages, ...newMessages];
-
-            // Find: invitation message with matching invitationId
-            for (int i = 0; i < allMessages.length; i++) {
-              final message = allMessages[i];
-              if (message.messageType == MessageType.invitation &&
-                  message.invitationId == invitationId) {
-                // Update: invitation message's status
-                if (message.invitationData != null) {
-                  final updatedInvitationMessage = message.copyWith(
-                    invitationData: {
-                      ...message.invitationData!,
-                      'status': responseStatus,
-                    },
-                  );
-
-                  // Update in the appropriate list (currentMessages or newMessages)
-                  if (i < currentMessages.length) {
-                    currentMessages[i] = updatedInvitationMessage;
-                  } else {
-                    newMessages[i - currentMessages.length] =
-                        updatedInvitationMessage;
-                  }
-
-                  _debugLog(
-                    'Updated invitation message ${message.id} status to $responseStatus',
-                  );
-                }
-                break; // Found and updated: matching invitation
-              }
-            }
-          }
-        }
-      }
-
-      if (newMessages.isNotEmpty) {
-        // Sort all messages by timestamp
-        final allMessages = [...currentMessages, ...newMessages];
-        allMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-        _chatRooms[chatRoomIndex] = _chatRooms[chatRoomIndex].copyWith(
-          messages: allMessages,
-        );
-
-        _lastMessageFetch[chatRoomId] = DateTime.now();
-        notifyListeners();
-      }
-    } catch (e) {
-      _debugLog('Error fetching messages for chat room $chatRoomId: $e');
-      rethrow;
-    }
-  }
-
-  // Get connected profiles
-  List<Profile> get connectedProfiles {
-    if (_currentProfile == null) {
-      _debugLog('connectedProfiles: No current profile');
-      return [];
-    }
-    
-    // Get profiles from nearby peers that match connection IDs
-    // Need to check both fromProfileId and toProfileId to find connections involving current user
-    final currentUserId = _currentProfile!.id;
-    final acceptedConnections = _connections.where((c) => c.status == ConnectionStatus.accepted).toList();
-    final connectionIds = acceptedConnections
-        .map((c) => c.fromProfileId == currentUserId ? c.toProfileId : c.fromProfileId)
-        .toSet();
-    
-    _debugLog('connectedProfiles: Found ${acceptedConnections.length} accepted connections, connectionIds: $connectionIds');
-    
-    final connectedPeers = _nearbyPeers
-        .where((p) => connectionIds.contains(p.id))
-        .toList();
-    
-    _debugLog('connectedProfiles: Found ${connectedPeers.length} matching peers from ${_nearbyPeers.length} nearby peers');
-    
-    // Convert Peer objects to Profile objects
-    return connectedPeers.map((peer) => Profile(
-      id: peer.id,
-      userName: peer.name,
-      school: peer.school,
-      major: peer.major,
-      interests: peer.interests,
-      background: peer.background,
-      profileImagePath: peer.profileImageUrl,
-    )).toList();
-  }
-
-  bool get hasUser => _currentProfile != null;
-
-  // Get new friends (nearby peers who are not yet connections)
-  List<Peer> get newFriends {
-    final connectionIds = _connections.map((c) => c.toProfileId).toSet();
-    final filtered = _nearbyPeers
-        .where((p) => !connectionIds.contains(p.id))
-        .toList();
-    // Sort by match score (highest first)
-    filtered.sort((a, b) => b.matchScore.compareTo(a.matchScore));
-    return filtered;
-  }
-
-  // Get your connections as peers
-  List<Peer> get yourConnections {
-    final connectionIds = _connections.map((c) => c.toProfileId).toSet();
-    final filtered = _nearbyPeers
-        .where((p) => connectionIds.contains(p.id))
-        .toList();
-    // Sort by match score (highest first)
-    filtered.sort((a, b) => b.matchScore.compareTo(a.matchScore));
-    return filtered;
-  }
-
-  // Get sent invitations
-  List<Invitation> get sentInvitations =>
-      _invitations.where((i) => i.sentByMe).toList();
-
-  // Get received invitations (only pending)
-  List<Invitation> get receivedInvitations =>
-      _invitations.where((i) => !i.sentByMe && i.isPending).toList();
-
-  // Get accepted invitations (not yet name card collected)
-  List<Invitation> get acceptedInvitations =>
-      _invitations.where((i) => i.isAccepted && !i.nameCardCollected).toList();
-
-  // Get pending invitations
-  List<Invitation> get pendingInvitations =>
-      _invitations.where((i) => i.isPending).toList();
-
-  /// Get chat room by peer ID
-  ChatRoom? getChatRoomByPeerId(String peerId) {
-    final currentUserId = _currentProfile?.id ?? '';
-    if (currentUserId.isEmpty) return null;
-
-    try {
-      return _chatRooms.firstWhere(
-        (cr) => cr.containsUser(currentUserId) && cr.containsUser(peerId),
-      );
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Refresh messages for a specific chat room
-  Future<void> refreshChatRoomMessages(String chatRoomId) async {
-    await _fetchMessagesForChatRoom(chatRoomId);
-  }
-
-  /// Load current profile from API only (no local storage)
-  Future<void> loadUserProfile() async {
-    try {
-      // Initialize services first
-      _initializeServices();
-
-      final prefs = await SharedPreferences.getInstance();
-
-      // Load API user ID from storage
-      _apiUserId = prefs.getString(_keyApiUserId);
-
-      if (_apiUserId != null) {
-        try {
-          final apiUserIdInt = int.parse(_apiUserId!);
-          final apiUserRead = await _apiService.getUser(apiUserIdInt);
-          final apiProfile = _apiService.userReadToProfile(apiUserRead);
-          _currentProfile = apiProfile;
-        } catch (e) {
-          debugPrint('Error loading profile from API: $e');
-          rethrow; // Propagate error instead of using local fallback
         }
       }
 
       // Load connections from API
+      _debugLog('Attempting to sync connections...');
       await _syncConnections();
 
       // Start location tracking if user is logged in
@@ -753,6 +669,66 @@ class StorageService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Error creating user in API: $e');
+      rethrow;
+    }
+  }
+
+  /// Load user profile from storage and API
+  Future<void> loadUserProfile() async {
+    try {
+      // Initialize services first
+      _initializeServices();
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Load API user ID from storage
+      _apiUserId = prefs.getString(_keyApiUserId);
+      _debugLog('Loaded API user ID: $_apiUserId');
+
+      if (_apiUserId != null) {
+        try {
+          final apiUserIdInt = int.parse(_apiUserId!);
+          final apiUserRead = await _apiService.getUser(apiUserIdInt);
+          final apiProfile = _apiService.userReadToProfile(apiUserRead);
+          _currentProfile = apiProfile;
+        } catch (e) {
+          debugPrint('Error loading profile from API: $e');
+          rethrow; // Propagate error instead of using local fallback
+        }
+      } else {
+        _debugLog('No API user ID found in storage - user needs to register');
+      }
+
+      // Load connections from API
+      _debugLog('Attempting to sync connections...');
+      await _syncConnections();
+
+      // Start location tracking if user is logged in
+      if (_currentProfile != null && _apiUserId != null) {
+        _startLocationTracking();
+      }
+
+      // Load activities from API
+      await _loadActivitiesFromApi();
+
+      // Load chat rooms from API
+      await _fetchChatRooms();
+
+      // Start invitation polling if user is logged in
+      if (_apiUserId != null) {
+        startInvitationPolling();
+      }
+
+      // Start all periodic data fetching
+      if (_apiUserId != null) {
+        _startConnectionSync();
+        _startNearbyPeersPolling();
+        _startActivitiesPolling();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading profile data: $e');
       rethrow;
     }
   }

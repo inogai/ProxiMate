@@ -302,7 +302,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
     final otherUserId = connection.toProfileId;
     
     // Find existing chat room
-    final chatRoom = storage.getChatRoomByPeerId(otherUserId);
+    final chatRoom = storage.getChatRoomBetweenUsers(currentUserId, otherUserId);
     
     if (chatRoom != null) {
       Navigator.push(

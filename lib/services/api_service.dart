@@ -7,6 +7,7 @@ import 'package:built_collection/built_collection.dart';
 
 import 'package:dio/dio.dart';
 import 'package:openapi/openapi.dart';
+import 'package:openapi/src/model/connection_read.dart';
 import '../models/profile.dart';
 import '../models/peer.dart';
 import '../models/meeting.dart';
@@ -761,37 +762,22 @@ class ApiService {
       'Get One Hop Connections',
     );
 
-    final responseData = response.data;
-    if (responseData == null) return [];
+    final connectionsData = response.data;
+    if (connectionsData == null) return [];
 
-    // The API returns a ListJsonObject directly (connections array)
-    // Try to convert it to a list using different approaches
-    final List<dynamic> connectionsList;
-    
-    try {
-      // Try casting to List<dynamic> directly
-      connectionsList = responseData as List<dynamic>;
-      _debugLog('Successfully cast ListJsonObject to List<dynamic>, length: ${connectionsList.length}');
-    } catch (e) {
-      _debugLog('Failed to cast ListJsonObject to List<dynamic>: $e');
-      _debugLog('Response data type: ${responseData.runtimeType}');
-      // If that fails, return empty list
-      return [];
-    }
+    // The API now returns BuiltList<ConnectionRead>
+    _debugLog('Received ${connectionsData.length} connections from 1-hop API');
 
-    if (connectionsList.isEmpty) return [];
-
-    return connectionsList.map((connectionData) {
-      // Convert dynamic data to Connection
-      final connectionRead = connectionData as Map<String, dynamic>;
+    return connectionsData.map((connectionRead) {
+      // Convert ConnectionRead to Connection
       return Connection(
-        id: connectionRead['id'].toString(),
-        fromProfileId: connectionRead['user1_id'].toString(),
-        toProfileId: connectionRead['user2_id'].toString(),
-        restaurant: '', // Not available in response
-        collectedAt: DateTime.tryParse(connectionRead['created_at']) ?? DateTime.now(),
-        status: _parseConnectionStatus(connectionRead['status']),
-        notes: null, // Not available in response
+        id: connectionRead.id,
+        fromProfileId: connectionRead.user1Id.toString(),
+        toProfileId: connectionRead.user2Id.toString(),
+        restaurant: '', // Not available in ConnectionRead
+        collectedAt: DateTime.tryParse(connectionRead.createdAt) ?? DateTime.now(),
+        status: _parseConnectionStatus(connectionRead.status),
+        notes: null, // Not available in ConnectionRead
       );
     }).toList();
   }
