@@ -131,6 +131,7 @@ Class | Method | HTTP request | Description
  - [ChatRoomRead](doc/ChatRoomRead.md)
  - [ConnectionRead](doc/ConnectionRead.md)
  - [HTTPValidationError](doc/HTTPValidationError.md)
+ - [InvitationRespondRequest](doc/InvitationRespondRequest.md)
  - [LocationCreate](doc/LocationCreate.md)
  - [LocationRead](doc/LocationRead.md)
  - [LocationUpdate](doc/LocationUpdate.md)

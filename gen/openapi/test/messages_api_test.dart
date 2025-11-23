@@ -101,7 +101,7 @@ void main() {
     //
     // Respond to an invitation message.
     //
-    //Future<JsonObject> respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(String messageId, String action, int responderId) async
+    //Future<JsonObject> respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(String messageId, InvitationRespondRequest invitationRespondRequest) async
     test('test respondToInvitationApiV1MessagesMessageIdInvitationRespondPut', () async {
       // TODO
     });

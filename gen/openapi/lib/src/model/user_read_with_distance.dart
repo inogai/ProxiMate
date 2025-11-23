@@ -11,18 +11,17 @@ part 'user_read_with_distance.g.dart';
 /// Schema for reading user data with distance information.
 ///
 /// Properties:
-/// * [id]
-/// * [displayname]
-/// * [school]
-/// * [major]
-/// * [interests]
-/// * [bio]
-/// * [avatarUrl]
-/// * [createdAt]
-/// * [distanceKm]
+/// * [id] 
+/// * [displayname] 
+/// * [school] 
+/// * [major] 
+/// * [interests] 
+/// * [bio] 
+/// * [avatarUrl] 
+/// * [createdAt] 
+/// * [distanceKm] 
 @BuiltValue()
-abstract class UserReadWithDistance
-    implements Built<UserReadWithDistance, UserReadWithDistanceBuilder> {
+abstract class UserReadWithDistance implements Built<UserReadWithDistance, UserReadWithDistanceBuilder> {
   @BuiltValueField(wireName: r'id')
   int get id;
 
@@ -52,24 +51,18 @@ abstract class UserReadWithDistance
 
   UserReadWithDistance._();
 
-  factory UserReadWithDistance([void updates(UserReadWithDistanceBuilder b)]) =
-      _$UserReadWithDistance;
+  factory UserReadWithDistance([void updates(UserReadWithDistanceBuilder b)]) = _$UserReadWithDistance;
 
   @BuiltValueHook(initializeBuilder: true)
   static void _defaults(UserReadWithDistanceBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<UserReadWithDistance> get serializer =>
-      _$UserReadWithDistanceSerializer();
+  static Serializer<UserReadWithDistance> get serializer => _$UserReadWithDistanceSerializer();
 }
 
-class _$UserReadWithDistanceSerializer
-    implements PrimitiveSerializer<UserReadWithDistance> {
+class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWithDistance> {
   @override
-  final Iterable<Type> types = const [
-    UserReadWithDistance,
-    _$UserReadWithDistance
-  ];
+  final Iterable<Type> types = const [UserReadWithDistance, _$UserReadWithDistance];
 
   @override
   final String wireName = r'UserReadWithDistance';
@@ -136,9 +129,7 @@ class _$UserReadWithDistanceSerializer
     UserReadWithDistance object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object,
-            specifiedType: specifiedType)
-        .toList();
+    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
   }
 
   void _deserializeProperties(
@@ -246,3 +237,4 @@ class _$UserReadWithDistanceSerializer
     return result.build();
   }
 }
+

@@ -471,7 +471,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **respondToInvitationApiV1MessagesMessageIdInvitationRespondPut**
-> JsonObject respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(messageId, action, responderId)
+> JsonObject respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(messageId, invitationRespondRequest)
 
 Respond To Invitation
 
@@ -483,11 +483,10 @@ import 'package:openapi/api.dart';
 
 final api = Openapi().getMessagesApi();
 final String messageId = messageId_example; // String | 
-final String action = action_example; // String | 
-final int responderId = 56; // int | 
+final InvitationRespondRequest invitationRespondRequest = ; // InvitationRespondRequest | 
 
 try {
-    final response = api.respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(messageId, action, responderId);
+    final response = api.respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(messageId, invitationRespondRequest);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling MessagesApi->respondToInvitationApiV1MessagesMessageIdInvitationRespondPut: $e\n');
@@ -499,8 +498,7 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **messageId** | **String**|  | 
- **action** | **String**|  | 
- **responderId** | **int**|  | 
+ **invitationRespondRequest** | [**InvitationRespondRequest**](InvitationRespondRequest.md)|  | 
 
 ### Return type
 
@@ -512,7 +510,7 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

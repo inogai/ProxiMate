@@ -26,6 +26,7 @@ export 'package:openapi/src/model/chat_room_create_request.dart';
 export 'package:openapi/src/model/chat_room_read.dart';
 export 'package:openapi/src/model/connection_read.dart';
 export 'package:openapi/src/model/http_validation_error.dart';
+export 'package:openapi/src/model/invitation_respond_request.dart';
 export 'package:openapi/src/model/location_create.dart';
 export 'package:openapi/src/model/location_read.dart';
 export 'package:openapi/src/model/location_update.dart';

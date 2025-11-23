@@ -14,6 +14,7 @@ import 'package:openapi/src/api_util.dart';
 import 'package:openapi/src/model/chat_message_create.dart';
 import 'package:openapi/src/model/chat_message_read.dart';
 import 'package:openapi/src/model/http_validation_error.dart';
+import 'package:openapi/src/model/invitation_respond_request.dart';
 
 class MessagesApi {
 
@@ -828,8 +829,7 @@ class MessagesApi {
   ///
   /// Parameters:
   /// * [messageId] 
-  /// * [action] 
-  /// * [responderId] 
+  /// * [invitationRespondRequest] 
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -841,8 +841,7 @@ class MessagesApi {
   /// Throws [DioException] if API call or serialization fails
   Future<Response<JsonObject>> respondToInvitationApiV1MessagesMessageIdInvitationRespondPut({ 
     required String messageId,
-    required String action,
-    required int responderId,
+    required InvitationRespondRequest invitationRespondRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -860,18 +859,32 @@ class MessagesApi {
         'secure': <Map<String, String>>[],
         ...?extra,
       },
+      contentType: 'application/json',
       validateStatus: validateStatus,
     );
 
-    final _queryParameters = <String, dynamic>{
-      r'action': encodeQueryParameter(_serializers, action, const FullType(String)),
-      r'responder_id': encodeQueryParameter(_serializers, responderId, const FullType(int)),
-    };
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(InvitationRespondRequest);
+      _bodyData = _serializers.serialize(invitationRespondRequest, specifiedType: _type);
+
+    } catch(error, stackTrace) {
+      throw DioException(
+         requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
 
     final _response = await _dio.request<Object>(
       _path,
+      data: _bodyData,
       options: _options,
-      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
