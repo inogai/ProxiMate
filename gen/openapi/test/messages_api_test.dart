@@ -106,15 +106,6 @@ void main() {
       // TODO
     });
 
-    // Respond To Invitation Message
-    //
-    // Accept or decline invitation message.
-    //
-    //Future<JsonObject> respondToInvitationMessageApiV1MessagesMessageIdRespondPut(String messageId, String action) async
-    test('test respondToInvitationMessageApiV1MessagesMessageIdRespondPut', () async {
-      // TODO
-    });
-
     // Send Message
     //
     // Send a message in a chat room.

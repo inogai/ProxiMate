@@ -107,7 +107,6 @@ Class | Method | HTTP request | Description
 [*MessagesApi*](doc/MessagesApi.md) | [**getMessagesApiV1MessagesGet**](doc/MessagesApi.md#getmessagesapiv1messagesget) | **GET** /api/v1/messages/ | Get Messages
 [*MessagesApi*](doc/MessagesApi.md) | [**getUserMessagesApiV1MessagesUsersSenderIdGet**](doc/MessagesApi.md#getusermessagesapiv1messagesuserssenderidget) | **GET** /api/v1/messages/users/{sender_id} | Get User Messages
 [*MessagesApi*](doc/MessagesApi.md) | [**respondToInvitationApiV1MessagesMessageIdInvitationRespondPut**](doc/MessagesApi.md#respondtoinvitationapiv1messagesmessageidinvitationrespondput) | **PUT** /api/v1/messages/{message_id}/invitation-respond | Respond To Invitation
-[*MessagesApi*](doc/MessagesApi.md) | [**respondToInvitationMessageApiV1MessagesMessageIdRespondPut**](doc/MessagesApi.md#respondtoinvitationmessageapiv1messagesmessageidrespondput) | **PUT** /api/v1/messages/{message_id}/respond | Respond To Invitation Message
 [*MessagesApi*](doc/MessagesApi.md) | [**sendMessageApiV1MessagesSendPost**](doc/MessagesApi.md#sendmessageapiv1messagessendpost) | **POST** /api/v1/messages/send | Send Message
 [*MessagesApi*](doc/MessagesApi.md) | [**updateMessageApiV1MessagesMessageIdPut**](doc/MessagesApi.md#updatemessageapiv1messagesmessageidput) | **PUT** /api/v1/messages/{message_id} | Update Message
 [*UsersApi*](doc/UsersApi.md) | [**createUserApiV1UsersPost**](doc/UsersApi.md#createuserapiv1userspost) | **POST** /api/v1/users/ | Create User

@@ -20,7 +20,6 @@ Method | HTTP request | Description
 [**getMessagesApiV1MessagesGet**](MessagesApi.md#getmessagesapiv1messagesget) | **GET** /api/v1/messages/ | Get Messages
 [**getUserMessagesApiV1MessagesUsersSenderIdGet**](MessagesApi.md#getusermessagesapiv1messagesuserssenderidget) | **GET** /api/v1/messages/users/{sender_id} | Get User Messages
 [**respondToInvitationApiV1MessagesMessageIdInvitationRespondPut**](MessagesApi.md#respondtoinvitationapiv1messagesmessageidinvitationrespondput) | **PUT** /api/v1/messages/{message_id}/invitation-respond | Respond To Invitation
-[**respondToInvitationMessageApiV1MessagesMessageIdRespondPut**](MessagesApi.md#respondtoinvitationmessageapiv1messagesmessageidrespondput) | **PUT** /api/v1/messages/{message_id}/respond | Respond To Invitation Message
 [**sendMessageApiV1MessagesSendPost**](MessagesApi.md#sendmessageapiv1messagessendpost) | **POST** /api/v1/messages/send | Send Message
 [**updateMessageApiV1MessagesMessageIdPut**](MessagesApi.md#updatemessageapiv1messagesmessageidput) | **PUT** /api/v1/messages/{message_id} | Update Message
 
@@ -511,51 +510,6 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: application/json
- - **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **respondToInvitationMessageApiV1MessagesMessageIdRespondPut**
-> JsonObject respondToInvitationMessageApiV1MessagesMessageIdRespondPut(messageId, action)
-
-Respond To Invitation Message
-
-Accept or decline invitation message.
-
-### Example
-```dart
-import 'package:openapi/api.dart';
-
-final api = Openapi().getMessagesApi();
-final String messageId = messageId_example; // String | 
-final String action = action_example; // String | 
-
-try {
-    final response = api.respondToInvitationMessageApiV1MessagesMessageIdRespondPut(messageId, action);
-    print(response);
-} on DioException catch (e) {
-    print('Exception when calling MessagesApi->respondToInvitationMessageApiV1MessagesMessageIdRespondPut: $e\n');
-}
-```
-
-### Parameters
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **messageId** | **String**|  | 
- **action** | **String**|  | 
-
-### Return type
-
-[**JsonObject**](JsonObject.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
