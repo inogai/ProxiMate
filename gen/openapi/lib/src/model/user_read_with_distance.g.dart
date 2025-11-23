@@ -10,7 +10,7 @@ class _$UserReadWithDistance extends UserReadWithDistance {
   @override
   final int id;
   @override
-  final String username;
+  final String displayname;
   @override
   final String school;
   @override
@@ -32,7 +32,7 @@ class _$UserReadWithDistance extends UserReadWithDistance {
 
   _$UserReadWithDistance._(
       {required this.id,
-      required this.username,
+      required this.displayname,
       required this.school,
       required this.major,
       required this.interests,
@@ -55,7 +55,7 @@ class _$UserReadWithDistance extends UserReadWithDistance {
     if (identical(other, this)) return true;
     return other is UserReadWithDistance &&
         id == other.id &&
-        username == other.username &&
+        displayname == other.displayname &&
         school == other.school &&
         major == other.major &&
         interests == other.interests &&
@@ -69,7 +69,7 @@ class _$UserReadWithDistance extends UserReadWithDistance {
   int get hashCode {
     var _$hash = 0;
     _$hash = $jc(_$hash, id.hashCode);
-    _$hash = $jc(_$hash, username.hashCode);
+    _$hash = $jc(_$hash, displayname.hashCode);
     _$hash = $jc(_$hash, school.hashCode);
     _$hash = $jc(_$hash, major.hashCode);
     _$hash = $jc(_$hash, interests.hashCode);
@@ -85,7 +85,7 @@ class _$UserReadWithDistance extends UserReadWithDistance {
   String toString() {
     return (newBuiltValueToStringHelper(r'UserReadWithDistance')
           ..add('id', id)
-          ..add('username', username)
+          ..add('displayname', displayname)
           ..add('school', school)
           ..add('major', major)
           ..add('interests', interests)
@@ -105,9 +105,9 @@ class UserReadWithDistanceBuilder
   int? get id => _$this._id;
   set id(int? id) => _$this._id = id;
 
-  String? _username;
-  String? get username => _$this._username;
-  set username(String? username) => _$this._username = username;
+  String? _displayname;
+  String? get displayname => _$this._displayname;
+  set displayname(String? displayname) => _$this._displayname = displayname;
 
   String? _school;
   String? get school => _$this._school;
@@ -145,7 +145,7 @@ class UserReadWithDistanceBuilder
     final $v = _$v;
     if ($v != null) {
       _id = $v.id;
-      _username = $v.username;
+      _displayname = $v.displayname;
       _school = $v.school;
       _major = $v.major;
       _interests = $v.interests;
@@ -176,8 +176,8 @@ class UserReadWithDistanceBuilder
         _$UserReadWithDistance._(
           id: BuiltValueNullFieldError.checkNotNull(
               id, r'UserReadWithDistance', 'id'),
-          username: BuiltValueNullFieldError.checkNotNull(
-              username, r'UserReadWithDistance', 'username'),
+          displayname: BuiltValueNullFieldError.checkNotNull(
+              displayname, r'UserReadWithDistance', 'displayname'),
           school: BuiltValueNullFieldError.checkNotNull(
               school, r'UserReadWithDistance', 'school'),
           major: BuiltValueNullFieldError.checkNotNull(

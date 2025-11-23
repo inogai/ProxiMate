@@ -11,22 +11,23 @@ part 'user_read_with_distance.g.dart';
 /// Schema for reading user data with distance information.
 ///
 /// Properties:
-/// * [id] 
-/// * [username] 
-/// * [school] 
-/// * [major] 
-/// * [interests] 
-/// * [bio] 
-/// * [avatarUrl] 
-/// * [createdAt] 
-/// * [distanceKm] 
+/// * [id]
+/// * [displayname]
+/// * [school]
+/// * [major]
+/// * [interests]
+/// * [bio]
+/// * [avatarUrl]
+/// * [createdAt]
+/// * [distanceKm]
 @BuiltValue()
-abstract class UserReadWithDistance implements Built<UserReadWithDistance, UserReadWithDistanceBuilder> {
+abstract class UserReadWithDistance
+    implements Built<UserReadWithDistance, UserReadWithDistanceBuilder> {
   @BuiltValueField(wireName: r'id')
   int get id;
 
-  @BuiltValueField(wireName: r'username')
-  String get username;
+  @BuiltValueField(wireName: r'displayname')
+  String get displayname;
 
   @BuiltValueField(wireName: r'school')
   String get school;
@@ -51,18 +52,24 @@ abstract class UserReadWithDistance implements Built<UserReadWithDistance, UserR
 
   UserReadWithDistance._();
 
-  factory UserReadWithDistance([void updates(UserReadWithDistanceBuilder b)]) = _$UserReadWithDistance;
+  factory UserReadWithDistance([void updates(UserReadWithDistanceBuilder b)]) =
+      _$UserReadWithDistance;
 
   @BuiltValueHook(initializeBuilder: true)
   static void _defaults(UserReadWithDistanceBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<UserReadWithDistance> get serializer => _$UserReadWithDistanceSerializer();
+  static Serializer<UserReadWithDistance> get serializer =>
+      _$UserReadWithDistanceSerializer();
 }
 
-class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWithDistance> {
+class _$UserReadWithDistanceSerializer
+    implements PrimitiveSerializer<UserReadWithDistance> {
   @override
-  final Iterable<Type> types = const [UserReadWithDistance, _$UserReadWithDistance];
+  final Iterable<Type> types = const [
+    UserReadWithDistance,
+    _$UserReadWithDistance
+  ];
 
   @override
   final String wireName = r'UserReadWithDistance';
@@ -77,9 +84,9 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
       object.id,
       specifiedType: const FullType(int),
     );
-    yield r'username';
+    yield r'displayname';
     yield serializers.serialize(
-      object.username,
+      object.displayname,
       specifiedType: const FullType(String),
     );
     yield r'school';
@@ -129,7 +136,9 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
     UserReadWithDistance object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
+    return _serializeProperties(serializers, object,
+            specifiedType: specifiedType)
+        .toList();
   }
 
   void _deserializeProperties(
@@ -151,12 +160,12 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
           ) as int;
           result.id = valueDes;
           break;
-        case r'username':
+        case r'displayname':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
-          result.username = valueDes;
+          result.displayname = valueDes;
           break;
         case r'school':
           final valueDes = serializers.deserialize(
@@ -237,4 +246,3 @@ class _$UserReadWithDistanceSerializer implements PrimitiveSerializer<UserReadWi
     return result.build();
   }
 }
-

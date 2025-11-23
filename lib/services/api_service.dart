@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
+import 'package:dio/dio.dart';
 import 'package:openapi/openapi.dart';
 import '../models/profile.dart';
 import '../models/peer.dart';
@@ -314,7 +315,7 @@ class ApiService {
   Peer userReadWithDistanceToPeer(UserReadWithDistance userWithDistance) {
     return Peer(
       id: userWithDistance.id.toString(),
-      name: userWithDistance.username,
+      name: userWithDistance.displayname,
       school: userWithDistance.school ?? '',
       major: userWithDistance.major ?? '',
       interests: userWithDistance.interests ?? '',
@@ -449,19 +450,30 @@ class ApiService {
   }
 
   /// Upload avatar image for a user
-  /// TODO: Implement when avatar endpoints are added to new backend
   Future<String?> uploadAvatar(int userId, dynamic imageFile) async {
-    // Avatar endpoints not available in new backend yet
-    _debugLog('Avatar upload not implemented in new backend');
-    return null;
+    final multipartFile = await _createMultipartFile(imageFile);
+    if (multipartFile == null) {
+      throw Exception('Failed to create multipart file from image');
+    }
+
+    final response = await _executeWithRetry(
+      () => _usersApi.uploadAvatarApiV1UsersUserIdAvatarPost(
+        userId: userId,
+        file: multipartFile,
+      ),
+      'Upload Avatar',
+    );
+
+    return response.data?.avatarUrl;
   }
 
   /// Delete avatar for a user
-  /// TODO: Implement when avatar endpoints are added to new backend
   Future<bool> deleteAvatar(int userId) async {
-    // Avatar endpoints not available in new backend yet
-    _debugLog('Avatar delete not implemented in new backend');
-    return false;
+    await _executeWithRetry(
+      () => _usersApi.removeAvatarApiV1UsersUserIdAvatarDelete(userId: userId),
+      'Delete Avatar',
+    );
+    return true;
   }
 
   // Chat endpoints
@@ -641,6 +653,34 @@ class ApiService {
       ),
       'Delete Activity',
     );
+  }
+
+  /// Create a MultipartFile from various image input types
+  Future<MultipartFile?> _createMultipartFile(dynamic imageFile) async {
+    try {
+      if (imageFile is File) {
+        // Mobile: File from file system
+        return await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split('/').last,
+        );
+      } else if (imageFile is Uint8List) {
+        // Web: Raw bytes from image cropping
+        return MultipartFile.fromBytes(
+          imageFile,
+          filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.png',
+        );
+      } else if (imageFile is String && imageFile.startsWith('/')) {
+        // File path as string
+        return await MultipartFile.fromFile(
+          imageFile,
+          filename: imageFile.split('/').last,
+        );
+      }
+    } catch (e) {
+      _debugLog('Error creating multipart file: $e');
+    }
+    return null;
   }
 
   void _debugLog(String message) {
