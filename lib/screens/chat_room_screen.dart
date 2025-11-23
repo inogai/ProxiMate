@@ -5,7 +5,6 @@ import '../models/profile.dart';
 import '../services/storage_service.dart';
 import '../widgets/custom_buttons.dart';
 import '../widgets/invitation_message_card.dart';
-import '../widgets/rating_dialog.dart';
 
 /// Chat room screen for communicating about meetup
 class ChatRoomScreen extends StatefulWidget {
@@ -437,27 +436,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               ),
               child: Column(
                 children: [
-                  // Invitation creation button (only show if no pending invitation)
-                  if (!_hasPendingInvitation())
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showInvitationDialog(context),
-                        icon: const Icon(Icons.restaurant_menu),
-                        label: const Text('Send Invitation'),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                          foregroundColor: Theme.of(context).primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
+                  // Action buttons area - show different buttons based on state
+                  _buildActionButtons(),
                   Row(
                     children: [
                       Expanded(
@@ -937,6 +917,94 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
+  /// Build action buttons based on current state
+  Widget _buildActionButtons() {
+    final storage = context.read<StorageService>();
+    final currentUserId = storage.currentProfile?.id ?? '';
+    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+
+    // Check if there's an accepted invitation with uncollected name card
+    ChatMessage? acceptedInvitationMessage;
+    if (widget.chatRoom != null) {
+      for (final message in widget.chatRoom!.messages) {
+        if (message.isInvitation &&
+            message.isAccepted &&
+            !(message.isNameCardCollected ?? false)) {
+          acceptedInvitationMessage = message;
+          break;
+        }
+      }
+    }
+
+    // Show collect name card / not good match buttons if there's an accepted invitation
+    if (acceptedInvitationMessage != null) {
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  _handleCollectNameCard(acceptedInvitationMessage!.id),
+              icon: const Icon(Icons.contacts),
+              label: const Text('Collect Name Card'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  _handleNotGoodMatch(acceptedInvitationMessage!.id),
+              icon: const Icon(Icons.close),
+              label: const Text('Not Good Match'),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.grey.shade400),
+                foregroundColor: Colors.grey[700],
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      );
+    }
+
+    // Show send invitation button if no pending invitation
+    if (!_hasPendingInvitation()) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 12),
+        child: OutlinedButton.icon(
+          onPressed: () => _showInvitationDialog(context),
+          icon: const Icon(Icons.restaurant_menu),
+          label: const Text('Send Invitation'),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: Theme.of(context).primaryColor),
+            foregroundColor: Theme.of(context).primaryColor,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Otherwise show nothing (pending invitation or name card already collected)
+    return const SizedBox.shrink();
+  }
+
   /// Show invitation creation dialog
   void _showInvitationDialog(BuildContext context) {
     final storage = context.read<StorageService>();
@@ -1171,84 +1239,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           onNotGoodMatch: message.isAccepted
               ? () => _handleNotGoodMatch(message.id)
               : null,
-        ),
-      );
-    }
-
-    // Handle connection request messages
-    if (message.isConnectionRequest) {
-      final isFromMe = message.isMine;
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.blue.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.contact_page, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isFromMe
-                          ? 'You sent a name card request'
-                          : '${storage.getPeerById(otherUserId)?.name ?? 'Someone'} wants to collect your name card',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.blue[700],
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (!isFromMe) ...[
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          _handleConnectionResponse(message.id, true),
-                      icon: const Icon(Icons.check),
-                      label: const Text('Accept'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          _handleConnectionResponse(message.id, false),
-                      icon: const Icon(Icons.close),
-                      label: const Text('Decline'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.blue[700]?.withValues(alpha: 0.8),
-                ),
-              ),
-            ],
-          ),
         ),
       );
     }

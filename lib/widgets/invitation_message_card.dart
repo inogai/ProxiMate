@@ -30,7 +30,6 @@ class InvitationMessageCard extends StatefulWidget {
 class _InvitationMessageCardState extends State<InvitationMessageCard> {
   bool _isAccepting = false;
   bool _isDeclining = false;
-  bool _isCollecting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -337,6 +336,8 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
       );
     } else if (status == "accepted" &&
         !(widget.message.isNameCardCollected ?? false)) {
+      // Show rating button if available, but remove collect name card and not good match buttons
+      // These are now handled in the chat room screen input area
       return Column(
         children: [
           if (widget.onRate != null) ...[
@@ -358,48 +359,28 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
             ),
             const SizedBox(height: 8),
           ],
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isCollecting ? null : () => _handleCollectCard(),
-              icon: _isCollecting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.contacts),
-              label: Text(
-                _isCollecting ? 'Collecting...' : 'Collect Name Card',
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+          // Show a status indicator instead of action buttons
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade300),
             ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: widget.onNotGoodMatch,
-              icon: const Icon(Icons.close),
-              label: const Text('Not Good Match'),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.grey.shade400),
-                foregroundColor: Colors.grey[700],
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  'Name card options available in input area',
+                  style: TextStyle(
+                    color: Colors.blue[700],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
@@ -472,17 +453,6 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
     } finally {
       if (mounted) {
         setState(() => _isDeclining = false);
-      }
-    }
-  }
-
-  Future<void> _handleCollectCard() async {
-    setState(() => _isCollecting = true);
-    try {
-      widget.onCollectCard?.call();
-    } finally {
-      if (mounted) {
-        setState(() => _isCollecting = false);
       }
     }
   }
