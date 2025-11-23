@@ -513,7 +513,7 @@ class ApiService {
     return response.data!;
   }
 
-  /// Create invitation message
+  /// Create invitation message using proper backend endpoint
   Future<ChatMessageRead> createInvitationMessage(
     String chatroomId,
     int senderId,
@@ -522,22 +522,53 @@ class ApiService {
     BuiltList<String> iceBreakers,
     String? responseDeadline,
   ) async {
-    // For now, create a simple text message with invitation details
-    // TODO: Update backend to support invitation message types
-    final invitationText = 'You have been invited to $activityName at $restaurant! '
-        'Ice breakers: ${iceBreakers.join(", ")}'
-        '${responseDeadline != null ? " Please respond by: $responseDeadline" : ""}';
-
+    // Generate unique invitation ID
+    final invitationId = 'inv_${DateTime.now().millisecondsSinceEpoch}';
+    
     final response = await _executeWithRetry(
-      () => _messagesApi.sendMessageApiV1MessagesSendPost(
+      () => _messagesApi.createInvitationMessageApiV1MessagesInvitationPost(
         chatRoomId: chatroomId,
         senderId: senderId,
-        text: invitationText,
-        isMine: true,
+        invitationId: invitationId,
+        activityId: activityName, // Using activity name as ID for now
+        restaurant: restaurant,
+        requestBody: iceBreakers, // Pass ice breakers as request body
       ),
       'Create Invitation Message',
     );
     return response.data!;
+  }
+
+  /// Respond to invitation message (accept/decline)
+  Future<Map<String, dynamic>> respondToInvitationMessage(
+    String messageId,
+    String action, // "accept" or "decline"
+    int responderId,
+  ) async {
+    final response = await _executeWithRetry(
+      () => _messagesApi.respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(
+        messageId: messageId,
+        action: action,
+        responderId: responderId,
+      ),
+      'Respond to Invitation Message',
+    );
+    // For now, return a simple success response
+    // TODO: Parse JsonObject response properly when needed
+    return {'status': 'success', 'action': action};
+  }
+
+  /// Collect name card from invitation message
+  Future<Map<String, dynamic>> collectNameCardFromMessage(String messageId) async {
+    final response = await _executeWithRetry(
+      () => _messagesApi.collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut(
+        messageId: messageId,
+      ),
+      'Collect Name Card From Message',
+    );
+    // For now, return a simple success response
+    // TODO: Parse JsonObject response properly when needed
+    return {'status': 'success', 'collected': true};
   }
 
   // Activity endpoints

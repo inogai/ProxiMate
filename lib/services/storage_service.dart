@@ -1527,9 +1527,13 @@ class StorageService extends ChangeNotifier {
     }
 
     try {
-      // TODO: Implement acceptance via message-based system
-      // For now, just update local state
-      _debugLog('Accepting invitation locally (API method removed)');
+      // Use new message-based invitation response API
+      final currentUserId = int.tryParse(currentProfile?.id ?? '0') ?? 0;
+      await _apiService.respondToInvitationMessage(
+        invitationId,
+        'accept',
+        currentUserId,
+      );
       
       _debugLog('Invitation accepted via API: $invitationId');
     } catch (e) {
@@ -1566,6 +1570,21 @@ class StorageService extends ChangeNotifier {
 
   /// Decline an invitation
   Future<void> declineInvitation(String invitationId) async {
+    try {
+      // Use new message-based invitation response API
+      final currentUserId = int.tryParse(currentProfile?.id ?? '0') ?? 0;
+      await _apiService.respondToInvitationMessage(
+        invitationId,
+        'decline',
+        currentUserId,
+      );
+      
+      _debugLog('Invitation declined via API: $invitationId');
+    } catch (e) {
+      _debugLog('Failed to decline invitation via API: $e');
+      // Continue with local update even if API fails
+    }
+
     final index = _invitations.indexWhere((i) => i.id == invitationId);
     if (index != -1) {
       _invitations[index] = _invitations[index].copyWith(
@@ -1873,6 +1892,15 @@ class StorageService extends ChangeNotifier {
   /// Create connection from peer
   Future<void> collectNameCard(String invitationId) async {
     if (_currentProfile == null) return;
+
+    try {
+      // Use new message-based name card collection API
+      final result = await _apiService.collectNameCardFromMessage(invitationId);
+      _debugLog('Name card collected via API: $result');
+    } catch (e) {
+      _debugLog('Failed to collect name card via API: $e');
+      // Continue with local implementation even if API fails
+    }
 
     final invitation = _invitations.firstWhere((i) => i.id == invitationId);
     final peer = getPeerById(invitation.peerId);
