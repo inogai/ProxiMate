@@ -142,8 +142,14 @@ class StorageService extends ChangeNotifier {
     try {
       _debugLog('Syncing connections with API...');
 
-      // Fetch latest connections from API (authoritative source only)
-      final apiConnections = await _apiService.getConnections();
+      // Fetch 1-hop connections for current user from API
+      final currentUserId = int.tryParse(_apiUserId ?? '0') ?? 0;
+      if (currentUserId == 0) {
+        _debugLog('Invalid user ID for connection sync');
+        return;
+      }
+
+      final apiConnections = await _apiService.getOneHopConnections(currentUserId);
 
       // Detect changes by comparing with previous state
       final hasChanges =
@@ -158,7 +164,7 @@ class StorageService extends ChangeNotifier {
         _connections = apiConnections;
         notifyListeners();
         _debugLog(
-          'Connections updated: ${_connections.length} total connections',
+          'Connections updated: ${_connections.length} user connections',
         );
       }
 
@@ -507,8 +513,37 @@ class StorageService extends ChangeNotifier {
 
   // Get connected profiles
   List<Profile> get connectedProfiles {
-    // Since we don't have local profile caching, we need to fetch profiles from API
-    return []; // Return empty for now, profiles should be fetched on-demand
+    if (_currentProfile == null) {
+      _debugLog('connectedProfiles: No current profile');
+      return [];
+    }
+    
+    // Get profiles from nearby peers that match connection IDs
+    // Need to check both fromProfileId and toProfileId to find connections involving current user
+    final currentUserId = _currentProfile!.id;
+    final acceptedConnections = _connections.where((c) => c.status == ConnectionStatus.accepted).toList();
+    final connectionIds = acceptedConnections
+        .map((c) => c.fromProfileId == currentUserId ? c.toProfileId : c.fromProfileId)
+        .toSet();
+    
+    _debugLog('connectedProfiles: Found ${acceptedConnections.length} accepted connections, connectionIds: $connectionIds');
+    
+    final connectedPeers = _nearbyPeers
+        .where((p) => connectionIds.contains(p.id))
+        .toList();
+    
+    _debugLog('connectedProfiles: Found ${connectedPeers.length} matching peers from ${_nearbyPeers.length} nearby peers');
+    
+    // Convert Peer objects to Profile objects
+    return connectedPeers.map((peer) => Profile(
+      id: peer.id,
+      userName: peer.name,
+      school: peer.school,
+      major: peer.major,
+      interests: peer.interests,
+      background: peer.background,
+      profileImagePath: peer.profileImageUrl,
+    )).toList();
   }
 
   bool get hasUser => _currentProfile != null;

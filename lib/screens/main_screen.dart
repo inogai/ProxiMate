@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
+import '../models/connection.dart';
 import '../widgets/profile_tab.dart';
 import '../widgets/find_peers_tab.dart';
 import '../widgets/invitations_tab.dart';
@@ -35,7 +36,12 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    final connectionCount = storage.connections.length;
+    final currentUserId = storage.currentProfile?.id ?? '';
+    final userConnections = storage.connections
+        .where((c) => (c.fromProfileId == currentUserId || c.toProfileId == currentUserId) && 
+                      c.status == ConnectionStatus.accepted)
+        .toList();
+    final connectionCount = userConnections.length;
 
     return Scaffold(
       body: IndexedStack(

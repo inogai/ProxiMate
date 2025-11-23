@@ -753,7 +753,7 @@ class ApiService {
   }
 
   /// Get 1-hop (accepted) connections for a user
-  Future<Map<String, dynamic>> getOneHopConnections(int userId) async {
+  Future<List<Connection>> getOneHopConnections(int userId) async {
     final response = await _executeWithRetry(
       () => _connectionsApi.get1hopConnectionsApiV1Connections1hopUserIdGet(
         userId: userId,
@@ -761,9 +761,39 @@ class ApiService {
       'Get One Hop Connections',
     );
 
-    // For now, return a simple response
-    // TODO: Parse JsonObject response properly when needed
-    return {'connections': <dynamic>[]};
+    final responseData = response.data;
+    if (responseData == null) return [];
+
+    // The API returns a ListJsonObject directly (connections array)
+    // Try to convert it to a list using different approaches
+    final List<dynamic> connectionsList;
+    
+    try {
+      // Try casting to List<dynamic> directly
+      connectionsList = responseData as List<dynamic>;
+      _debugLog('Successfully cast ListJsonObject to List<dynamic>, length: ${connectionsList.length}');
+    } catch (e) {
+      _debugLog('Failed to cast ListJsonObject to List<dynamic>: $e');
+      _debugLog('Response data type: ${responseData.runtimeType}');
+      // If that fails, return empty list
+      return [];
+    }
+
+    if (connectionsList.isEmpty) return [];
+
+    return connectionsList.map((connectionData) {
+      // Convert dynamic data to Connection
+      final connectionRead = connectionData as Map<String, dynamic>;
+      return Connection(
+        id: connectionRead['id'].toString(),
+        fromProfileId: connectionRead['user1_id'].toString(),
+        toProfileId: connectionRead['user2_id'].toString(),
+        restaurant: '', // Not available in response
+        collectedAt: DateTime.tryParse(connectionRead['created_at']) ?? DateTime.now(),
+        status: _parseConnectionStatus(connectionRead['status']),
+        notes: null, // Not available in response
+      );
+    }).toList();
   }
 
   /// Get 2-hop connections for a user
