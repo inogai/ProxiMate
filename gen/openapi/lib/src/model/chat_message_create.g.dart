@@ -14,8 +14,6 @@ class _$ChatMessageCreate extends ChatMessageCreate {
   @override
   final String text;
   @override
-  final bool? isMine;
-  @override
   final String? messageType;
   @override
   final String? invitationId;
@@ -30,7 +28,6 @@ class _$ChatMessageCreate extends ChatMessageCreate {
       {required this.chatRoomId,
       required this.senderId,
       required this.text,
-      this.isMine,
       this.messageType,
       this.invitationId,
       this.invitationData})
@@ -50,7 +47,6 @@ class _$ChatMessageCreate extends ChatMessageCreate {
         chatRoomId == other.chatRoomId &&
         senderId == other.senderId &&
         text == other.text &&
-        isMine == other.isMine &&
         messageType == other.messageType &&
         invitationId == other.invitationId &&
         invitationData == other.invitationData;
@@ -62,7 +58,6 @@ class _$ChatMessageCreate extends ChatMessageCreate {
     _$hash = $jc(_$hash, chatRoomId.hashCode);
     _$hash = $jc(_$hash, senderId.hashCode);
     _$hash = $jc(_$hash, text.hashCode);
-    _$hash = $jc(_$hash, isMine.hashCode);
     _$hash = $jc(_$hash, messageType.hashCode);
     _$hash = $jc(_$hash, invitationId.hashCode);
     _$hash = $jc(_$hash, invitationData.hashCode);
@@ -76,7 +71,6 @@ class _$ChatMessageCreate extends ChatMessageCreate {
           ..add('chatRoomId', chatRoomId)
           ..add('senderId', senderId)
           ..add('text', text)
-          ..add('isMine', isMine)
           ..add('messageType', messageType)
           ..add('invitationId', invitationId)
           ..add('invitationData', invitationData))
@@ -99,10 +93,6 @@ class ChatMessageCreateBuilder
   String? _text;
   String? get text => _$this._text;
   set text(String? text) => _$this._text = text;
-
-  bool? _isMine;
-  bool? get isMine => _$this._isMine;
-  set isMine(bool? isMine) => _$this._isMine = isMine;
 
   String? _messageType;
   String? get messageType => _$this._messageType;
@@ -127,7 +117,6 @@ class ChatMessageCreateBuilder
       _chatRoomId = $v.chatRoomId;
       _senderId = $v.senderId;
       _text = $v.text;
-      _isMine = $v.isMine;
       _messageType = $v.messageType;
       _invitationId = $v.invitationId;
       _invitationData = $v.invitationData;
@@ -158,7 +147,6 @@ class ChatMessageCreateBuilder
               senderId, r'ChatMessageCreate', 'senderId'),
           text: BuiltValueNullFieldError.checkNotNull(
               text, r'ChatMessageCreate', 'text'),
-          isMine: isMine,
           messageType: messageType,
           invitationId: invitationId,
           invitationData: invitationData,

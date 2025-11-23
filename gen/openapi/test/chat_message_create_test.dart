@@ -22,11 +22,6 @@ void main() {
       // TODO
     });
 
-    // bool isMine (default value: false)
-    test('to test the property `isMine`', () async {
-      // TODO
-    });
-
     // String messageType (default value: 'text')
     test('to test the property `messageType`', () async {
       // TODO

@@ -14,7 +14,6 @@ part 'chat_message_read.g.dart';
 /// * [chatRoomId] 
 /// * [senderId] 
 /// * [text] 
-/// * [isMine] 
 /// * [messageType] 
 /// * [invitationId] 
 /// * [invitationData] 
@@ -30,9 +29,6 @@ abstract class ChatMessageRead implements Built<ChatMessageRead, ChatMessageRead
 
   @BuiltValueField(wireName: r'text')
   String get text;
-
-  @BuiltValueField(wireName: r'is_mine')
-  bool? get isMine;
 
   @BuiltValueField(wireName: r'message_type')
   String? get messageType;
@@ -55,7 +51,6 @@ abstract class ChatMessageRead implements Built<ChatMessageRead, ChatMessageRead
 
   @BuiltValueHook(initializeBuilder: true)
   static void _defaults(ChatMessageReadBuilder b) => b
-      ..isMine = false
       ..messageType = 'text';
 
   @BuiltValueSerializer(custom: true)
@@ -89,13 +84,6 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
       object.text,
       specifiedType: const FullType(String),
     );
-    if (object.isMine != null) {
-      yield r'is_mine';
-      yield serializers.serialize(
-        object.isMine,
-        specifiedType: const FullType(bool),
-      );
-    }
     if (object.messageType != null) {
       yield r'message_type';
       yield serializers.serialize(
@@ -170,13 +158,6 @@ class _$ChatMessageReadSerializer implements PrimitiveSerializer<ChatMessageRead
             specifiedType: const FullType(String),
           ) as String;
           result.text = valueDes;
-          break;
-        case r'is_mine':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(bool),
-          ) as bool;
-          result.isMine = valueDes;
           break;
         case r'message_type':
           final valueDes = serializers.deserialize(

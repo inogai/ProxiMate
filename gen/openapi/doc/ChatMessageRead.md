@@ -11,7 +11,6 @@ Name | Type | Description | Notes
 **chatRoomId** | **String** |  | 
 **senderId** | **int** |  | 
 **text** | **String** |  | 
-**isMine** | **bool** |  | [optional] [default to false]
 **messageType** | **String** |  | [optional] [default to 'text']
 **invitationId** | **String** |  | [optional] 
 **invitationData** | **String** |  | [optional] 
