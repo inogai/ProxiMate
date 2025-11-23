@@ -227,6 +227,59 @@ class StorageService extends ChangeNotifier {
         }
       }
 
+      // Process invitation response messages to update invitation statuses
+      if (newMessages.isNotEmpty) {
+        for (final newMessage in newMessages) {
+          if (newMessage.messageType == MessageType.invitationResponse &&
+              newMessage.invitationId != null) {
+            // This is a response to an invitation
+            final invitationId = newMessage.invitationId!;
+            final responseStatus = newMessage.text.contains('accepted')
+                ? 'accepted'
+                : newMessage.text.contains('declined')
+                ? 'declined'
+                : 'pending';
+
+            _debugLog(
+              'Processing invitation response: invitationId=$invitationId, status=$responseStatus',
+            );
+
+            // Find all messages in chat room (current + new)
+            final allMessages = [...currentMessages, ...newMessages];
+
+            // Find the invitation message with matching invitationId
+            for (int i = 0; i < allMessages.length; i++) {
+              final message = allMessages[i];
+              if (message.messageType == MessageType.invitation &&
+                  message.invitationId == invitationId) {
+                // Update the invitation message's status
+                if (message.invitationData != null) {
+                  final updatedInvitationMessage = message.copyWith(
+                    invitationData: {
+                      ...message.invitationData!,
+                      'status': responseStatus,
+                    },
+                  );
+
+                  // Update in the appropriate list (currentMessages or newMessages)
+                  if (i < currentMessages.length) {
+                    currentMessages[i] = updatedInvitationMessage;
+                  } else {
+                    newMessages[i - currentMessages.length] =
+                        updatedInvitationMessage;
+                  }
+
+                  _debugLog(
+                    'Updated invitation message ${message.id} status to $responseStatus',
+                  );
+                }
+                break; // Found and updated the matching invitation
+              }
+            }
+          }
+        }
+      }
+
       if (newMessages.isNotEmpty) {
         // Sort all messages by timestamp
         final allMessages = [...currentMessages, ...newMessages];
