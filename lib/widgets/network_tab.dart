@@ -22,6 +22,7 @@ class NetworkTab extends StatefulWidget {
 
 class _NetworkTabState extends State<NetworkTab> {
   bool _showGraph = true;
+  bool _show1HopCircle = true; // Default to on
 
   @override
   Widget build(BuildContext context) {
@@ -33,14 +34,37 @@ class _NetworkTabState extends State<NetworkTab> {
           ? _buildNetworkGraph(context)
           : _buildNetworkGrid(context),
       floatingActionButton: connections.isNotEmpty
-          ? FloatingActionButton(
-              onPressed: () {
-                setState(() {
-                  _showGraph = !_showGraph;
-                });
-              },
-              child: Icon(_showGraph ? Icons.list : Icons.hub),
-              tooltip: _showGraph ? 'List View' : 'Graph View',
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1-hop circle toggle
+                FloatingActionButton(
+                  heroTag: "1hop",
+                  onPressed: () {
+                    setState(() {
+                      _show1HopCircle = !_show1HopCircle;
+                    });
+                  },
+                  backgroundColor: _show1HopCircle ? Colors.red : Theme.of(context).colorScheme.primary,
+                  child: Icon(
+                    _show1HopCircle ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.white,
+                  ),
+                  tooltip: _show1HopCircle ? 'Hide 1-hop Radius' : 'Show 1-hop Radius',
+                ),
+                const SizedBox(height: 8),
+                // View toggle
+                FloatingActionButton(
+                  heroTag: "view",
+                  onPressed: () {
+                    setState(() {
+                      _showGraph = !_showGraph;
+                    });
+                  },
+                  child: Icon(_showGraph ? Icons.list : Icons.hub),
+                  tooltip: _showGraph ? 'List View' : 'Graph View',
+                ),
+              ],
             )
           : null,
     );
@@ -105,6 +129,7 @@ class _NetworkTabState extends State<NetworkTab> {
                 currentUserId: currentProfile.id,
                 currentUserMajor: currentProfile.major,
                 currentUserInterests: currentProfile.interests,
+                show1HopCircle: _show1HopCircle,
                 onInfoBarTap: (node) => _showCurrentUserProfile(context),
               ),
               Positioned(
@@ -195,6 +220,7 @@ class _NetworkTabState extends State<NetworkTab> {
               currentUserId: currentProfile.id,
               currentUserMajor: currentProfile.major,
               currentUserInterests: currentProfile.interests,
+              show1HopCircle: _show1HopCircle,
               onInfoBarTap: (node) {
                 if (node.id == currentProfile.id) {
                   _showCurrentUserProfile(context);

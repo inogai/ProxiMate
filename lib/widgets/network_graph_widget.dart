@@ -1,6 +1,13 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'network_graph_node.dart';
+
+/// Extension for Offset to calculate distance
+extension OffsetExtension on Offset {
+  double get distance => math.sqrt(dx * dx + dy * dy);
+}
 
 /// Interactive network graph widget with Obsidian-like visualization
 class NetworkGraphWidget extends StatefulWidget {
@@ -11,6 +18,8 @@ class NetworkGraphWidget extends StatefulWidget {
   final String? currentUserId;
   final String? currentUserMajor;
   final String? currentUserInterests;
+  final bool show1HopCircle;
+  final double? custom1HopRadius;
 
   const NetworkGraphWidget({
     super.key,
@@ -21,6 +30,8 @@ class NetworkGraphWidget extends StatefulWidget {
     this.currentUserId,
     this.currentUserMajor,
     this.currentUserInterests,
+    this.show1HopCircle = false,
+    this.custom1HopRadius,
   });
 
   @override
@@ -208,10 +219,12 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                 child: SizedBox.expand(
                   child: CustomPaint(
                      painter: NetworkGraphPainter(
-                       nodes: widget.nodes,
-                       selectedNode: _selectedNode,
-                       theme: theme,
-                     ),
+                        nodes: widget.nodes,
+                        selectedNode: _selectedNode,
+                        theme: theme,
+                        show1HopCircle: widget.show1HopCircle,
+                        custom1HopRadius: widget.custom1HopRadius,
+                      ),
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: widget.nodes.map((node) {
@@ -594,11 +607,24 @@ class NetworkGraphPainter extends CustomPainter {
   final List<NetworkNode> nodes;
   final NetworkNode? selectedNode;
   final ThemeData theme;
+  final bool show1HopCircle;
+  final double? custom1HopRadius;
 
-  NetworkGraphPainter({required this.nodes, this.selectedNode, required this.theme});
+  NetworkGraphPainter({
+    required this.nodes, 
+    this.selectedNode, 
+    required this.theme,
+    this.show1HopCircle = false,
+    this.custom1HopRadius,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Draw 1-hop circle first (so it appears behind connections)
+    if (show1HopCircle) {
+      _draw1HopCircle(canvas);
+    }
+
     // Draw connections
     final connectionPaint = Paint()
       ..strokeWidth = 2
@@ -631,8 +657,108 @@ class NetworkGraphPainter extends CustomPainter {
     }
   }
 
+  /// Draw red overlay circle showing 1-hop radius around current user
+  void _draw1HopCircle(Canvas canvas) {
+    // Find current user node (first non-text node, or node with 'you' id)
+    NetworkNode? currentUserNode;
+    try {
+      currentUserNode = nodes.firstWhere(
+        (node) => node.id == 'you' || (!node.isTextNode && node.connections.isNotEmpty),
+      );
+    } catch (e) {
+      // If no 'you' node found, try first node with connections
+      try {
+        currentUserNode = nodes.firstWhere(
+          (node) => !node.isTextNode && node.connections.isNotEmpty,
+        );
+      } catch (e) {
+        return; // No suitable current user node found
+      }
+    }
+
+    if (currentUserNode == null) return;
+
+    // Calculate 1-hop radius - make it bigger to capture all nodes
+    double radius;
+    if (custom1HopRadius != null) {
+      radius = custom1HopRadius!;
+    } else {
+      // Calculate based on distance to furthest direct connection, then add extra padding
+      final directConnections = nodes.where((n) => n.isDirectConnection);
+      double maxDistance = 0;
+      
+      for (final node in directConnections) {
+        final distance = (node.position - currentUserNode!.position).distance;
+        maxDistance = math.max(maxDistance, distance);
+      }
+      
+      // Make it significantly bigger to capture all nodes with good margin
+      radius = maxDistance > 0 ? maxDistance + 80 : 200; // Add generous padding
+    }
+
+    // Draw red overlay circle with fill
+    final circlePaint = Paint()
+      ..color = Colors.red.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(currentUserNode!.position, radius, circlePaint);
+    
+    // Draw red border
+    final borderPaint = Paint()
+      ..color = Colors.red.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..isAntiAlias = true;
+    
+    canvas.drawCircle(currentUserNode!.position, radius, borderPaint);
+
+    // Add "Your connections" text above the circle
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: 'Your connections',
+        style: TextStyle(
+          color: Colors.red.withOpacity(0.8),
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          backgroundColor: Colors.white.withOpacity(0.9),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    
+    textPainter.layout();
+    
+    // Position text above the circle
+    final textPosition = Offset(
+      currentUserNode!.position.dx - textPainter.width / 2,
+      currentUserNode!.position.dy - radius - 25,
+    );
+    
+    // Draw text background
+    final textBgPaint = Paint()
+      ..color = Colors.white.withOpacity(0.9)
+      ..style = PaintingStyle.fill;
+    
+    final textBgRect = Rect.fromLTWH(
+      textPosition.dx - 4,
+      textPosition.dy - 2,
+      textPainter.width + 8,
+      textPainter.height + 4,
+    );
+    
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(textBgRect, const Radius.circular(4)),
+      textBgPaint,
+    );
+    
+    // Draw text
+    textPainter.paint(canvas, textPosition);
+  }
+
   @override
-  bool shouldRepaint(NetworkGraphPainter oldDelegate) => true;
+  bool shouldRepaint(NetworkGraphPainter oldDelegate) => 
+      show1HopCircle != oldDelegate.show1HopCircle ||
+      custom1HopRadius != oldDelegate.custom1HopRadius;
 }
 
 /// Painter for the background grid
