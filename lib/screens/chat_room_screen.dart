@@ -719,6 +719,46 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
+  /// Handle connection response (accept/decline)
+  Future<void> _handleConnectionResponse(String messageId, bool accept) async {
+    try {
+      final storage = context.read<StorageService>();
+
+      if (accept) {
+        await storage.respondToConnectionRequest(messageId, 'accept');
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Name card request accepted!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        await storage.respondToConnectionRequest(messageId, 'decline');
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Name card request declined'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to respond to request: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   /// Handle invitation response (accept/decline)
   Future<void> _handleInvitationResponse(String messageId, bool accept) async {
     try {
@@ -1026,6 +1066,84 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final currentUserId = storage.currentProfile?.id ?? '';
     final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
 
+    // Handle connection request messages
+    if (message.isConnectionRequest) {
+      final isFromMe = message.isMine;
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.contact_page, color: Colors.blue[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isFromMe
+                          ? 'You sent a name card request'
+                          : '${storage.getPeerById(otherUserId)?.name ?? 'Someone'} wants to collect your name card',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (!isFromMe) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _handleConnectionResponse(message.id, true),
+                      icon: const Icon(Icons.check),
+                      label: const Text('Accept'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _handleConnectionResponse(message.id, false),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Decline'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue[700]?.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Handle invitation messages with enhanced card
     if (message.isInvitation) {
       final isFromMe = message.isMine;
@@ -1057,12 +1175,90 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       );
     }
 
-    // Handle invitation response messages (system messages)
-    if (message.isInvitationResponse) {
+    // Handle connection request messages
+    if (message.isConnectionRequest) {
+      final isFromMe = message.isMine;
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.contact_page, color: Colors.blue[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isFromMe
+                          ? 'You sent a name card request'
+                          : '${storage.getPeerById(otherUserId)?.name ?? 'Someone'} wants to collect your name card',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (!isFromMe) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _handleConnectionResponse(message.id, true),
+                      icon: const Icon(Icons.check),
+                      label: const Text('Accept'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _handleConnectionResponse(message.id, false),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Decline'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue[700]?.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Handle connection response messages (system messages)
+    if (message.isConnectionResponse) {
       Color bgColor = Colors.green.withValues(alpha: 0.1);
       Color borderColor = Colors.green.withValues(alpha: 0.3);
       Color textColor = Colors.green[700]!;
-      IconData icon = Icons.celebration;
+      IconData icon = Icons.check_circle;
 
       if (message.text.contains('declined')) {
         bgColor = Colors.red.withValues(alpha: 0.1);
@@ -1120,47 +1316,58 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       );
     }
 
-    // Regular message styling
+    // Default message bubble for regular text messages
+    final isFromMe = message.isMine;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       child: Row(
-        mainAxisAlignment: message.isMine
+        mainAxisAlignment: isFromMe
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
-          Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.7,
+          if (!isFromMe) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundImage: otherUserId.isNotEmpty
+                  ? NetworkImage(
+                      storage.getPeerById(otherUserId)?.profileImageUrl ?? '',
+                    )
+                  : null,
+              child: otherUserId.isEmpty
+                  ? const Icon(Icons.person, size: 16)
+                  : null,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: message.isMine
-                  ? Theme.of(context).primaryColor
-                  : Colors.grey[300],
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message.text,
-                  style: TextStyle(
-                    color: message.isMine ? Colors.white : Colors.black87,
-                  ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+              decoration: BoxDecoration(
+                color: isFromMe
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey[300],
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                message.text,
+                style: TextStyle(
+                  color: isFromMe ? Colors.white : Colors.black87,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: message.isMine
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : Colors.black54,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
+          if (isFromMe) ...[
+            const SizedBox(width: 8),
+            CircleAvatar(
+              radius: 16,
+              backgroundImage: storage.currentProfile?.profileImagePath != null
+                  ? NetworkImage(storage.currentProfile!.profileImagePath!)
+                  : null,
+              child: storage.currentProfile?.profileImagePath == null
+                  ? const Icon(Icons.person, size: 16)
+                  : null,
+            ),
+          ],
         ],
       ),
     );

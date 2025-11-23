@@ -63,17 +63,10 @@ class IceBreaker {
   final String question;
   final String answer;
 
-  IceBreaker({
-    required this.question,
-    required this.answer,
-  });
+  IceBreaker({required this.question, required this.answer});
 }
 
-enum InvitationStatus {
-  pending,
-  accepted,
-  declined,
-}
+enum InvitationStatus { pending, accepted, declined }
 
 /// Model class representing a chat room for accepted meetups
 class ChatRoom {
@@ -124,7 +117,10 @@ class ChatRoom {
   }
 
   /// Get the other user's name (requires profile lookup)
-  String getOtherUserName(String currentUserId, Map<String, String> userIdToName) {
+  String getOtherUserName(
+    String currentUserId,
+    Map<String, String> userIdToName,
+  ) {
     final otherUserId = getOtherUserId(currentUserId);
     return userIdToName[otherUserId] ?? 'Unknown User';
   }
@@ -135,6 +131,8 @@ enum MessageType {
   text,
   invitation,
   invitationResponse,
+  connectionRequest,
+  connectionResponse,
   system,
 }
 
@@ -145,7 +143,8 @@ class ChatMessage {
   final bool isMine;
   final DateTime timestamp;
   final MessageType messageType; // Type of message
-  final Map<String, dynamic>? invitationData; // Invitation data for invitation messages
+  final Map<String, dynamic>?
+  invitationData; // Invitation data for invitation messages
   final List<IceBreaker>? iceBreakers; // Ice breakers for invitation messages
   final bool? isNameCardCollected; // Name card collection status
   final DateTime? responseDeadline; // Response deadline for invitations
@@ -191,17 +190,25 @@ class ChatMessage {
   }
 
   // Convenience getters for backward compatibility
-  bool get isSystemMessage => messageType == MessageType.system || messageType == MessageType.invitationResponse;
-  
+  bool get isSystemMessage =>
+      messageType == MessageType.system ||
+      messageType == MessageType.invitationResponse;
+
   bool get isInvitation => messageType == MessageType.invitation;
-  
-  bool get isInvitationResponse => messageType == MessageType.invitationResponse;
-  
+
+  bool get isInvitationResponse =>
+      messageType == MessageType.invitationResponse;
+
+  bool get isConnectionRequest => messageType == MessageType.connectionRequest;
+
+  bool get isConnectionResponse =>
+      messageType == MessageType.connectionResponse;
+
   String? get invitationStatus => invitationData?["status"] as String?;
-  
+
   bool get isPending => invitationStatus == "pending";
-  
+
   bool get isAccepted => invitationStatus == "accepted";
-  
+
   bool get isDeclined => invitationStatus == "declined";
 }

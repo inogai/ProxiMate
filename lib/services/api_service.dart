@@ -4,13 +4,14 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:built_collection/built_collection.dart';
-import 'package:built_value/json_object.dart';
+
 import 'package:dio/dio.dart';
 import 'package:openapi/openapi.dart';
 import '../models/profile.dart';
 import '../models/peer.dart';
 import '../models/meeting.dart';
 import '../models/activity.dart';
+import '../models/connection.dart';
 
 class ApiService {
   late UsersApi _usersApi;
@@ -18,8 +19,10 @@ class ApiService {
   late ActivitiesApi _activitiesApi;
   late ChatroomsApi _chatroomsApi;
   late MessagesApi _messagesApi;
+  late ConnectionsApi _connectionsApi;
   late DefaultApi _defaultApi;
   String _baseUrl;
+  String? _apiUserId; // Store API user ID
   final int _maxRetries;
   final Duration _timeout;
 
@@ -41,6 +44,7 @@ class ApiService {
       _activitiesApi = openapi.getActivitiesApi();
       _chatroomsApi = openapi.getChatroomsApi();
       _messagesApi = openapi.getMessagesApi();
+      _connectionsApi = openapi.getConnectionsApi();
       _defaultApi = openapi.getDefaultApi();
       _debugLog('API Service initialized with base URL: $_baseUrl');
     } catch (e) {
@@ -317,10 +321,10 @@ class ApiService {
     return Peer(
       id: userWithDistance.id.toString(),
       name: userWithDistance.displayname,
-      school: userWithDistance.school ?? '',
-      major: userWithDistance.major ?? '',
-      interests: userWithDistance.interests ?? '',
-      background: userWithDistance.bio ?? '',
+      school: userWithDistance.school,
+      major: userWithDistance.major,
+      interests: userWithDistance.interests,
+      background: userWithDistance.bio,
       profileImageUrl: userWithDistance.avatarUrl,
       distance: userWithDistance.distanceKm?.toDouble() ?? 0.0,
     );
@@ -644,6 +648,167 @@ class ApiService {
     return {'status': 'success', 'collected': true};
   }
 
+  /// Create a connection request
+  Future<Map<String, dynamic>> createConnectionRequest(
+    String chatRoomId,
+    int senderId,
+    int targetUserId,
+  ) async {
+    final connectionRequestRequest = ConnectionRequestRequest(
+      (b) => b
+        ..chatRoomId = chatRoomId
+        ..senderId = senderId
+        ..targetUserId = targetUserId,
+    );
+
+    final response = await _executeWithRetry(
+      () => _messagesApi
+          .createConnectionRequestApiV1MessagesConnectionRequestPost(
+            connectionRequestRequest: connectionRequestRequest,
+          ),
+      'Create Connection Request',
+    );
+
+    // Convert ChatMessageRead to Map
+    final chatMessage = response.data!;
+    return {
+      'id': chatMessage.id,
+      'chatRoomId': chatMessage.chatRoomId,
+      'senderId': chatMessage.senderId,
+      'text': chatMessage.text,
+      'messageType': chatMessage.messageType,
+      'timestamp': chatMessage.timestamp,
+    };
+  }
+
+  /// Respond to a connection request (accept/decline)
+  Future<Map<String, dynamic>> respondToConnectionRequest(
+    String messageId,
+    String action, // "accept" or "decline"
+    int responderId,
+  ) async {
+    final connectionRespondRequest = ConnectionRespondRequest(
+      (b) => b
+        ..action = action
+        ..responderId = responderId,
+    );
+
+    final response = await _executeWithRetry(
+      () => _messagesApi
+          .respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut(
+            messageId: messageId,
+            connectionRespondRequest: connectionRespondRequest,
+          ),
+      'Respond to Connection Request',
+    );
+
+    // Convert JsonObject to Map
+    if (response.data == null) {
+      return {'status': 'success', 'action': action};
+    }
+
+    // Handle JsonObject properly
+    final jsonObject = response.data;
+
+    // Always return a Map<String, dynamic>
+    if (jsonObject == null) {
+      return {'status': 'success', 'action': action};
+    }
+
+    // Try to convert JsonObject to Map
+    try {
+      // Try to serialize and deserialize to get a proper Map
+      final jsonString = jsonObject.toString();
+      final Map<String, dynamic> map = jsonDecode(jsonString);
+      return map;
+    } catch (e) {
+      // If conversion fails, return a success response
+      return {'status': 'success', 'action': action};
+    }
+  }
+
+  /// Get all connections for a user
+  Future<List<Connection>> getConnections() async {
+    final response = await _executeWithRetry(
+      () => _connectionsApi.getConnectionsApiV1ConnectionsGet(),
+      'Get Connections',
+    );
+
+    final connections = response.data;
+    if (connections == null) return [];
+
+    return connections.map((connectionRead) {
+      // Convert ConnectionRead to Connection
+      return Connection(
+        id: connectionRead.id.toString(),
+        fromProfileId: connectionRead.user1Id.toString(),
+        toProfileId: connectionRead.user2Id.toString(),
+        restaurant: '', // Not available in ConnectionRead
+        collectedAt:
+            DateTime.tryParse(connectionRead.createdAt) ?? DateTime.now(),
+        status: _parseConnectionStatus(connectionRead.status),
+        notes: null, // Not available in ConnectionRead
+      );
+    }).toList();
+  }
+
+  /// Get 1-hop (accepted) connections for a user
+  Future<Map<String, dynamic>> getOneHopConnections(int userId) async {
+    final response = await _executeWithRetry(
+      () => _connectionsApi.get1hopConnectionsApiV1Connections1hopUserIdGet(
+        userId: userId,
+      ),
+      'Get One Hop Connections',
+    );
+
+    // For now, return a simple response
+    // TODO: Parse JsonObject response properly when needed
+    return {'connections': <dynamic>[]};
+  }
+
+  /// Get 2-hop connections for a user
+  Future<Map<String, dynamic>> getTwoHopConnections(int userId) async {
+    final response = await _executeWithRetry(
+      () => _connectionsApi.get2hopConnectionsApiV1Connections2hopUserIdGet(
+        userId: userId,
+      ),
+      'Get Two Hop Connections',
+    );
+
+    // For now, return a simple response
+    // TODO: Parse JsonObject response properly when needed
+    return {'connections': <dynamic>[]};
+  }
+
+  /// Get pending connections for a user
+  Future<List<Connection>> getPendingConnections() async {
+    final response = await _executeWithRetry(
+      () =>
+          _connectionsApi.getPendingConnectionsApiV1ConnectionsPendingUserIdGet(
+            userId: int.tryParse(_apiUserId ?? '0') ?? 0,
+          ),
+      'Get Pending Connections',
+    );
+
+    // For now, return empty list as we can't parse the response properly
+    // TODO: Parse JsonObject response properly when needed
+    return [];
+  }
+
+  /// Parse connection status from API string to enum
+  ConnectionStatus _parseConnectionStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return ConnectionStatus.pending;
+      case 'accepted':
+        return ConnectionStatus.accepted;
+      case 'declined':
+        return ConnectionStatus.declined;
+      default:
+        return ConnectionStatus.pending;
+    }
+  }
+
   // Activity endpoints
 
   /// Create activity
@@ -721,6 +886,10 @@ class ApiService {
         return MessageType.invitation;
       case 'invitation_response':
         return MessageType.invitationResponse;
+      case 'connection_request':
+        return MessageType.connectionRequest;
+      case 'connection_response':
+        return MessageType.connectionResponse;
       case 'system':
         return MessageType.system;
       case 'text':

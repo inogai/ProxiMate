@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/peer.dart';
 import '../models/activity.dart';
+import '../models/meeting.dart';
 import '../services/storage_service.dart';
 import '../utils/toast_utils.dart';
 import 'activity_selection_screen.dart';
 import 'main_screen.dart';
+import 'chat_room_screen.dart';
 
 /// Detailed view of a peer's profile
 class PeerDetailScreen extends StatefulWidget {
@@ -23,9 +25,7 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Peer Profile'),
-      ),
+      appBar: AppBar(title: const Text('Peer Profile')),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -66,8 +66,8 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                   Text(
                     widget.peer.name,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -77,17 +77,27 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                       const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.location_on,
-                                color: Theme.of(context).colorScheme.primary, size: 20),
+                            Icon(
+                              Icons.location_on,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               '${widget.peer.distance.toStringAsFixed(1)} km',
@@ -111,9 +121,19 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
               child: Consumer<StorageService>(
                 builder: (context, storage, _) {
                   final currentProfile = storage.currentProfile;
-                  final userMajors = currentProfile?.major?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
-                  final userInterests = currentProfile?.interests?.split(',').map((e) => e.trim().toLowerCase()).toSet() ?? {};
-                  
+                  final userMajors =
+                      currentProfile?.major
+                          ?.split(',')
+                          .map((e) => e.trim().toLowerCase())
+                          .toSet() ??
+                      {};
+                  final userInterests =
+                      currentProfile?.interests
+                          ?.split(',')
+                          .map((e) => e.trim().toLowerCase())
+                          .toSet() ??
+                      {};
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -128,7 +148,10 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                         context,
                         icon: Icons.book,
                         title: 'Major',
-                        tags: widget.peer.major.split(',').map((e) => e.trim()).toList(),
+                        tags: widget.peer.major
+                            .split(',')
+                            .map((e) => e.trim())
+                            .toList(),
                         color: Colors.grey,
                         matchingTags: userMajors,
                       ),
@@ -137,7 +160,10 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                         context,
                         icon: Icons.favorite,
                         title: 'Interests',
-                        tags: widget.peer.interests.split(',').map((e) => e.trim()).toList(),
+                        tags: widget.peer.interests
+                            .split(',')
+                            .map((e) => e.trim())
+                            .toList(),
                         color: Colors.grey,
                         matchingTags: userInterests,
                       ),
@@ -149,28 +175,66 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                         content: widget.peer.background,
                       ),
                       const SizedBox(height: 32),
-                      // Action button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isSending ? null : _handleSendInvite,
-                          icon: _isSending
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.event),
-                          label: Text(_isSending
-                              ? 'Sending Invite...'
-                              : 'Send Activity Invitation'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                      // Action buttons
+                      Row(
+                        children: [
+                          // Collect Name Card button
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isSending
+                                  ? null
+                                  : _handleCollectNameCard,
+                              icon: _isSending
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.contact_page),
+                              label: Text(
+                                _isSending
+                                    ? 'Sending Request...'
+                                    : 'Collect Name Card',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                backgroundColor: Colors.blue,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 16),
+                          // Send Activity Invitation button
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isSending ? null : _handleSendInvite,
+                              icon: _isSending
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.event),
+                              label: Text(
+                                _isSending
+                                    ? 'Sending Invite...'
+                                    : 'Send Activity Invitation',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   );
@@ -204,9 +268,9 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
                 ),
               ],
             ),
@@ -215,7 +279,8 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
               spacing: 8,
               runSpacing: 8,
               children: tags.map((tag) {
-                final isMatch = matchingTags?.contains(tag.toLowerCase()) ?? false;
+                final isMatch =
+                    matchingTags?.contains(tag.toLowerCase()) ?? false;
                 return _buildTag(context, tag, isMatch ? Colors.orange : color);
               }).toList(),
             ),
@@ -233,8 +298,8 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
         color: isHighlighted ? Colors.orange.shade50 : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isHighlighted ? Colors.orange.shade300 : Colors.grey.shade400, 
-          width: 1
+          color: isHighlighted ? Colors.orange.shade300 : Colors.grey.shade400,
+          width: 1,
         ),
       ),
       child: Text(
@@ -267,17 +332,14 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              content,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+            Text(content, style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),
       ),
@@ -321,15 +383,99 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
     );
   }
 
-Future<void> _handleSendInvite() async {
+  Future<void> _handleCollectNameCard() async {
+    print('_handleCollectNameCard called for peer: ${widget.peer.name}');
+
+    setState(() {
+      _isSending = true;
+    });
+
+    try {
+      // Create a chat room first if needed
+      final storage = context.read<StorageService>();
+      final chatRooms = storage.chatRooms;
+
+      // Check if a chat room already exists with this peer
+      ChatRoom? existingChatRoom;
+      try {
+        existingChatRoom = chatRooms.firstWhere(
+          (room) =>
+              room.user1Id == widget.peer.id || room.user2Id == widget.peer.id,
+        );
+      } catch (e) {
+        // No existing chat room found
+      }
+
+      String chatRoomId;
+      if (existingChatRoom != null) {
+        chatRoomId = existingChatRoom.id;
+      } else {
+        // Create a new chat room for the connection request
+        // For now, we'll use a simple approach - in a real implementation,
+        // you might want to create a dedicated chat room for connection requests
+        chatRoomId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      }
+
+      print('Creating connection request with chat room ID: $chatRoomId');
+
+      // Create the connection request
+      await storage.createConnectionRequest(widget.peer, chatRoomId);
+
+      print('Connection request created successfully');
+
+      if (mounted) {
+        ToastUtils.showSuccess(
+          context,
+          'Name card request sent to ${widget.peer.name}!',
+        );
+
+        // Navigate to chat screen to see the request
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ChatRoomScreen(
+              chatRoom:
+                  existingChatRoom ??
+                  ChatRoom(
+                    id: chatRoomId,
+                    user1Id: storage.currentProfile?.id ?? '',
+                    user2Id: widget.peer.id,
+                    restaurant: 'Connection Request',
+                    createdAt: DateTime.now(),
+                  ),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error sending connection request: $e');
+
+      // Log the error
+      debugPrint(
+        'Failed to send connection request to ${widget.peer.name}: $e',
+      );
+
+      if (mounted) {
+        ToastUtils.showError(
+          context,
+          'Failed to send name card request: ${e.toString()}',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleSendInvite() async {
     print('_handleSendInvite called for peer: ${widget.peer.name}');
-    
+
     // First, show activity selection screen
     final selectedActivity = await Navigator.push<Activity>(
       context,
-      MaterialPageRoute(
-        builder: (context) => const ActivitySelectionScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const ActivitySelectionScreen()),
     );
 
     print('Activity selected: ${selectedActivity?.name}');
@@ -347,20 +493,21 @@ Future<void> _handleSendInvite() async {
     try {
       print('Calling sendInvitation...');
       await context.read<StorageService>().sendInvitation(
-            widget.peer,
-            selectedActivity.name, // Use activity name as restaurant for now
-          );
+        widget.peer,
+        selectedActivity.name, // Use activity name as restaurant for now
+      );
       print('sendInvitation completed successfully');
 
       if (mounted) {
         // Pop all routes and push MainScreen with invitations tab selected
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (context) => const MainScreen(initialIndex: 1), // 1 = Invitations tab
+            builder: (context) =>
+                const MainScreen(initialIndex: 1), // 1 = Invitations tab
           ),
           (route) => false,
         );
-        
+
         ToastUtils.showSuccess(
           context,
           'Invitation sent to ${widget.peer.name} for ${selectedActivity.name}!',
@@ -368,10 +515,10 @@ Future<void> _handleSendInvite() async {
       }
     } catch (e) {
       print('Error sending invitation: $e');
-      
+
       // Log the error
       debugPrint('Failed to send invitation to ${widget.peer.name}: $e');
-      
+
       if (mounted) {
         ToastUtils.showError(
           context,
@@ -384,6 +531,6 @@ Future<void> _handleSendInvite() async {
           _isSending = false;
         });
       }
-}
-}
+    }
+  }
 }

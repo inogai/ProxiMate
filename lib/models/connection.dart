@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 /// Connection status enum
-enum ConnectionStatus {
-  accepted,
-}
+enum ConnectionStatus { pending, accepted, declined }
 
 /// Represents a connection between two profiles
 @immutable
@@ -22,7 +20,7 @@ class Connection {
     required this.toProfileId,
     required this.restaurant,
     required this.collectedAt,
-    this.status = ConnectionStatus.accepted,
+    this.status = ConnectionStatus.pending,
     this.notes,
   });
 
@@ -67,7 +65,7 @@ class Connection {
       collectedAt: DateTime.parse(json['collectedAt'] as String),
       status: ConnectionStatus.values.firstWhere(
         (e) => e.name == json['status'],
-        orElse: () => ConnectionStatus.accepted,
+        orElse: () => ConnectionStatus.pending,
       ),
       notes: json['notes'] as String?,
     );
@@ -76,9 +74,7 @@ class Connection {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Connection &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is Connection && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;

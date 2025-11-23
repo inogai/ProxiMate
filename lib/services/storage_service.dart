@@ -2005,6 +2005,100 @@ class StorageService extends ChangeNotifier {
     }
   }
 
+  /// Create a connection request to a peer
+  Future<Map<String, dynamic>> createConnectionRequest(
+    Peer peer,
+    String chatRoomId,
+  ) async {
+    if (_currentProfile == null) {
+      throw Exception('No current profile set');
+    }
+
+    try {
+      final currentUserId = int.tryParse(_apiUserId ?? '0') ?? 0;
+      final targetUserId = int.tryParse(peer.id) ?? 0;
+
+      if (currentUserId == 0 || targetUserId == 0) {
+        throw Exception('Invalid user IDs for connection request');
+      }
+
+      final result = await _apiService.createConnectionRequest(
+        chatRoomId,
+        currentUserId,
+        targetUserId,
+      );
+
+      _debugLog('Connection request created: $result');
+      return result;
+    } catch (e) {
+      _debugLog('Failed to create connection request: $e');
+      rethrow;
+    }
+  }
+
+  /// Respond to a connection request (accept/decline)
+  Future<Map<String, dynamic>> respondToConnectionRequest(
+    String messageId,
+    String action, // "accept" or "decline"
+  ) async {
+    if (_currentProfile == null) {
+      throw Exception('No current profile set');
+    }
+
+    try {
+      final currentUserId = int.tryParse(_apiUserId ?? '0') ?? 0;
+
+      if (currentUserId == 0) {
+        throw Exception('Invalid user ID for connection response');
+      }
+
+      final result = await _apiService.respondToConnectionRequest(
+        messageId,
+        action,
+        currentUserId,
+      );
+
+      _debugLog('Connection request response: $result');
+      return result;
+    } catch (e) {
+      _debugLog('Failed to respond to connection request: $e');
+      rethrow;
+    }
+  }
+
+  /// Get all connections for the current user
+  Future<List<Connection>> getConnections() async {
+    if (_currentProfile == null) return [];
+
+    try {
+      final connections = await _apiService.getConnections();
+      _debugLog('Retrieved ${connections.length} connections');
+      return connections;
+    } catch (e) {
+      _debugLog('Failed to get connections: $e');
+      return [];
+    }
+  }
+
+  /// Get pending connections for the current user
+  Future<Map<String, dynamic>> getPendingConnections() async {
+    if (_currentProfile == null) return {'connections': <dynamic>[]};
+
+    try {
+      final currentUserId = int.tryParse(_apiUserId ?? '0') ?? 0;
+      if (currentUserId == 0) {
+        return {'connections': <dynamic>[]};
+      }
+
+      final connections = await _apiService.getPendingConnections();
+      _debugLog('Retrieved pending connections: $connections');
+      return {'connections': connections};
+    } catch (e) {
+      _debugLog('Failed to get pending connections: $e');
+      return {'connections': <dynamic>[]};
+    }
+  }
+
   /// Create connection from peer
   Future<void> collectNameCard(String invitationId) async {
     if (_currentProfile == null) return;
@@ -2027,7 +2121,7 @@ class StorageService extends ChangeNotifier {
     final alreadyConnected = _connections.any((c) => c.toProfileId == peer.id);
     if (alreadyConnected) return;
 
-    // Create or get profile for the peer
+    // Create or get profile for peer
     if (!_profiles.containsKey(peer.id)) {
       _profiles[peer.id] = Profile(
         id: peer.id,
