@@ -1058,77 +1058,82 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       (profile) => profile.id == otherUserId,
     );
 
-    // Don't show collect name card button if there's a pending or answered connection request
-    if (hasPendingConnectionRequest || hasAnsweredConnectionRequest) {
-      return const SizedBox.shrink();
-    }
+    // Build list of buttons to show based on criteria
+    List<Widget> buttons = [];
 
-    // Show collect name card / not good match buttons if there's an accepted invitation
-    if (acceptedInvitationMessage != null && !hasConnection) {
-      return Column(
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () =>
-                  _handleCollectNameCard(acceptedInvitationMessage!.id),
-              icon: const Icon(Icons.contacts),
-              label: const Text('Collect Name Card'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+    // Show collect name card / not good match buttons if there's an accepted invitation and no connection requests
+    if (acceptedInvitationMessage != null && 
+        !hasConnection && 
+        !hasPendingConnectionRequest && 
+        !hasAnsweredConnectionRequest) {
+      buttons.addAll([
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () =>
+                _handleCollectNameCard(acceptedInvitationMessage!.id),
+            icon: const Icon(Icons.contacts),
+            label: const Text('Collect Name Card'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () =>
-                  _handleNotGoodMatch(acceptedInvitationMessage!.id),
-              icon: const Icon(Icons.close),
-              label: const Text('Not Good Match'),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.grey.shade400),
-                foregroundColor: Colors.grey[700],
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () =>
+                _handleNotGoodMatch(acceptedInvitationMessage!.id),
+            icon: const Icon(Icons.close),
+            label: const Text('Not Good Match'),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.grey.shade400),
+              foregroundColor: Colors.grey[700],
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
-          const SizedBox(height: 8),
-        ],
-      );
+        ),
+        const SizedBox(height: 8),
+      ]);
     }
 
-    // Show send invitation button if no pending invitation and no connection yet
-    if (!_hasPendingInvitation() && !hasConnection) {
-      return Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 12),
-        child: OutlinedButton.icon(
-          onPressed: () => _showInvitationDialog(context),
-          icon: const Icon(Icons.restaurant_menu),
-          label: const Text('Send Invitation'),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: Theme.of(context).primaryColor),
-            foregroundColor: Theme.of(context).primaryColor,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+    // Show send invitation button if no pending invitation
+    if (!_hasPendingInvitation()) {
+      buttons.add(
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          child: OutlinedButton.icon(
+            onPressed: () => _showInvitationDialog(context),
+            icon: const Icon(Icons.restaurant_menu),
+            label: const Text('Send Invitation'),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Theme.of(context).primaryColor),
+              foregroundColor: Theme.of(context).primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
       );
     }
 
-    // Otherwise show nothing (pending invitation, connection request, or name card already collected)
+    // Return column with buttons if any, otherwise empty widget
+    if (buttons.isNotEmpty) {
+      return Column(children: buttons);
+    }
+
     return const SizedBox.shrink();
   }
 
