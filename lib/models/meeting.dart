@@ -10,7 +10,7 @@ class Invitation {
   final bool sentByMe; // true if user sent, false if received
   final List<IceBreaker> iceBreakers; // Ice-breaking questions
   final bool nameCardCollected; // Whether name card was collected
-  final bool chatOpened; // Whether the chat has been opened at least once
+  final bool chatOpened; // Whether chat has been opened at least once
 
   Invitation({
     required this.id,
@@ -56,6 +56,7 @@ class Invitation {
 
   bool get isAccepted => status == InvitationStatus.accepted;
   bool get isPending => status == InvitationStatus.pending;
+  bool get isDeclined => status == InvitationStatus.declined;
 }
 
 /// Ice-breaking question for conversation starters

@@ -1,5 +1,5 @@
 import 'package:anyhow/rust.dart';
-import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/meeting.dart';
@@ -25,6 +25,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _isLoading = false;
   bool _isChatRoomClosed = false;
 
+  /// Get the updated chat room from storage to ensure we have the latest data
+  ChatRoom? get updatedChatRoom {
+    if (widget.chatRoom == null) return null;
+
+    final storage = context.read<StorageService>();
+    return storage.chatRooms.firstWhere(
+      (c) => c.id == widget.chatRoom!.id,
+      orElse: () => widget.chatRoom!,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -43,7 +54,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   /// Refresh messages for current chat room
   Future<void> _refreshMessages() async {
-    if (widget.chatRoom == null) return;
+    final chatRoom = updatedChatRoom;
+    if (chatRoom == null) return;
 
     setState(() {
       _isLoading = true;
@@ -51,7 +63,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     try {
       final storage = context.read<StorageService>();
-      await storage.refreshChatRoomMessages(widget.chatRoom!.id);
+      await storage.refreshChatRoomMessages(chatRoom.id);
     } catch (e) {
       // NEW: Handle 404 gracefully
       if (e.toString().contains('404') || e.toString().contains('not found')) {
@@ -85,14 +97,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (_messageController.text.trim().isEmpty) return;
 
     final storage = context.read<StorageService>();
-    ChatRoom? currentChatRoom;
+    ChatRoom? currentChatRoom = updatedChatRoom;
 
-    if (widget.chatRoom != null) {
-      currentChatRoom = storage.chatRooms.firstWhere(
-        (c) => c.id == widget.chatRoom!.id,
-        orElse: () => widget.chatRoom!,
-      );
-    } else if (widget.invitation != null) {
+    if (currentChatRoom == null && widget.invitation != null) {
       // Find chat room by user pair
       final currentUserId = storage.currentProfile?.id ?? '';
       currentChatRoom = storage.chatRooms
@@ -147,14 +154,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    ChatRoom? chatRoom;
+    ChatRoom? chatRoom = updatedChatRoom;
 
-    if (widget.chatRoom != null) {
-      chatRoom = storage.chatRooms.firstWhere(
-        (c) => c.id == widget.chatRoom!.id,
-        orElse: () => widget.chatRoom!,
-      );
-    } else if (widget.invitation != null) {
+    if (chatRoom == null && widget.invitation != null) {
       // Try to find existing chat room for this invitation by user pair
       final currentUserId = storage.currentProfile?.id ?? '';
       chatRoom = storage.chatRooms
@@ -167,7 +169,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
 
     // Auto-scroll to bottom when new messages arrive
-    if (chatRoom != null && chatRoom!.messages.isNotEmpty) {
+    if (chatRoom != null && chatRoom.messages.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
@@ -753,47 +755,42 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     String newStatus,
   ) {
     final storage = context.read<StorageService>();
+    final chatRoom = updatedChatRoom;
 
-    // Find the chat room containing this message
-    ChatRoom? targetChatRoom;
-    int chatRoomIndex = -1;
+    if (chatRoom == null) return;
 
-    for (int i = 0; i < storage.chatRooms.length; i++) {
-      final chatRoom = storage.chatRooms[i];
-      if (chatRoom.messages.any((msg) => msg.id == messageId)) {
-        targetChatRoom = chatRoom;
-        chatRoomIndex = i;
-        break;
-      }
-    }
+    // Find the chat room index in storage
+    int chatRoomIndex = storage.chatRooms.indexWhere(
+      (cr) => cr.id == chatRoom.id,
+    );
 
-    if (targetChatRoom != null && chatRoomIndex != -1) {
-      final messageIndex = targetChatRoom.messages.indexWhere(
-        (msg) => msg.id == messageId,
+    if (chatRoomIndex == -1) return;
+
+    final messageIndex = chatRoom.messages.indexWhere(
+      (msg) => msg.id == messageId,
+    );
+
+    if (messageIndex != -1) {
+      // Create updated message with new status
+      final originalMessage = chatRoom.messages[messageIndex];
+      final updatedMessage = originalMessage.copyWith(
+        invitationData: {
+          ...originalMessage.invitationData ?? {},
+          'status': newStatus,
+        },
       );
 
-      if (messageIndex != -1) {
-        // Create updated message with new status
-        final originalMessage = targetChatRoom.messages[messageIndex];
-        final updatedMessage = originalMessage.copyWith(
-          invitationData: {
-            ...originalMessage.invitationData ?? {},
-            'status': newStatus,
-          },
-        );
+      // Update messages list
+      final updatedMessages = [...chatRoom.messages];
+      updatedMessages[messageIndex] = updatedMessage;
 
-        // Update messages list
-        final updatedMessages = [...targetChatRoom.messages];
-        updatedMessages[messageIndex] = updatedMessage;
+      // Update chat room in storage
+      storage.chatRooms[chatRoomIndex] = chatRoom.copyWith(
+        messages: updatedMessages,
+      );
 
-        // Update chat room in storage
-        storage.chatRooms[chatRoomIndex] = targetChatRoom.copyWith(
-          messages: updatedMessages,
-        );
-
-        // Trigger UI update by refreshing messages
-        _refreshMessages();
-      }
+      // Trigger UI update by refreshing messages
+      _refreshMessages();
     }
   }
 
@@ -853,47 +850,42 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   /// Update local message status immediately after successful API call
   void _updateLocalMessageStatus(String messageId, String newStatus) {
     final storage = context.read<StorageService>();
+    final chatRoom = updatedChatRoom;
 
-    // Find the chat room containing this message
-    ChatRoom? targetChatRoom;
-    int chatRoomIndex = -1;
+    if (chatRoom == null) return;
 
-    for (int i = 0; i < storage.chatRooms.length; i++) {
-      final chatRoom = storage.chatRooms[i];
-      if (chatRoom.messages.any((msg) => msg.id == messageId)) {
-        targetChatRoom = chatRoom;
-        chatRoomIndex = i;
-        break;
-      }
-    }
+    // Find the chat room index in storage
+    int chatRoomIndex = storage.chatRooms.indexWhere(
+      (cr) => cr.id == chatRoom.id,
+    );
 
-    if (targetChatRoom != null && chatRoomIndex != -1) {
-      final messageIndex = targetChatRoom.messages.indexWhere(
-        (msg) => msg.id == messageId,
+    if (chatRoomIndex == -1) return;
+
+    final messageIndex = chatRoom.messages.indexWhere(
+      (msg) => msg.id == messageId,
+    );
+
+    if (messageIndex != -1) {
+      // Create updated message with new status
+      final originalMessage = chatRoom.messages[messageIndex];
+      final updatedMessage = originalMessage.copyWith(
+        invitationData: {
+          ...originalMessage.invitationData ?? {},
+          'status': newStatus,
+        },
       );
 
-      if (messageIndex != -1) {
-        // Create updated message with new status
-        final originalMessage = targetChatRoom.messages[messageIndex];
-        final updatedMessage = originalMessage.copyWith(
-          invitationData: {
-            ...originalMessage.invitationData ?? {},
-            'status': newStatus,
-          },
-        );
+      // Update messages list
+      final updatedMessages = [...chatRoom.messages];
+      updatedMessages[messageIndex] = updatedMessage;
 
-        // Update messages list
-        final updatedMessages = [...targetChatRoom.messages];
-        updatedMessages[messageIndex] = updatedMessage;
+      // Update chat room in storage
+      storage.chatRooms[chatRoomIndex] = chatRoom.copyWith(
+        messages: updatedMessages,
+      );
 
-        // Update chat room in storage
-        storage.chatRooms[chatRoomIndex] = targetChatRoom.copyWith(
-          messages: updatedMessages,
-        );
-
-        // Trigger UI update by refreshing messages
-        _refreshMessages();
-      }
+      // Trigger UI update by refreshing messages
+      _refreshMessages();
     }
   }
 
@@ -901,7 +893,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Future<void> _handleCollectNameCard(String messageId) async {
     final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
-    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+    final chatRoom = updatedChatRoom;
+
+    final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
     print('!! Collecting name card for user: $otherUserId');
 
@@ -974,7 +968,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     try {
       final storage = context.read<StorageService>();
       final currentUserId = storage.currentProfile?.id ?? '';
-      final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+      final chatRoom = updatedChatRoom;
+      final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
       // Call with peer ID instead of message ID
       await storage.markNotGoodMatch(otherUserId);
@@ -1011,7 +1006,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _hasPendingInvitation() {
     final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
-    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+
+    final chatRoom = updatedChatRoom;
+    final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
     // Check if there are any pending invitations between these users
     return storage.invitations.any(
@@ -1026,12 +1023,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildActionButtons() {
     final storage = context.watch<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
-    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+    final chatRoom = updatedChatRoom;
+    final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
     // Check if there's an accepted invitation with uncollected name card
     ChatMessage? acceptedInvitationMessage;
-    if (widget.chatRoom != null) {
-      for (final message in widget.chatRoom!.messages) {
+
+    if (chatRoom != null && chatRoom.messages.isNotEmpty) {
+      print(
+        "!! chatRoom.messages.length: ${chatRoom.messages.first.invitationData}",
+      );
+
+      for (final message in chatRoom.messages) {
         if (message.isInvitation &&
             message.isAccepted &&
             !(message.isNameCardCollected ?? false)) {
@@ -1043,6 +1046,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     final hasConnection = storage.connectedProfiles.any(
       (profile) => profile.id == otherUserId,
+    );
+
+    print(
+      '!! Building action buttons - acceptedInvitationMessage: ${acceptedInvitationMessage != null}, hasConnection: $hasConnection',
     );
 
     // Show collect name card / not good match buttons if there's an accepted invitation
@@ -1118,7 +1125,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void _showInvitationDialog(BuildContext context) {
     final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
-    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+    final chatRoom = updatedChatRoom;
+    final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
     final restaurantController = TextEditingController();
     String? selectedActivityId;
     bool isCreating = false;
@@ -1241,7 +1249,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildMessage(ChatMessage message) {
     final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
-    final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
+    final chatRoom = updatedChatRoom;
+    final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
     // Handle connection request messages
     if (message.isConnectionRequest) {
