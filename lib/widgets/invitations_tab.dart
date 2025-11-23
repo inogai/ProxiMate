@@ -4,6 +4,8 @@ import '../services/storage_service.dart';
 import '../models/meeting.dart';
 import '../models/profile.dart';
 import '../screens/chat_room_screen.dart';
+import 'dart:async';
+import 'package:dio/dio.dart';
 
 /// Tab showing chat rooms as a contacts list with chat-style interface
 class InvitationsTab extends StatefulWidget {
@@ -13,86 +15,238 @@ class InvitationsTab extends StatefulWidget {
   State<InvitationsTab> createState() => _InvitationsTabState();
 }
 
-class _InvitationsTabState extends State<InvitationsTab> {
-  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
+class _InvitationsTabState extends State<InvitationsTab>
+    with WidgetsBindingObserver {
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
   bool _isRefreshing = false;
+  bool _isOffline = false;
+  int _currentRetryInterval = 5;
+  Timer? _autoRefreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopAutoRefresh();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _startAutoRefresh();
+    } else if (state == AppLifecycleState.paused) {
+      _stopAutoRefresh();
+    }
+  }
+
+  void _startAutoRefresh() {
+    _stopAutoRefresh(); // Ensure no duplicate timers
+    _autoRefreshTimer = Timer.periodic(
+      Duration(seconds: _currentRetryInterval),
+      (timer) {
+        _refreshChats(isAutoRefresh: true);
+      },
+    );
+  }
+
+  void _stopAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = null;
+  }
+
+  void _increaseRetryInterval() {
+    if (_currentRetryInterval < 30) {
+      _currentRetryInterval = (_currentRetryInterval * 2).clamp(5, 30);
+    }
+    _restartAutoRefresh();
+  }
+
+  void _resetRetryIntervals() {
+    _currentRetryInterval = 5;
+    _restartAutoRefresh();
+  }
+
+  void _restartAutoRefresh() {
+    _stopAutoRefresh();
+    _startAutoRefresh();
+  }
+
+  bool _isNetworkError(dynamic error) {
+    if (error is DioException) {
+      return error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.unknown;
+    }
+    return error.toString().contains('SocketException') ||
+        error.toString().contains('Connection refused') ||
+        error.toString().contains('Network is unreachable');
+  }
+
+  void _showOfflineBanner() {
+    if (!_isOffline) {
+      setState(() {
+        _isOffline = true;
+      });
+    }
+  }
+
+  void _hideOfflineBanner() {
+    if (_isOffline) {
+      setState(() {
+        _isOffline = false;
+      });
+    }
+  }
+
+  Widget _buildOfflineBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.orange,
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Offline - Retrying every ${_currentRetryInterval}s...',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    
+
     // Get chat rooms
     final chatRooms = storage.chatRooms;
     final currentUserId = storage.currentProfile?.id ?? '';
-    
+
     // Sort by most recent first
     final sortedChatRooms = List<ChatRoom>.from(chatRooms)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chats'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          if (_isRefreshing)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                ),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refreshChats,
-              tooltip: 'Refresh chats',
-            ),
-        ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, thickness: 1),
-        ),
-      ),
       backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        key: _refreshIndicatorKey,
-        onRefresh: _refreshChats,
-        child: sortedChatRooms.isEmpty
-            ? _buildEmptyState(context)
-            : ListView.builder(
-                padding: EdgeInsets.zero,
-                itemCount: sortedChatRooms.length,
-                itemBuilder: (context, index) {
-                  final chatRoom = sortedChatRooms[index];
-                  return _buildChatRoomContact(context, chatRoom, storage, currentUserId);
-                },
-              ),
+      body: Column(
+        children: [
+          // Offline banner (if needed)
+          if (_isOffline) _buildOfflineBanner(),
+          // Main content
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  title: const Text('Chats'),
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  floating: false,
+                  pinned: true,
+                  actions: [
+                    if (_isRefreshing)
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.black,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed: () => _refreshChats(isAutoRefresh: false),
+                        tooltip: 'Refresh chats',
+                      ),
+                  ],
+                  bottom: const PreferredSize(
+                    preferredSize: Size.fromHeight(1),
+                    child: Divider(height: 1, thickness: 1),
+                  ),
+                ),
+                SliverFillRemaining(
+                  child: RefreshIndicator(
+                    key: _refreshIndicatorKey,
+                    onRefresh: () => _refreshChats(isAutoRefresh: false),
+                    child: sortedChatRooms.isEmpty
+                        ? _buildEmptyState(context)
+                        : ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: sortedChatRooms.length,
+                            itemBuilder: (context, index) {
+                              final chatRoom = sortedChatRooms[index];
+                              return _buildChatRoomContact(
+                                context,
+                                chatRoom,
+                                storage,
+                                currentUserId,
+                              );
+                            },
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   /// Refresh chats from server
-  Future<void> _refreshChats() async {
-    setState(() {
-      _isRefreshing = true;
-    });
+  Future<void> _refreshChats({bool isAutoRefresh = false}) async {
+    if (!isAutoRefresh) {
+      setState(() {
+        _isRefreshing = true;
+      });
+    }
 
     try {
       final storage = context.read<StorageService>();
       await storage.refreshChatRooms();
+
+      // If we were offline and now succeeded, hide offline banner
+      if (_isOffline) {
+        _hideOfflineBanner();
+        _resetRetryIntervals();
+      }
     } catch (e) {
-      print('Error refreshing chats: $e');
+      debugPrint('Error refreshing chats: $e');
+
+      // Check if this is a network error
+      if (_isNetworkError(e)) {
+        _showOfflineBanner();
+        _increaseRetryInterval();
+      }
     } finally {
-      setState(() {
-        _isRefreshing = false;
-      });
+      if (!isAutoRefresh) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
     }
   }
 
@@ -127,9 +281,9 @@ class _InvitationsTabState extends State<InvitationsTab> {
             Text(
               'Accept invitations to start chatting here',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             Text(
@@ -154,14 +308,15 @@ class _InvitationsTabState extends State<InvitationsTab> {
   ) {
     // Get the other user's information
     final otherUserId = chatRoom.getOtherUserId(currentUserId);
-    
+
     // Use FutureBuilder to handle async profile fetching
     return FutureBuilder<Profile?>(
       future: storage.getProfileById(otherUserId),
       builder: (context, snapshot) {
         String peerName = 'Unknown User';
-        
-        if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
           peerName = snapshot.data!.userName;
         } else {
           // Fallback to nearby peers if profile not found
@@ -170,7 +325,7 @@ class _InvitationsTabState extends State<InvitationsTab> {
             peerName = peer.name;
           }
         }
-        
+
         // Get last message for preview
         String lastMessage = 'Start chatting!';
         DateTime lastMessageTime = chatRoom.createdAt;
@@ -181,13 +336,16 @@ class _InvitationsTabState extends State<InvitationsTab> {
             lastMessageTime = lastMsg.timestamp;
           }
         }
-        
+
         return Column(
           children: [
             InkWell(
               onTap: () => _handleChatRoomTap(context, chatRoom),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -205,7 +363,7 @@ class _InvitationsTabState extends State<InvitationsTab> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    
+
                     // Content
                     Expanded(
                       child: Column(
@@ -233,7 +391,7 @@ class _InvitationsTabState extends State<InvitationsTab> {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          
+
                           // Last message preview
                           Text(
                             lastMessage,
@@ -245,7 +403,7 @@ class _InvitationsTabState extends State<InvitationsTab> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          
+
                           // Restaurant info (if available)
                           if (chatRoom.restaurant.isNotEmpty) ...[
                             const SizedBox(height: 2),
@@ -283,10 +441,6 @@ class _InvitationsTabState extends State<InvitationsTab> {
     );
   }
 
-  
-
-  
-
   String _getInitials(String name) {
     final parts = name.trim().split(' ');
     if (parts.length >= 2) {
@@ -294,8 +448,6 @@ class _InvitationsTabState extends State<InvitationsTab> {
     }
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
-
-
 
   String _formatTime(DateTime date) {
     final now = DateTime.now();

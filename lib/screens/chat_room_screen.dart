@@ -1024,7 +1024,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   /// Build action buttons based on current state
   Widget _buildActionButtons() {
-    final storage = context.read<StorageService>();
+    final storage = context.watch<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
     final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
 
