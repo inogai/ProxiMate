@@ -204,7 +204,12 @@ class ChatMessage {
   bool get isConnectionResponse =>
       messageType == MessageType.connectionResponse;
 
-  String? get invitationStatus => invitationData?["status"] as String?;
+  String? get invitationStatus =>
+      isInvitation ? (invitationData?["status"]) : null;
+
+  String? get connectionStatus => isConnectionRequest || isConnectionResponse
+      ? (invitationData?["status"])
+      : null;
 
   bool get isPending => invitationStatus == "pending";
 

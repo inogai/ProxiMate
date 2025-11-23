@@ -1041,8 +1041,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       }
     }
 
+    final hasConnection = storage.connectedProfiles.any(
+      (profile) => profile.id == otherUserId,
+    );
+
     // Show collect name card / not good match buttons if there's an accepted invitation
-    if (acceptedInvitationMessage != null) {
+    if (acceptedInvitationMessage != null && !hasConnection) {
       return Column(
         children: [
           SizedBox(
@@ -1243,7 +1247,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (message.isConnectionRequest) {
       final isFromMe = message.isMine;
 
-      final status = message.['status'] as String? ?? 'pending';
+      // TODO: improve handling
+      final status = message.invitationData?['status'] as String? ?? 'pending';
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),

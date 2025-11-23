@@ -27,7 +27,7 @@ class ApiService {
   final Duration _timeout;
 
   ApiService({
-    String baseUrl = 'http://localhost:8000',
+    String baseUrl = 'http://localhost:8000', // Local development API URL
     int maxRetries = 3,
     Duration timeout = const Duration(seconds: 30),
   }) : _baseUrl = baseUrl,
@@ -345,7 +345,7 @@ class ApiService {
     DateTime parsedCreatedAt;
     try {
       parsedCreatedAt = DateTime.parse(chatRoomRead.createdAt);
-      // Assume the timestamp is in UTC and convert to local
+      // Assume timestamp is in UTC and convert to local
       if (parsedCreatedAt.isUtc) {
         parsedCreatedAt = parsedCreatedAt.toLocal();
       }
@@ -376,7 +376,7 @@ class ApiService {
     DateTime parsedTimestamp;
     try {
       parsedTimestamp = DateTime.parse(messageRead.timestamp);
-      // Assume the timestamp is in UTC and convert to local
+      // Assume timestamp is in UTC and convert to local
       if (parsedTimestamp.isUtc) {
         parsedTimestamp = parsedTimestamp.toLocal();
       }
@@ -427,7 +427,7 @@ class ApiService {
     DateTime parsedCreatedAt;
     try {
       parsedCreatedAt = DateTime.parse(activityRead.createdAt);
-      // Assume the timestamp is in UTC and convert to local
+      // Assume timestamp is in UTC and convert to local
       if (parsedCreatedAt.isUtc) {
         parsedCreatedAt = parsedCreatedAt.toLocal();
       }
@@ -790,7 +790,7 @@ class ApiService {
       'Get Pending Connections',
     );
 
-    // For now, return empty list as we can't parse the response properly
+    // For now, return empty list as we can't parse response properly
     // TODO: Parse JsonObject response properly when needed
     return [];
   }

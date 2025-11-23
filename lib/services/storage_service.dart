@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:anyhow/rust.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:async';
@@ -16,20 +15,20 @@ import 'location_service.dart';
 import 'package:openapi/openapi.dart';
 import 'package:dio/dio.dart';
 import 'package:built_collection/built_collection.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Storage service with persistent data using shared_preferences and API integration
+/// Storage service with API-only integration (no local fallbacks)
 class StorageService extends ChangeNotifier {
-  static const String _keyCurrentProfile = 'current_profile';
-  static const String _keyConnections = 'connections';
-  static const String _keyProfiles = 'profiles';
   static const String _keyApiUserId = 'api_user_id';
 
   final ApiService _apiService = ApiService();
   late LocationService _locationService;
   Timer? _invitationFetchTimer;
   Timer? _messageFetchTimer;
+  Timer? _connectionSyncTimer; // Timer for connection synchronization
+  Timer? _nearbyPeersTimer; // Timer for nearby peers polling
+  Timer? _activitiesTimer; // Timer for activities polling
   Profile? _currentProfile;
-  Map<String, Profile> _profiles = {};
   List<Connection> _connections = [];
   List<Peer> _nearbyPeers = [];
   List<Invitation> _invitations = [];
@@ -42,6 +41,9 @@ class StorageService extends ChangeNotifier {
   String? _apiUserId; // Store API user ID for backend integration
   final Map<String, DateTime> _lastMessageFetch =
       {}; // Track last fetch time per chat room
+  DateTime? _lastConnectionSync; // Track last connection sync time
+  DateTime? _lastNearbyPeersSync; // Track last nearby peers sync time
+  DateTime? _lastActivitiesSync; // Track last activities sync time
 
   Profile? get currentProfile => _currentProfile;
   List<Connection> get connections => _connections;
@@ -74,6 +76,50 @@ class StorageService extends ChangeNotifier {
     _messageFetchTimer = null;
   }
 
+  /// Start connection synchronization polling
+  void _startConnectionSync() {
+    _connectionSyncTimer?.cancel();
+    _connectionSyncTimer = Timer.periodic(const Duration(seconds: 60), (
+      _,
+    ) async {
+      await _syncConnections();
+    });
+  }
+
+  /// Stop connection synchronization polling
+  void _stopConnectionSync() {
+    _connectionSyncTimer?.cancel();
+    _connectionSyncTimer = null;
+  }
+
+  /// Start nearby peers polling
+  void _startNearbyPeersPolling() {
+    _nearbyPeersTimer?.cancel();
+    _nearbyPeersTimer = Timer.periodic(const Duration(seconds: 45), (_) async {
+      await _syncNearbyPeers();
+    });
+  }
+
+  /// Stop nearby peers polling
+  void _stopNearbyPeersPolling() {
+    _nearbyPeersTimer?.cancel();
+    _nearbyPeersTimer = null;
+  }
+
+  /// Start activities polling
+  void _startActivitiesPolling() {
+    _activitiesTimer?.cancel();
+    _activitiesTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
+      await _syncActivities();
+    });
+  }
+
+  /// Stop activities polling
+  void _stopActivitiesPolling() {
+    _activitiesTimer?.cancel();
+    _activitiesTimer = null;
+  }
+
   /// Fetch new messages for all chat rooms
   Future<void> _fetchNewMessages() async {
     if (_currentProfile == null || _apiUserId == null) return;
@@ -83,9 +129,169 @@ class StorageService extends ChangeNotifier {
         await _fetchMessagesForChatRoom(chatRoom.id);
       }
     } catch (e) {
-      // Silently handle errors to avoid disrupting UI
-      print('Error fetching messages: $e');
+      // Propagate errors to UI instead of silently handling them
+      _debugLog('Error fetching messages: $e');
+      rethrow;
     }
+  }
+
+  /// Synchronize connections with API
+  Future<void> _syncConnections() async {
+    if (_currentProfile == null || _apiUserId == null) return;
+
+    try {
+      _debugLog('Syncing connections with API...');
+
+      // Fetch latest connections from API (authoritative source only)
+      final apiConnections = await _apiService.getConnections();
+
+      // Detect changes by comparing with previous state
+      final hasChanges =
+          _connections.length != apiConnections.length ||
+          !_connections.every(
+            (local) => apiConnections.any(
+              (api) => api.id == local.id && api.status == local.status,
+            ),
+          );
+
+      if (hasChanges) {
+        _connections = apiConnections;
+        notifyListeners();
+        _debugLog(
+          'Connections updated: ${_connections.length} total connections',
+        );
+      }
+
+      _lastConnectionSync = DateTime.now();
+    } catch (e) {
+      _debugLog('Failed to sync connections: $e');
+      rethrow; // Propagate errors instead of continuing with existing data
+    }
+  }
+
+  /// Synchronize nearby peers with API
+  Future<void> _syncNearbyPeers() async {
+    if (_currentProfile == null || _apiUserId == null) return;
+
+    try {
+      _debugLog('Syncing nearby peers with API...');
+
+      // Get current user location
+      final currentPosition = await _locationService.getCurrentLocation();
+      if (currentPosition == null) {
+        _debugLog('Cannot sync nearby peers: unable to get current location');
+        return;
+      }
+
+      // Update current user's location
+      final userId = int.parse(_apiUserId!);
+      await _locationService.updateLocation(userId);
+
+      // Search for nearby users using API endpoint
+      final nearbyUsersWithDistance = await _apiService.getNearbyUsers(
+        currentPosition.latitude,
+        currentPosition.longitude,
+        radiusKm: 5.0,
+        limit: 20,
+      );
+
+      // Convert UserReadWithDistance objects to Peer objects
+      final peers = nearbyUsersWithDistance
+          .where(
+            (userWithDistance) => userWithDistance.id != userId,
+          ) // Exclude self
+          .map(
+            (userWithDistance) =>
+                _apiService.userReadWithDistanceToPeer(userWithDistance),
+          )
+          .map((peer) => _applyMatchScore(peer))
+          .toList();
+
+      // Sort by distance and match score
+      peers.sort((a, b) {
+        // Primary sort by distance
+        final distanceCompare = a.distance.compareTo(b.distance);
+        if (distanceCompare != 0) return distanceCompare;
+
+        // Secondary sort by match score (descending)
+        return b.matchScore.compareTo(a.matchScore);
+      });
+
+      // Detect changes by comparing with previous state
+      final hasChanges =
+          _nearbyPeers.length != peers.length ||
+          !_nearbyPeers.every(
+            (local) => peers.any((peer) => peer.id == local.id),
+          );
+
+      if (hasChanges) {
+        _nearbyPeers = peers;
+        notifyListeners();
+        _debugLog('Nearby peers updated: ${_nearbyPeers.length} total peers');
+      }
+
+      _lastNearbyPeersSync = DateTime.now();
+    } catch (e) {
+      _debugLog('Failed to sync nearby peers: $e');
+      rethrow; // Propagate errors instead of continuing with existing data
+    }
+  }
+
+  /// Synchronize activities with API
+  Future<void> _syncActivities() async {
+    if (_currentProfile == null || _apiUserId == null) return;
+
+    try {
+      _debugLog('Syncing activities with API...');
+      final apiActivities = await _apiService.getActivities();
+
+      // Convert API activities to local Activity objects
+      final activities = apiActivities.map((apiActivity) {
+        return _apiService.activityReadToActivity(apiActivity);
+      }).toList();
+
+      // Detect changes by comparing with previous state
+      final hasChanges =
+          _activities.length != activities.length ||
+          !_activities.every(
+            (local) => activities.any((api) => api.id == local.id),
+          );
+
+      if (hasChanges) {
+        _activities = activities;
+
+        // Auto-select first activity if none is selected
+        if (_selectedActivityId == null && _activities.isNotEmpty) {
+          _selectedActivityId = _activities.first.id.toString();
+          _debugLog(
+            'Auto-selected activity: ${_activities.first.name} (ID: ${_activities.first.id})',
+          );
+        }
+
+        notifyListeners();
+        _debugLog('Activities updated: ${_activities.length} total activities');
+      }
+
+      _lastActivitiesSync = DateTime.now();
+    } catch (e) {
+      _debugLog('Failed to sync activities: $e');
+      rethrow; // Propagate errors instead of continuing with existing data
+    }
+  }
+
+  /// Force immediate connection sync
+  Future<void> syncConnectionsNow() async {
+    await _syncConnections();
+  }
+
+  /// Force immediate nearby peers sync
+  Future<void> syncNearbyPeersNow() async {
+    await _syncNearbyPeers();
+  }
+
+  /// Force immediate activities sync
+  Future<void> syncActivitiesNow() async {
+    await _syncActivities();
   }
 
   /// Fetch messages for a specific chat room
@@ -183,7 +389,7 @@ class StorageService extends ChangeNotifier {
             _apiService.chatMessageReadToChatMessage(messageRead, isMine),
           );
         } else if (existingMessage.id != messageRead.id) {
-          // Found by content match but ID differs - update the local message with server ID and timestamp
+          // Found by content match but ID differs - update: local message with server ID and timestamp
           DateTime serverTimestampLocal;
           try {
             final parsedTimestamp = DateTime.parse(messageRead.timestamp);
@@ -248,12 +454,12 @@ class StorageService extends ChangeNotifier {
             // Find all messages in chat room (current + new)
             final allMessages = [...currentMessages, ...newMessages];
 
-            // Find the invitation message with matching invitationId
+            // Find: invitation message with matching invitationId
             for (int i = 0; i < allMessages.length; i++) {
               final message = allMessages[i];
               if (message.messageType == MessageType.invitation &&
                   message.invitationId == invitationId) {
-                // Update the invitation message's status
+                // Update: invitation message's status
                 if (message.invitationData != null) {
                   final updatedInvitationMessage = message.copyWith(
                     invitationData: {
@@ -274,7 +480,7 @@ class StorageService extends ChangeNotifier {
                     'Updated invitation message ${message.id} status to $responseStatus',
                   );
                 }
-                break; // Found and updated the matching invitation
+                break; // Found and updated: matching invitation
               }
             }
           }
@@ -294,16 +500,15 @@ class StorageService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error fetching messages for chat room $chatRoomId: $e');
+      _debugLog('Error fetching messages for chat room $chatRoomId: $e');
+      rethrow;
     }
   }
 
   // Get connected profiles
   List<Profile> get connectedProfiles {
-    return _connections
-        .map((conn) => _profiles[conn.toProfileId])
-        .whereType<Profile>()
-        .toList();
+    // Since we don't have local profile caching, we need to fetch profiles from API
+    return []; // Return empty for now, profiles should be fetched on-demand
   }
 
   bool get hasUser => _currentProfile != null;
@@ -329,14 +534,6 @@ class StorageService extends ChangeNotifier {
     filtered.sort((a, b) => b.matchScore.compareTo(a.matchScore));
     return filtered;
   }
-
-  // Deprecated - kept for backward compatibility
-  List<Peer> get peersWantToEat =>
-      _nearbyPeers.where((p) => p.wantsToEat).toList();
-
-  // Deprecated - kept for backward compatibility
-  List<Peer> get peersNotWantToEat =>
-      _nearbyPeers.where((p) => !p.wantsToEat).toList();
 
   // Get sent invitations
   List<Invitation> get sentInvitations =>
@@ -373,7 +570,7 @@ class StorageService extends ChangeNotifier {
     await _fetchMessagesForChatRoom(chatRoomId);
   }
 
-  /// Load current profile from persistent storage and sync with API
+  /// Load current profile from API only (no local storage)
   Future<void> loadUserProfile() async {
     try {
       // Initialize services first
@@ -381,49 +578,23 @@ class StorageService extends ChangeNotifier {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // Load API user ID first
+      // Load API user ID from storage
       _apiUserId = prefs.getString(_keyApiUserId);
 
-      final profileJson = prefs.getString(_keyCurrentProfile);
-
-      if (profileJson != null) {
-        final profileMap = jsonDecode(profileJson) as Map<String, dynamic>;
-        _currentProfile = Profile.fromJson(profileMap);
-
-        // If we have an API user ID, try to sync the latest profile from backend
-        if (_apiUserId != null) {
-          try {
-            final apiUserIdInt = int.parse(_apiUserId!);
-            final apiUserRead = await _apiService.getUser(apiUserIdInt);
-            final apiProfile = _apiService.userReadToProfile(apiUserRead);
-            _currentProfile = apiProfile;
-            // Update local cache with latest data
-            await _persistCurrentProfile();
-          } catch (e) {
-            debugPrint('Error syncing profile from API: $e');
-            // Continue with local cached profile if API fails
-          }
+      if (_apiUserId != null) {
+        try {
+          final apiUserIdInt = int.parse(_apiUserId!);
+          final apiUserRead = await _apiService.getUser(apiUserIdInt);
+          final apiProfile = _apiService.userReadToProfile(apiUserRead);
+          _currentProfile = apiProfile;
+        } catch (e) {
+          debugPrint('Error loading profile from API: $e');
+          rethrow; // Propagate error instead of using local fallback
         }
       }
 
-      // Load connections
-      final connectionsJson = prefs.getString(_keyConnections);
-      if (connectionsJson != null) {
-        final connectionsList = jsonDecode(connectionsJson) as List;
-        _connections = connectionsList
-            .map((json) => Connection.fromJson(json as Map<String, dynamic>))
-            .toList();
-      }
-
-      // Load profiles
-      final profilesJson = prefs.getString(_keyProfiles);
-      if (profilesJson != null) {
-        final profilesMap = jsonDecode(profilesJson) as Map<String, dynamic>;
-        _profiles = profilesMap.map(
-          (key, value) =>
-              MapEntry(key, Profile.fromJson(value as Map<String, dynamic>)),
-        );
-      }
+      // Load connections from API
+      await _syncConnections();
 
       // Start location tracking if user is logged in
       if (_currentProfile != null && _apiUserId != null) {
@@ -441,9 +612,17 @@ class StorageService extends ChangeNotifier {
         startInvitationPolling();
       }
 
+      // Start all periodic data fetching
+      if (_apiUserId != null) {
+        _startConnectionSync();
+        _startNearbyPeersPolling();
+        _startActivitiesPolling();
+      }
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading profile data: $e');
+      rethrow;
     }
   }
 
@@ -452,7 +631,7 @@ class StorageService extends ChangeNotifier {
     try {
       if (_apiUserId == null) {
         _debugLog('Cannot load activities from API: no API user ID');
-        return;
+        throw Exception('User not authenticated');
       }
 
       _debugLog('Loading activities from API...');
@@ -477,46 +656,7 @@ class StorageService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _debugLog('Error loading activities from API: $e');
-      // Continue with local activities if API fails
-    }
-  }
-
-  /// Save current profile to persistent storage
-  Future<void> _persistCurrentProfile() async {
-    try {
-      if (_currentProfile == null) return;
-
-      final prefs = await SharedPreferences.getInstance();
-      final profileJson = jsonEncode(_currentProfile!.toJson());
-      await prefs.setString(_keyCurrentProfile, profileJson);
-    } catch (e) {
-      debugPrint('Error saving current profile: $e');
-    }
-  }
-
-  /// Persist connections
-  Future<void> _persistConnections() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final connectionsJson = jsonEncode(
-        _connections.map((c) => c.toJson()).toList(),
-      );
-      await prefs.setString(_keyConnections, connectionsJson);
-    } catch (e) {
-      debugPrint('Error saving connections: $e');
-    }
-  }
-
-  /// Persist profiles cache
-  Future<void> _persistProfiles() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final profilesJson = jsonEncode(
-        _profiles.map((key, value) => MapEntry(key, value.toJson())),
-      );
-      await prefs.setString(_keyProfiles, profilesJson);
-    } catch (e) {
-      debugPrint('Error saving profiles: $e');
+      rethrow; // Propagate error instead of using local fallback
     }
   }
 
@@ -529,6 +669,7 @@ class StorageService extends ChangeNotifier {
       await prefs.setString(_keyApiUserId, _apiUserId!);
     } catch (e) {
       debugPrint('Error saving API user ID: $e');
+      rethrow;
     }
   }
 
@@ -536,19 +677,17 @@ class StorageService extends ChangeNotifier {
   Future<void> _clearPersistedProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_keyCurrentProfile);
-      await prefs.remove(_keyConnections);
-      await prefs.remove(_keyProfiles);
       await prefs.remove(_keyApiUserId);
     } catch (e) {
       debugPrint('Error clearing profile data: $e');
+      rethrow;
     }
   }
 
   /// Save user name (registration step) - creates user in API
   Future<void> saveUserName(String userName) async {
     try {
-      // Create a temporary profile for the API call
+      // Create a temporary profile for API call
       final tempProfile = Profile(
         id: '', // Will be replaced by API
         userName: userName,
@@ -562,20 +701,24 @@ class StorageService extends ChangeNotifier {
       _currentProfile = apiProfile;
       _apiUserId = apiProfile.id;
 
-      // Persist both profile and API user ID
-      await _persistCurrentProfile();
+      // Persist API user ID
       await _persistApiUserId();
 
-      // Start location tracking for the new user
+      // Start location tracking for new user
       _startLocationTracking();
 
-      // Start invitation polling for the new user
+      // Start invitation polling for new user
       startInvitationPolling();
+
+      // Start all periodic data fetching
+      _startConnectionSync();
+      _startNearbyPeersPolling();
+      _startActivitiesPolling();
 
       notifyListeners();
     } catch (e) {
       debugPrint('Error creating user in API: $e');
-      throw Exception('Failed to create user: $e');
+      rethrow;
     }
   }
 
@@ -610,7 +753,7 @@ class StorageService extends ChangeNotifier {
       'StorageService: Profile updated locally, new profileImagePath: ${_currentProfile!.profileImagePath}',
     );
 
-    // Try to sync with API if we have an API user ID and not skipping sync
+    // Sync with API if we have an API user ID and not skipping sync
     if (_apiUserId != null && !skipApiSync) {
       try {
         final apiUserIdInt = int.parse(_apiUserId!);
@@ -623,11 +766,10 @@ class StorageService extends ChangeNotifier {
         _currentProfile = updatedProfile;
       } catch (e) {
         debugPrint('Error updating profile in API: $e');
-        // Continue with local update if API fails
+        rethrow; // Propagate error instead of continuing with local update
       }
     }
 
-    await _persistCurrentProfile();
     notifyListeners();
   }
 
@@ -667,18 +809,16 @@ class StorageService extends ChangeNotifier {
         debugPrint('StorageService: Avatar updated successfully in API');
       } catch (e) {
         debugPrint('Error updating avatar in API: $e');
-        // Continue with local update if API fails
+        rethrow; // Propagate error instead of continuing with local update
       }
     }
 
-    await _persistCurrentProfile();
     notifyListeners();
   }
 
   /// Clear all data (for logout)
   Future<void> clearProfile() async {
     _currentProfile = null;
-    _profiles = {};
     _connections = [];
     _nearbyPeers = [];
     _invitations = [];
@@ -688,11 +828,13 @@ class StorageService extends ChangeNotifier {
     _selectedActivityId = null;
     _apiUserId = null;
 
-    // Stop location tracking when user logs out
-    _locationService.stopLocationTracking();
-
-    // Stop invitation polling when user logs out
+    // Stop all periodic timers when user logs out
+    _stopLocationTracking();
     stopInvitationPolling();
+    _stopMessagePolling();
+    _stopConnectionSync();
+    _stopNearbyPeersPolling();
+    _stopActivitiesPolling();
 
     await _clearPersistedProfile();
     notifyListeners();
@@ -725,12 +867,18 @@ class StorageService extends ChangeNotifier {
   }
 
   /// Delete an activity
-  void deleteActivity(String activityId) {
-    _activities.removeWhere((a) => a.id == activityId);
-    if (_selectedActivityId == activityId) {
-      _selectedActivityId = null;
+  Future<void> deleteActivity(String activityId) async {
+    try {
+      await _apiService.deleteActivity(activityId);
+      _activities.removeWhere((a) => a.id == activityId);
+      if (_selectedActivityId == activityId) {
+        _selectedActivityId = null;
+      }
+      notifyListeners();
+    } catch (e) {
+      _debugLog('Error deleting activity: $e');
+      rethrow;
     }
-    notifyListeners();
   }
 
   /// Select an activity to view its invitations
@@ -748,11 +896,11 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Create or get the search activity (removes duplicates)
+  /// Create or get: search activity (removes duplicates)
   Future<Activity> createOrGetSearchActivity() async {
     const searchActivityName = 'Searching for peers to eat';
 
-    // Check if we already have a search activity from the server
+    // Check if we already have a search activity from server
     final existingSearchActivity = _activities
         .where((a) => a.name == searchActivityName)
         .firstOrNull;
@@ -798,7 +946,7 @@ class StorageService extends ChangeNotifier {
   Future<List<Peer>> searchNearbyPeers() async {
     if (_currentProfile == null || _apiUserId == null) {
       _debugLog('Cannot search for peers: no current profile or API user ID');
-      return [];
+      throw Exception('User not authenticated');
     }
 
     try {
@@ -806,15 +954,14 @@ class StorageService extends ChangeNotifier {
       final currentPosition = await _locationService.getCurrentLocation();
       if (currentPosition == null) {
         _debugLog('Cannot search for peers: unable to get current location');
-        // Fall back to mock data if location unavailable
-        return await _fallbackToMockPeers();
+        throw Exception('Location services unavailable');
       }
 
       // Update current user's location
       final userId = int.parse(_apiUserId!);
       await _locationService.updateLocation(userId);
 
-      // Search for nearby users using the new API endpoint
+      // Search for nearby users using: new API endpoint
       final nearbyUsersWithDistance = await _apiService.getNearbyUsers(
         currentPosition.latitude,
         currentPosition.longitude,
@@ -850,19 +997,8 @@ class StorageService extends ChangeNotifier {
       return peers;
     } catch (e) {
       _debugLog('Error searching for nearby peers: $e');
-      // Fall back to mock data on API failure
-      return await _fallbackToMockPeers();
+      rethrow; // Propagate error instead of falling back to mock data
     }
-  }
-
-  /// Fallback to mock peers when API/location services fail
-  Future<List<Peer>> _fallbackToMockPeers() async {
-    _debugLog('Falling back to mock peers');
-    await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-    final mockPeers = _generateMockPeers();
-    _nearbyPeers = mockPeers;
-    notifyListeners();
-    return mockPeers;
   }
 
   /// Apply match score to a peer based on current user profile
@@ -893,365 +1029,16 @@ class StorageService extends ChangeNotifier {
     }
   }
 
+  /// Stop location tracking
+  void _stopLocationTracking() {
+    _locationService.stopLocationTracking();
+    _debugLog('Stopped location tracking');
+  }
+
   void _debugLog(String message) {
     if (kDebugMode) {
-      // debugPrint('[StorageService] $message');
+      debugPrint('[StorageService] $message');
     }
-  }
-
-  /// Generate mock peers for demonstration
-  List<Peer> _generateMockPeers() {
-    if (_currentProfile == null) return [];
-
-    final peers = [
-      Peer(
-        id: '1',
-        name: 'Alex Johnson',
-        school: _currentProfile!.school ?? 'MIT',
-        major: _currentProfile!.major ?? 'Computer Science',
-        interests: 'Machine Learning, Hiking, Photography',
-        background: 'Worked at Google for 2 years, now pursuing Masters',
-        distance: 0.5,
-        wantsToEat: true,
-        profileImageUrl: 'https://picsum.photos/seed/alex/200',
-      ),
-      Peer(
-        id: '2',
-        name: 'Sarah Chen',
-        school: _currentProfile!.school ?? 'Stanford',
-        major: 'Electrical Engineering',
-        interests: 'Robotics, Music, Cooking',
-        background: 'Undergraduate student interested in AI research',
-        distance: 1.2,
-        wantsToEat: true,
-        profileImageUrl: 'https://picsum.photos/seed/sarah/200',
-      ),
-      Peer(
-        id: '3',
-        name: 'Michael Brown',
-        school: 'UC Berkeley',
-        major: _currentProfile!.major ?? 'Computer Science',
-        interests: 'Web Development, Gaming, Basketball',
-        background: 'Full-stack developer, love building apps',
-        distance: 0.8,
-        wantsToEat: false,
-        profileImageUrl: 'https://picsum.photos/seed/michael/200',
-      ),
-      Peer(
-        id: '4',
-        name: 'Emily Davis',
-        school: _currentProfile!.school ?? 'Harvard',
-        major: 'Data Science',
-        interests: 'Data Analysis, Running, Reading',
-        background: 'Data analyst looking to network with tech professionals',
-        distance: 2.1,
-        wantsToEat: true,
-        profileImageUrl: 'https://picsum.photos/seed/emily/200',
-      ),
-      Peer(
-        id: '5',
-        name: 'David Wilson',
-        school: _currentProfile!.school ?? 'MIT',
-        major: 'Business',
-        interests: 'Entrepreneurship, Travel, Coffee',
-        background: 'MBA student, formerly worked at startup',
-        distance: 1.5,
-        wantsToEat: false,
-        profileImageUrl: 'https://picsum.photos/seed/david/200',
-      ),
-      Peer(
-        id: '6',
-        name: 'Lisa Martinez',
-        school: 'Stanford',
-        major: _currentProfile!.major ?? 'Computer Science',
-        interests: 'UI/UX Design, Art, Yoga',
-        background: 'Product designer passionate about user experience',
-        distance: 0.3,
-        wantsToEat: true,
-        profileImageUrl: 'https://picsum.photos/seed/lisa/200',
-      ),
-    ];
-
-    // Calculate match scores and sort by distance
-    return peers
-        .map(
-          (peer) => peer.copyWith(
-            matchScore: Peer.calculateMatchScore(_currentProfile!, peer),
-          ),
-        )
-        .toList()
-      ..sort((a, b) => a.distance.compareTo(b.distance));
-  }
-
-  /// Generate mock network profiles database with connections
-  Map<String, dynamic> generateMockNetworkDatabase() {
-    // Define mock profiles with varied friend counts (1-6 friends per person)
-    final mockProfiles = {
-      'mock_0': {
-        'id': 'mock_0',
-        'name': 'Alex Chen',
-        'school': 'MIT',
-        'major': 'Computer Science',
-        'interests': 'AI, Hiking',
-        'imageUrl': 'https://picsum.photos/seed/alexchen/200',
-      },
-      'mock_1': {
-        'id': 'mock_1',
-        'name': 'Sarah Kim',
-        'school': 'Stanford',
-        'major': 'Engineering',
-        'interests': 'Robotics, Music',
-        'imageUrl': 'https://picsum.photos/seed/sarahkim/200',
-      },
-      'mock_2': {
-        'id': 'mock_2',
-        'name': 'Mike Johnson',
-        'school': 'Berkeley',
-        'major': 'Business',
-        'interests': 'Startups, Sports',
-        'imageUrl': 'https://picsum.photos/seed/mikej/200',
-      },
-      'mock_3': {
-        'id': 'mock_3',
-        'name': 'Emma Davis',
-        'school': 'Harvard',
-        'major': 'Biology',
-        'interests': 'Research, Art',
-        'imageUrl': 'https://picsum.photos/seed/emmad/200',
-      },
-      'mock_4': {
-        'id': 'mock_4',
-        'name': 'James Wilson',
-        'school': 'Yale',
-        'major': 'Economics',
-        'interests': 'Finance, Travel',
-        'imageUrl': 'https://picsum.photos/seed/jamesw/200',
-      },
-      'mock_5': {
-        'id': 'mock_5',
-        'name': 'Lisa Martinez',
-        'school': 'Princeton',
-        'major': 'Psychology',
-        'interests': 'Social Science, Photography',
-        'imageUrl': 'https://picsum.photos/seed/lisam/200',
-      },
-      'mock_6': {
-        'id': 'mock_6',
-        'name': 'Tom Anderson',
-        'school': 'Columbia',
-        'major': 'Physics',
-        'interests': 'Space, Gaming',
-        'imageUrl': 'https://picsum.photos/seed/toma/200',
-      },
-      'mock_7': {
-        'id': 'mock_7',
-        'name': 'Nina Patel',
-        'school': 'Cornell',
-        'major': 'Architecture',
-        'interests': 'Design, Cooking',
-        'imageUrl': 'https://picsum.photos/seed/ninap/200',
-      },
-      'mock_8': {
-        'id': 'mock_8',
-        'name': 'David Lee',
-        'school': 'Duke',
-        'major': 'Mathematics',
-        'interests': 'Chess, Programming',
-        'imageUrl': 'https://picsum.photos/seed/davidl/200',
-      },
-      'mock_9': {
-        'id': 'mock_9',
-        'name': 'Rachel Green',
-        'school': 'Brown',
-        'major': 'Literature',
-        'interests': 'Writing, Theatre',
-        'imageUrl': 'https://picsum.photos/seed/rachelg/200',
-      },
-      'mock_10': {
-        'id': 'mock_10',
-        'name': 'Kevin Wang',
-        'school': 'Caltech',
-        'major': 'Chemistry',
-        'interests': 'Lab Work, Soccer',
-        'imageUrl': 'https://picsum.photos/seed/kevinw/200',
-      },
-      'mock_11': {
-        'id': 'mock_11',
-        'name': 'Sophia Torres',
-        'school': 'Northwestern',
-        'major': 'Journalism',
-        'interests': 'Media, Film',
-        'imageUrl': 'https://picsum.photos/seed/sophiat/200',
-      },
-      'mock_12': {
-        'id': 'mock_12',
-        'name': 'Ryan Cooper',
-        'school': 'UPenn',
-        'major': 'Medicine',
-        'interests': 'Healthcare, Running',
-        'imageUrl': 'https://picsum.photos/seed/ryanc/200',
-      },
-      'mock_13': {
-        'id': 'mock_13',
-        'name': 'Maya Patel',
-        'school': 'Dartmouth',
-        'major': 'Environmental Science',
-        'interests': 'Sustainability, Yoga',
-        'imageUrl': 'https://picsum.photos/seed/mayap/200',
-      },
-      'mock_14': {
-        'id': 'mock_14',
-        'name': 'Chris Martin',
-        'school': 'Rice',
-        'major': 'Philosophy',
-        'interests': 'Ethics, Reading',
-        'imageUrl': 'https://picsum.photos/seed/chrism/200',
-      },
-    };
-
-    // Define connections based on the friend lists
-    // Helper to avoid duplicate connections
-    final addedConnections = <String>{};
-    final mockConnections = <Map<String, String>>[];
-
-    void addConnection(String from, String to) {
-      final key1 = '$from-$to';
-      final key2 = '$to-$from';
-      if (!addedConnections.contains(key1) &&
-          !addedConnections.contains(key2)) {
-        mockConnections.add({'from': from, 'to': to});
-        addedConnections.add(key1);
-      }
-    }
-
-    // mock_0 (Alex Chen): friends with you, mock_1, mock_2, mock_5, mock_8 (5 friends)
-    addConnection('mock_0', 'mock_1');
-    addConnection('mock_0', 'mock_2');
-    addConnection('mock_0', 'mock_5');
-    addConnection('mock_0', 'mock_8');
-
-    // mock_1 (Sarah Kim): friends with you, mock_0, mock_3, mock_9 (4 friends)
-    addConnection('mock_1', 'mock_3');
-    addConnection('mock_1', 'mock_9');
-
-    // mock_2 (Mike Johnson): friends with mock_0, mock_4, mock_11 (3 friends)
-    addConnection('mock_2', 'mock_4');
-    addConnection('mock_2', 'mock_11');
-
-    // mock_3 (Emma Davis): friends with you, mock_1, mock_5, mock_6, mock_10 (5 friends)
-    addConnection('mock_3', 'mock_5');
-    addConnection('mock_3', 'mock_6');
-    addConnection('mock_3', 'mock_10');
-
-    // mock_4 (James Wilson): friends with mock_2, mock_6, mock_12 (3 friends)
-    addConnection('mock_4', 'mock_6');
-    addConnection('mock_4', 'mock_12');
-
-    // mock_5 (Lisa Martinez): friends with you, mock_0, mock_3, mock_7, mock_9, mock_13 (6 friends - popular!)
-    addConnection('mock_5', 'mock_7');
-    addConnection('mock_5', 'mock_9');
-    addConnection('mock_5', 'mock_13');
-
-    // mock_6 (Tom Anderson): friends with mock_3, mock_4 (2 friends)
-    // Already connected above
-
-    // mock_7 (Nina Patel): friends with you, mock_5, mock_11 (3 friends)
-    addConnection('mock_7', 'mock_11');
-
-    // mock_8 (David Lee): friends with mock_0, mock_10 (2 friends)
-    addConnection('mock_8', 'mock_10');
-
-    // mock_9 (Rachel Green): friends with mock_1, mock_5, mock_12, mock_13 (4 friends)
-    addConnection('mock_9', 'mock_12');
-    addConnection('mock_9', 'mock_13');
-
-    // mock_10 (Kevin Wang): friends with mock_3, mock_8 (2 friends)
-    // Already connected above
-
-    // mock_11 (Sophia Torres): friends with mock_2, mock_7, mock_13 (3 friends)
-    addConnection('mock_11', 'mock_13');
-
-    // mock_12 (Ryan Cooper): friends with mock_4, mock_9 (2 friends)
-    // Already connected above
-
-    // mock_13 (Maya Patel): friends with you, mock_5, mock_9, mock_11 (4 friends)
-    // Already connected above
-
-    // mock_14 (Chris Martin): friends with mock_0 (1 friend - introvert!)
-    addConnection('mock_14', 'mock_0');
-
-    return {'profiles': mockProfiles, 'connections': mockConnections};
-  }
-
-  /// Get mock network nodes for a given connection profile ID
-  Map<String, dynamic> getMockNetworkForConnection(String connectionProfileId) {
-    final database = generateMockNetworkDatabase();
-    final profiles = database['profiles'] as Map<String, dynamic>;
-    final connections = database['connections'] as List<Map<String, String>>;
-
-    // Find the key for this connection in our mock database
-    String? connectionKey;
-    for (final entry in profiles.entries) {
-      if (entry.value['id'] == connectionProfileId) {
-        connectionKey = entry.key;
-        break;
-      }
-    }
-
-    if (connectionKey == null) {
-      return {'directProfiles': [], 'indirectProfiles': []};
-    }
-
-    // Get direct connections
-    final directConnectionKeys = <String>{};
-    for (final conn in connections) {
-      if (conn['from'] == connectionKey) {
-        directConnectionKeys.add(conn['to']!);
-      } else if (conn['to'] == connectionKey) {
-        directConnectionKeys.add(conn['from']!);
-      }
-    }
-
-    // Get indirect connections (friends of friends)
-    final indirectConnectionKeys = <String>{};
-    for (final directKey in directConnectionKeys) {
-      for (final conn in connections) {
-        if (conn['from'] == directKey && conn['to'] != connectionKey) {
-          indirectConnectionKeys.add(conn['to']!);
-        } else if (conn['to'] == directKey && conn['from'] != connectionKey) {
-          indirectConnectionKeys.add(conn['from']!);
-        }
-      }
-    }
-
-    // Remove direct connections from indirect
-    indirectConnectionKeys.removeAll(directConnectionKeys);
-
-    // Build result
-    final directProfiles = directConnectionKeys
-        .map((key) => profiles[key] as Map<String, dynamic>)
-        .toList();
-
-    final indirectProfiles = indirectConnectionKeys
-        .map(
-          (key) => {
-            ...profiles[key] as Map<String, dynamic>,
-            'connectedThrough': directConnectionKeys.firstWhere(
-              (directKey) => connections.any(
-                (c) =>
-                    (c['from'] == directKey && c['to'] == key) ||
-                    (c['to'] == directKey && c['from'] == key),
-              ),
-            ),
-          },
-        )
-        .toList();
-
-    return {
-      'directProfiles': directProfiles,
-      'indirectProfiles': indirectProfiles,
-      'allConnections': connections,
-    };
   }
 
   /// Select a peer to potentially meet
@@ -1471,7 +1258,7 @@ class StorageService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _debugLog('Failed to fetch invitations: $e');
-      // Don't throw - keep existing local invitations if fetch fails
+      rethrow; // Propagate errors instead of continuing with local data
     }
   }
 
@@ -1636,7 +1423,7 @@ class StorageService extends ChangeNotifier {
       _debugLog('Invitation accepted via API: $invitationId');
     } catch (e) {
       _debugLog('Failed to accept invitation via API: $e');
-      // Continue with local update even if API fails
+      rethrow; // Propagate error instead of continuing with local update
     }
 
     // Accept this invitation locally
@@ -1644,7 +1431,7 @@ class StorageService extends ChangeNotifier {
       status: InvitationStatus.accepted,
     );
 
-    // Auto-decline all OTHER received invitations for the same activity
+    // Auto-decline all OTHER received invitations for same activity
     for (int i = 0; i < _invitations.length; i++) {
       if (i != index &&
           _invitations[i].activityId == activityId &&
@@ -1656,7 +1443,7 @@ class StorageService extends ChangeNotifier {
       }
     }
 
-    // Delete all unanswered SENT invitations for the same activity
+    // Delete all unanswered SENT invitations for same activity
     _invitations.removeWhere(
       (inv) => inv.activityId == activityId && inv.sentByMe && inv.isPending,
     );
@@ -1680,7 +1467,7 @@ class StorageService extends ChangeNotifier {
       _debugLog('Invitation declined via API: $invitationId');
     } catch (e) {
       _debugLog('Failed to decline invitation via API: $e');
-      // Continue with local update even if API fails
+      rethrow; // Propagate error instead of continuing with local update
     }
 
     final index = _invitations.indexWhere((i) => i.id == invitationId);
@@ -1708,153 +1495,8 @@ class StorageService extends ChangeNotifier {
       _debugLog('Invitation $action via API (message ID): $messageId');
     } catch (e) {
       _debugLog('Failed to $action invitation via API: $e');
-      throw e; // Re-throw so UI can handle
+      rethrow; // Propagate error so UI can handle
     }
-  }
-
-  /// Mock: Accept a sent invitation (simulate peer accepting)
-  Future<void> mockAcceptSentInvitation(String invitationId) async {
-    final index = _invitations.indexWhere((i) => i.id == invitationId);
-    if (index == -1 || !_invitations[index].sentByMe) return;
-
-    final acceptedInvitation = _invitations[index];
-    final activityId = acceptedInvitation.activityId;
-
-    // Mark this invitation as accepted
-    _invitations[index] = _invitations[index].copyWith(
-      status: InvitationStatus.accepted,
-    );
-
-    // Auto-decline all OTHER received invitations for the same activity
-    for (int i = 0; i < _invitations.length; i++) {
-      if (i != index &&
-          _invitations[i].activityId == activityId &&
-          _invitations[i].isPending &&
-          !_invitations[i].sentByMe) {
-        _invitations[i] = _invitations[i].copyWith(
-          status: InvitationStatus.declined,
-        );
-      }
-    }
-
-    // Delete all other unanswered SENT invitations for the same activity
-    _invitations.removeWhere(
-      (inv) =>
-          inv.activityId == activityId &&
-          inv.sentByMe &&
-          inv.isPending &&
-          inv.id != invitationId,
-    );
-
-    notifyListeners();
-
-    // REMOVED: _createChatRoom(acceptedInvitation) - now handled by backend
-  }
-
-  /// Mock: Decline a sent invitation (simulate peer declining)
-  Future<void> mockDeclineSentInvitation(String invitationId) async {
-    final index = _invitations.indexWhere((i) => i.id == invitationId);
-    if (index == -1 || !_invitations[index].sentByMe) return;
-
-    _invitations[index] = _invitations[index].copyWith(
-      status: InvitationStatus.declined,
-    );
-    notifyListeners();
-  }
-
-  /// Mock: Simulate receiving an invitation from a peer
-  Future<void> mockReceiveInvitation() async {
-    // Require activity to be selected
-    if (_selectedActivityId == null) {
-      throw Exception('No activity selected. Please select an activity first.');
-    }
-
-    // Get a random peer from nearby peers, or create a full mock peer
-    Peer mockPeer;
-
-    if (_nearbyPeers.isNotEmpty) {
-      mockPeer = _nearbyPeers[DateTime.now().millisecond % _nearbyPeers.length];
-    } else {
-      // Create a full mock peer with complete profile
-      final mockNames = [
-        'Jessica Lee',
-        'Ryan Martinez',
-        'Olivia Taylor',
-        'James Anderson',
-        'Emma White',
-      ];
-      final mockSchools = ['MIT', 'Stanford', 'Harvard', 'UC Berkeley', 'Yale'];
-      final mockMajors = [
-        'Computer Science',
-        'Engineering',
-        'Business',
-        'Biology',
-        'Psychology',
-      ];
-      final mockInterestsOptions = [
-        'Coding, Gaming, Music',
-        'Sports, Travel, Photography',
-        'Reading, Art, Cooking',
-        'Hiking, Yoga, Coffee',
-        'Movies, Dancing, Food',
-      ];
-      final mockBackgrounds = [
-        'Senior looking to expand my network before graduation',
-        'Transfer student interested in meeting new people',
-        'Graduate student passionate about collaboration',
-        'Undergrad exploring different career paths',
-        'International student wanting to connect with locals',
-      ];
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final randomIndex = timestamp % mockNames.length;
-
-      mockPeer = Peer(
-        id: 'mock_$timestamp',
-        name: mockNames[randomIndex],
-        school: mockSchools[randomIndex],
-        major: mockMajors[randomIndex],
-        interests: mockInterestsOptions[randomIndex],
-        background: mockBackgrounds[randomIndex],
-        distance: 0.5 + (randomIndex * 0.3),
-        wantsToEat: true,
-        matchScore: 0.6 + (randomIndex * 0.05),
-      );
-
-      // Add the mock peer to nearby peers so they appear in the network
-      _nearbyPeers.add(mockPeer);
-    }
-
-    final restaurants = [
-      'The Corner Bistro',
-      'Sushi Paradise',
-      'Pizza Heaven',
-      'Burger Joint',
-      'Taco Fiesta',
-      'Thai Garden',
-      'Mediterranean Grill',
-    ];
-
-    final restaurant =
-        restaurants[DateTime.now().millisecond % restaurants.length];
-
-    // Generate ice breakers for the mock peer (as if they sent them)
-    final iceBreakers = _generateIceBreakers(mockPeer);
-
-    final invitation = Invitation(
-      id: 'received_${DateTime.now().millisecondsSinceEpoch}',
-      peerId: mockPeer.id,
-      peerName: mockPeer.name,
-      restaurant: restaurant,
-      activityId: _selectedActivityId!,
-      createdAt: DateTime.now(),
-      sentByMe: false, // This is a received invitation
-      status: InvitationStatus.pending,
-      iceBreakers: iceBreakers, // Include ice breakers from the mock peer
-    );
-
-    _invitations.add(invitation);
-    notifyListeners();
   }
 
   /// Send message in chat room
@@ -1892,9 +1534,9 @@ class StorageService extends ChangeNotifier {
         // The message is already added locally, and periodic polling will sync server-assigned ID
         _debugLog('Message sent successfully to chat room $chatRoomId');
       } catch (e) {
-        // Handle send error - could remove the message or mark as failed
+        // Handle send error - could remove message or mark as failed
         print('Error sending message: $e');
-        // For now, we'll keep the message locally and let polling sync it
+        // For now, we'll keep message locally and let polling sync it
       }
     }
   }
@@ -1972,6 +1614,7 @@ class StorageService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error fetching chat rooms: $e');
+      rethrow; // Propagate error instead of using local fallback
     }
   }
 
@@ -1983,6 +1626,7 @@ class StorageService extends ChangeNotifier {
       await _fetchChatRooms();
     } catch (e) {
       print('Error refreshing chat rooms: $e');
+      rethrow; // Propagate error
     }
   }
 
@@ -1994,6 +1638,30 @@ class StorageService extends ChangeNotifier {
       await fetchInvitations();
     } catch (e) {
       print('Error refreshing invitations: $e');
+      rethrow; // Propagate error
+    }
+  }
+
+  /// Refresh all data (comprehensive refresh)
+  Future<void> refreshAllData() async {
+    if (_currentProfile == null || _apiUserId == null) return;
+
+    try {
+      _debugLog('Starting comprehensive data refresh...');
+
+      // Refresh all data sources
+      await Future.wait([
+        _syncConnections(),
+        _syncNearbyPeers(),
+        _syncActivities(),
+        _fetchChatRooms(),
+        fetchInvitations(),
+      ]);
+
+      _debugLog('Comprehensive data refresh completed');
+    } catch (e) {
+      _debugLog('Error during comprehensive refresh: $e');
+      rethrow;
     }
   }
 
@@ -2069,7 +1737,7 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  /// Get all connections for the current user
+  /// Get all connections for current user
   Future<List<Connection>> getConnections() async {
     if (_currentProfile == null) return [];
 
@@ -2079,11 +1747,11 @@ class StorageService extends ChangeNotifier {
       return connections;
     } catch (e) {
       _debugLog('Failed to get connections: $e');
-      return [];
+      rethrow; // Propagate error instead of returning empty list
     }
   }
 
-  /// Get pending connections for the current user
+  /// Get pending connections for current user
   Future<Map<String, dynamic>> getPendingConnections() async {
     if (_currentProfile == null) return {'connections': <dynamic>[]};
 
@@ -2098,7 +1766,7 @@ class StorageService extends ChangeNotifier {
       return {'connections': connections};
     } catch (e) {
       _debugLog('Failed to get pending connections: $e');
-      return {'connections': <dynamic>[]};
+      rethrow; // Propagate error instead of returning empty list
     }
   }
 
@@ -2165,12 +1833,7 @@ class StorageService extends ChangeNotifier {
   Future<Profile?> getProfileById(String id) async {
     if (id == _currentProfile?.id) return _currentProfile;
 
-    // Check local cache first
-    if (_profiles.containsKey(id)) {
-      return _profiles[id];
-    }
-
-    // Fetch from API if not found locally
+    // Fetch from API since we don't have local caching
     try {
       final userIdInt = int.tryParse(id);
       if (userIdInt == null) {
@@ -2181,19 +1844,14 @@ class StorageService extends ChangeNotifier {
       final userRead = await _apiService.getUser(userIdInt);
       final profile = _apiService.userReadToProfile(userRead);
 
-      // Cache the profile locally
-      _profiles[id] = profile;
-      await _persistProfiles();
-      notifyListeners();
-
       return profile;
     } catch (e) {
       _debugLog('Error fetching profile for user $id: $e');
-      return null;
+      rethrow; // Propagate error instead of returning null
     }
   }
 
-  /// Mark chat as opened for the invitation
+  /// Mark chat as opened for invitation
   Future<void> markChatOpened(String invitationId) async {
     final invIndex = _invitations.indexWhere((i) => i.id == invitationId);
     if (invIndex != -1) {
@@ -2256,6 +1914,9 @@ class StorageService extends ChangeNotifier {
   void dispose() {
     stopInvitationPolling();
     _stopMessagePolling();
+    _stopConnectionSync();
+    _stopNearbyPeersPolling();
+    _stopActivitiesPolling();
     super.dispose();
     _debugLog('StorageService disposed');
   }

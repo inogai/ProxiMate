@@ -122,7 +122,7 @@ class _NetworkTabState extends State<NetworkTab> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'No connections yet',
                       style: TextStyle(color: Colors.white70, fontSize: 14),
@@ -180,176 +180,8 @@ class _NetworkTabState extends State<NetworkTab> {
       );
     }
 
-    // Add mock secondary connections using database-like system
-    if (connectedProfiles.isNotEmpty) {
-      // Use the mock network database to add secondary connections
-      final database = storage.generateMockNetworkDatabase();
-      final profiles = database['profiles'] as Map<String, dynamic>;
-      final connections = database['connections'] as List<Map<String, String>>;
-
-      // Build adjacency map: profile key -> list of connected profile keys
-      final adjacencyMap = <String, List<String>>{};
-      for (final conn in connections) {
-        final from = conn['from']!;
-        final to = conn['to']!;
-        adjacencyMap.putIfAbsent(from, () => []).add(to);
-        adjacencyMap.putIfAbsent(to, () => []).add(from);
-      }
-
-      // Identify which mock profiles are "direct friends" (friends with 'you')
-      // These are: mock_0, mock_1, mock_3, mock_5, mock_7, mock_13
-      final directFriendIds = [
-        'mock_0',
-        'mock_1',
-        'mock_3',
-        'mock_5',
-        'mock_7',
-        'mock_13',
-      ];
-
-      // Map real connection IDs to mock direct friend IDs
-      final realToMockMap = <String, String>{};
-      final directNodeIds = directConnectionIds.toSet();
-
-      for (
-        int i = 0;
-        i < min(directNodeIds.length, directFriendIds.length);
-        i++
-      ) {
-        realToMockMap[directConnectionIds[i]] = directFriendIds[i];
-      }
-
-      // BFS to find all reachable profiles and their actual connections in the mock network
-      final visited = <String>{};
-      final queue = <({String key, int depth, String fromRealId})>[];
-      final profileInfo =
-          <
-            String,
-            ({int depth, String fromRealId, List<String> mockConnections})
-          >{};
-
-      // Start BFS from the mapped mock profiles (these represent real connections)
-      for (final entry in realToMockMap.entries) {
-        final realId = entry.key;
-        final mockKey = entry.value;
-        queue.add((key: mockKey, depth: 0, fromRealId: realId));
-        visited.add(mockKey);
-      }
-
-      while (queue.isNotEmpty) {
-        final current = queue.removeAt(0);
-
-        // Get actual connections for this profile from adjacency map
-        final actualConnections = adjacencyMap[current.key] ?? [];
-
-        // Record this profile with its actual mock network connections
-        if (current.depth > 0) {
-          profileInfo[current.key] = (
-            depth: current.depth,
-            fromRealId: current.fromRealId,
-            mockConnections: actualConnections,
-          );
-        }
-
-        // Explore neighbors
-        for (final neighbor in actualConnections) {
-          if (!visited.contains(neighbor) &&
-              !realToMockMap.containsValue(neighbor)) {
-            visited.add(neighbor);
-            queue.add((
-              key: neighbor,
-              depth: current.depth + 1,
-              fromRealId: current.fromRealId,
-            ));
-          }
-        }
-      }
-
-      // Create a map to store mock ID to node for connection references
-      final mockIdToNodeId = <String, String>{};
-
-      // Add nodes for profiles found through BFS
-      for (final entry in profileInfo.entries) {
-        final profileKey = entry.key;
-        final depth = entry.value.depth;
-        final fromRealId = entry.value.fromRealId;
-        final mockConnections = entry.value.mockConnections;
-
-        final profileData = profiles[profileKey] as Map<String, dynamic>;
-        final mockId = profileData['id'] as String;
-
-        // Find the real connection node this path came from (for positioning)
-        final directNode = nodes.firstWhere(
-          (n) => n.id == fromRealId,
-          orElse: () => nodes[1],
-        );
-
-        // Calculate position based on depth (further out = higher depth)
-        final depthRadius =
-            min(size.width, size.height) * (0.30 + (depth * 0.12));
-
-        // Calculate how many nodes from this direct connection already
-        final existingFromThis = nodes
-            .where((n) => !n.isDirectConnection && n.connections.isNotEmpty)
-            .length;
-
-        // Position around the direct connection
-        final baseAngle = atan2(
-          directNode.position.dy - size.height * 0.5,
-          directNode.position.dx - size.width * 0.5,
-        );
-
-        // Spread in an arc (more spread as more nodes)
-        final spreadAngle = (existingFromThis * (pi / 5)) - (pi / 2.5);
-
-        // Determine connections: connect to direct friend if depth 1, otherwise to mock friends
-        final nodeConnections = <String>[];
-        if (depth == 1) {
-          // Direct connection to real friend
-          nodeConnections.add(fromRealId);
-        } else {
-          // Connect to actual mock friends that are already added as nodes
-          for (final mockConn in mockConnections) {
-            // Check if this mock connection maps to a real connection
-            if (realToMockMap.containsValue(mockConn)) {
-              // Find the real ID that maps to this mock ID
-              final realId = realToMockMap.entries
-                  .firstWhere(
-                    (e) => e.value == mockConn,
-                    orElse: () => MapEntry('', ''),
-                  )
-                  .key;
-              if (realId.isNotEmpty) {
-                nodeConnections.add(realId);
-              }
-            } else if (mockIdToNodeId.containsKey(mockConn)) {
-              // This is another mock profile already added
-              nodeConnections.add(mockIdToNodeId[mockConn]!);
-            }
-          }
-        }
-
-        final newNode = NetworkNode(
-          id: mockId,
-          name: profileData['name'] as String,
-          school: profileData['school'] as String,
-          major: profileData['major'] as String?,
-          interests: profileData['interests'] as String?,
-          color: Colors.grey,
-          position: Offset(
-            size.width * 0.5 + depthRadius * cos(baseAngle + spreadAngle),
-            size.height * 0.5 + depthRadius * sin(baseAngle + spreadAngle),
-          ),
-          connections: nodeConnections,
-          profileImagePath: profileData['imageUrl'] as String,
-          isDirectConnection: false,
-          depth: depth,
-        );
-
-        nodes.add(newNode);
-        mockIdToNodeId[mockId] = mockId;
-      }
-    }
+    // API-only: No mock secondary connections - show only real connections
+    // Network visualization now only shows direct connections without mock data
 
     return Stack(
       children: [
@@ -391,7 +223,7 @@ class _NetworkTabState extends State<NetworkTab> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '${connections.length} ${connections.length == 1 ? 'Connection' : 'Connections'}',
                     style: TextStyle(color: Colors.white70, fontSize: 14),
@@ -578,6 +410,12 @@ class _NetworkTabState extends State<NetworkTab> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 8),
+              Text(
+                'Connection',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
               const SizedBox(height: 24),
               if (profile.school != null)
                 _buildDetailRow(
@@ -671,7 +509,11 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  void _openChat(BuildContext context, Profile profile, Connection connection) async {
+  void _openChat(
+    BuildContext context,
+    Profile profile,
+    Connection connection,
+  ) async {
     final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
 
@@ -680,7 +522,8 @@ class _NetworkTabState extends State<NetworkTab> {
 
     // Find or create chat room for this connection
     ChatRoom? chatRoom = storage.chatRooms.firstWhere(
-      (room) => room.containsUser(currentUserId) && room.containsUser(profile.id),
+      (room) =>
+          room.containsUser(currentUserId) && room.containsUser(profile.id),
       orElse: () => ChatRoom(
         id: 'chat_${currentUserId}_${profile.id}',
         user1Id: currentUserId,
@@ -692,8 +535,11 @@ class _NetworkTabState extends State<NetworkTab> {
     );
 
     // Add chat room if it doesn't exist
-    if (!storage.chatRooms.any((room) => room.containsUser(currentUserId) && room.containsUser(profile.id))) {
-      // We can't directly add to storage here, but the chat room screen will handle it
+    if (!storage.chatRooms.any(
+      (room) =>
+          room.containsUser(currentUserId) && room.containsUser(profile.id),
+    )) {
+      // We can't directly add to storage here, but chat room screen will handle it
       // For now, just navigate with the chat room
     }
 

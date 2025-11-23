@@ -8,12 +8,14 @@ class NetworkTest {
       final client = HttpClient();
       // Set timeout to 5 seconds
       client.connectionTimeout = const Duration(seconds: 5);
-      
-      final request = await client.getUrl(Uri.parse('http://localhost:8000/health'));
+
+      final request = await client.getUrl(
+        Uri.parse('https://api.proximate.app/health'),
+      );
       final response = await request.close();
-      
+
       client.close();
-      
+
       if (response.statusCode == 200) {
         debugPrint('✅ Network connection successful');
         return true;
