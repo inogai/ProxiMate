@@ -133,6 +133,7 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
 
     switch (status) {
       case "pending":
+      case "": // Empty/null status from server - treat as pending
         backgroundColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange[700]!;
         text = "Pending";

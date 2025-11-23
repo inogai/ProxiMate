@@ -1638,6 +1638,26 @@ class StorageService extends ChangeNotifier {
     }
   }
 
+  /// Respond to invitation (accept/decline) by message ID
+  Future<void> respondToInvitationByMessageId(
+    String messageId,
+    String action, // "accept" or "decline"
+  ) async {
+    try {
+      final currentUserId = int.tryParse(currentProfile?.id ?? '0') ?? 0;
+      await _apiService.respondToInvitationMessage(
+        messageId,
+        action,
+        currentUserId,
+      );
+
+      _debugLog('Invitation $action via API (message ID): $messageId');
+    } catch (e) {
+      _debugLog('Failed to $action invitation via API: $e');
+      throw e; // Re-throw so UI can handle
+    }
+  }
+
   /// Mock: Accept a sent invitation (simulate peer accepting)
   Future<void> mockAcceptSentInvitation(String invitationId) async {
     final index = _invitations.indexWhere((i) => i.id == invitationId);

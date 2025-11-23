@@ -725,7 +725,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       final storage = context.read<StorageService>();
 
       if (accept) {
-        await storage.acceptInvitation(messageId);
+        await storage.respondToInvitationByMessageId(messageId, 'accept');
+
+        // Immediately update local message status after successful API call
+        _updateLocalMessageStatus(messageId, 'accepted');
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -735,7 +739,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           );
         }
       } else {
-        await storage.declineInvitation(messageId);
+        await storage.respondToInvitationByMessageId(messageId, 'decline');
+
+        // Immediately update local message status after successful API call
+        _updateLocalMessageStatus(messageId, 'declined');
+
         // Close chat room when invitation is declined
         setState(() {
           _isChatRoomClosed = true;
@@ -750,7 +758,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         }
       }
 
-      // Refresh messages to update UI
+      // Also refresh messages from server to ensure consistency
       await _refreshMessages();
     } catch (e) {
       if (context.mounted) {
@@ -760,6 +768,53 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  /// Update local message status immediately after successful API call
+  void _updateLocalMessageStatus(String messageId, String newStatus) {
+    final storage = context.read<StorageService>();
+
+    // Find the chat room containing this message
+    ChatRoom? targetChatRoom;
+    int chatRoomIndex = -1;
+
+    for (int i = 0; i < storage.chatRooms.length; i++) {
+      final chatRoom = storage.chatRooms[i];
+      if (chatRoom.messages.any((msg) => msg.id == messageId)) {
+        targetChatRoom = chatRoom;
+        chatRoomIndex = i;
+        break;
+      }
+    }
+
+    if (targetChatRoom != null && chatRoomIndex != -1) {
+      final messageIndex = targetChatRoom.messages.indexWhere(
+        (msg) => msg.id == messageId,
+      );
+
+      if (messageIndex != -1) {
+        // Create updated message with new status
+        final originalMessage = targetChatRoom.messages[messageIndex];
+        final updatedMessage = originalMessage.copyWith(
+          invitationData: {
+            ...originalMessage.invitationData ?? {},
+            'status': newStatus,
+          },
+        );
+
+        // Update messages list
+        final updatedMessages = [...targetChatRoom.messages];
+        updatedMessages[messageIndex] = updatedMessage;
+
+        // Update chat room in storage
+        storage.chatRooms[chatRoomIndex] = targetChatRoom.copyWith(
+          messages: updatedMessages,
+        );
+
+        // Notify listeners to rebuild UI
+        storage.notifyListeners();
       }
     }
   }
@@ -986,23 +1041,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               : 'Unknown',
           isFromMe: isFromMe,
           onAccept: !isFromMe && message.isPending
-              ? () => _handleInvitationResponse(
-                  message.invitationId ?? message.id,
-                  true,
-                )
+              ? () => _handleInvitationResponse(message.id, true)
               : null,
           onDecline: !isFromMe && message.isPending
-              ? () => _handleInvitationResponse(
-                  message.invitationId ?? message.id,
-                  false,
-                )
+              ? () => _handleInvitationResponse(message.id, false)
               : null,
           onCollectCard:
               message.isAccepted && !(message.isNameCardCollected ?? false)
-              ? () => _handleCollectNameCard(message.invitationId ?? message.id)
+              ? () => _handleCollectNameCard(message.id)
               : null,
           onNotGoodMatch: message.isAccepted
-              ? () => _handleNotGoodMatch(message.invitationId ?? message.id)
+              ? () => _handleNotGoodMatch(message.id)
               : null,
         ),
       );

@@ -384,6 +384,20 @@ class ApiService {
       );
     }
 
+    Map<String, dynamic>? invitationData = messageRead.invitationData != null
+        ? json.decode(messageRead.invitationData!) as Map<String, dynamic>
+        : null;
+
+    // Normalize invitation status values from server to client expectations
+    if (invitationData != null && invitationData.containsKey('status')) {
+      final status = invitationData['status'] as String?;
+      if (status == 'accept') {
+        invitationData['status'] = 'accepted';
+      } else if (status == 'decline') {
+        invitationData['status'] = 'declined';
+      }
+    }
+
     return ChatMessage(
       id: messageRead.id,
       text: messageRead.text,
@@ -391,9 +405,7 @@ class ApiService {
       timestamp: parsedTimestamp,
       messageType: _parseMessageType(messageRead.messageType),
       invitationId: messageRead.invitationId,
-      invitationData: messageRead.invitationData != null
-          ? json.decode(messageRead.invitationData!) as Map<String, dynamic>
-          : null,
+      invitationData: invitationData,
     );
   }
 
@@ -597,12 +609,17 @@ class ApiService {
     String action, // "accept" or "decline"
     int responderId,
   ) async {
+    final invitationRespondRequest = InvitationRespondRequest(
+      (b) => b
+        ..action = action
+        ..responderId = responderId,
+    );
+
     final response = await _executeWithRetry(
       () => _messagesApi
           .respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(
             messageId: messageId,
-            action: action,
-            responderId: responderId,
+            invitationRespondRequest: invitationRespondRequest,
           ),
       'Respond to Invitation Message',
     );
