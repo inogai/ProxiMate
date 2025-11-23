@@ -122,21 +122,27 @@ class StorageService extends ChangeNotifier {
             
             // Get the server timestamp in local format for comparison
             DateTime serverTimestampLocal;
-            if (messageRead.timestamp.isUtc) {
-              // Convert UTC to local time
-              serverTimestampLocal = messageRead.timestamp.toLocal();
-            } else {
-              // Server is sending local-time formatted timestamps but they're actually UTC
-              // Convert to UTC first, then to local time to get correct offset
-              final utcTime = DateTime.utc(
-                messageRead.timestamp.year,
-                messageRead.timestamp.month,
-                messageRead.timestamp.day,
-                messageRead.timestamp.hour,
-                messageRead.timestamp.minute,
-                messageRead.timestamp.second,
-              );
-              serverTimestampLocal = utcTime.toLocal();
+            try {
+              final parsedTimestamp = DateTime.parse(messageRead.timestamp);
+              if (parsedTimestamp.isUtc) {
+                // Convert UTC to local time
+                serverTimestampLocal = parsedTimestamp.toLocal();
+              } else {
+                // Server is sending local-time formatted timestamps but they're actually UTC
+                // Convert to UTC first, then to local time to get correct offset
+                final utcTime = DateTime.utc(
+                  parsedTimestamp.year,
+                  parsedTimestamp.month,
+                  parsedTimestamp.day,
+                  parsedTimestamp.hour,
+                  parsedTimestamp.minute,
+                  parsedTimestamp.second,
+                );
+                serverTimestampLocal = utcTime.toLocal();
+              }
+            } catch (e) {
+              // Fallback to current time if parsing fails
+              serverTimestampLocal = DateTime.now();
             }
             
             final matchByContent = currentMessages.firstWhere(
@@ -166,21 +172,27 @@ class StorageService extends ChangeNotifier {
         } else if (existingMessage.id != messageRead.id) {
           // Found by content match but ID differs - update the local message with server ID and timestamp
           DateTime serverTimestampLocal;
-          if (messageRead.timestamp.isUtc) {
-            // Convert UTC to local time
-            serverTimestampLocal = messageRead.timestamp.toLocal();
-          } else {
-            // Server is sending local-time formatted timestamps but they're actually UTC
-            // Convert to UTC first, then to local time to get correct offset
-            final utcTime = DateTime.utc(
-              messageRead.timestamp.year,
-              messageRead.timestamp.month,
-              messageRead.timestamp.day,
-              messageRead.timestamp.hour,
-              messageRead.timestamp.minute,
-              messageRead.timestamp.second,
-            );
-            serverTimestampLocal = utcTime.toLocal();
+          try {
+            final parsedTimestamp = DateTime.parse(messageRead.timestamp);
+            if (parsedTimestamp.isUtc) {
+              // Convert UTC to local time
+              serverTimestampLocal = parsedTimestamp.toLocal();
+            } else {
+              // Server is sending local-time formatted timestamps but they're actually UTC
+              // Convert to UTC first, then to local time to get correct offset
+              final utcTime = DateTime.utc(
+                parsedTimestamp.year,
+                parsedTimestamp.month,
+                parsedTimestamp.day,
+                parsedTimestamp.hour,
+                parsedTimestamp.minute,
+                parsedTimestamp.second,
+              );
+              serverTimestampLocal = utcTime.toLocal();
+            }
+          } catch (e) {
+            // Fallback to current time if parsing fails
+            serverTimestampLocal = DateTime.now();
           }
           
           _debugLog('Updating temporary message ID: localID=${existingMessage.id} -> serverID=${messageRead.id}');
@@ -1214,8 +1226,9 @@ class StorageService extends ChangeNotifier {
       try {
         final currentUserId = int.parse(_apiUserId!);
         final chatRoomRead = await _apiService.findChatRoomBetweenUsers(
-          currentUserId, 
-          int.parse(peer.id)
+          currentUserId,
+          int.parse(peer.id),
+          activityName
         );
         
         if (chatRoomRead != null) {
@@ -1235,7 +1248,7 @@ class StorageService extends ChangeNotifier {
         peerName: peer.name,
         restaurant: activityName,
         activityId: _selectedActivityId!,
-        createdAt: apiResponse.createdAt,
+        createdAt: _parseTimestamp(apiResponse.createdAt),
         sentByMe: true,
         status: _parseInvitationStatus(apiResponse.status ?? 'pending'),
         iceBreakers: iceBreakers,
@@ -1358,6 +1371,18 @@ class StorageService extends ChangeNotifier {
       'answer': ib.answer,
     }).toList();
     return jsonEncode(iceBreakerMap);
+  }
+
+  // Helper method to parse timestamp strings to DateTime
+  DateTime _parseTimestamp(String timestampString) {
+    try {
+      final parsedTimestamp = DateTime.parse(timestampString);
+      // Convert to local time if it's UTC
+      return parsedTimestamp.isUtc ? parsedTimestamp.toLocal() : parsedTimestamp;
+    } catch (e) {
+      _debugLog('Failed to parse timestamp: $timestampString, using current time');
+      return DateTime.now();
+    }
   }
 
   /// Parse invitation status from API string
@@ -1710,8 +1735,7 @@ class StorageService extends ChangeNotifier {
       try {
         // Send to backend
         final currentUserId = int.tryParse(_currentProfile?.id ?? '0') ?? 0;
-        final messageRequest = _apiService.chatMessageToCreateRequest(text, currentUserId);
-        await _apiService.sendChatMessage(chatRoomId, messageRequest);
+        await _apiService.sendChatMessage(chatRoomId, currentUserId, text);
         
         // Don't refresh messages immediately to avoid duplication
         // The message is already added locally, and periodic polling will sync server-assigned ID
@@ -1785,7 +1809,7 @@ class StorageService extends ChangeNotifier {
           user1Id: chatRoomRead.user1Id.toString(),
           user2Id: chatRoomRead.user2Id.toString(),
           restaurant: chatRoomRead.restaurant,
-          createdAt: chatRoomRead.createdAt,
+          createdAt: _parseTimestamp(chatRoomRead.createdAt),
           messages: [],
         );
       }).toList();

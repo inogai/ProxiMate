@@ -137,6 +137,9 @@ class ChatMessage {
   final bool isMine;
   final DateTime timestamp;
   final bool isSystemMessage; // For invitation cards and system notifications
+  final Map<String, dynamic>? invitationData; // Invitation data for system messages
+  final List<IceBreaker>? iceBreakers; // Ice breakers for invitation messages
+  final bool? isNameCardCollected; // Name card collection status
 
   ChatMessage({
     required this.id,
@@ -144,6 +147,9 @@ class ChatMessage {
     required this.isMine,
     required this.timestamp,
     this.isSystemMessage = false,
+    this.invitationData,
+    this.iceBreakers,
+    this.isNameCardCollected,
   });
 
   ChatMessage copyWith({
@@ -152,6 +158,9 @@ class ChatMessage {
     bool? isMine,
     DateTime? timestamp,
     bool? isSystemMessage,
+    Map<String, dynamic>? invitationData,
+    List<IceBreaker>? iceBreakers,
+    bool? isNameCardCollected,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -159,6 +168,9 @@ class ChatMessage {
       isMine: isMine ?? this.isMine,
       timestamp: timestamp ?? this.timestamp,
       isSystemMessage: isSystemMessage ?? this.isSystemMessage,
+      invitationData: invitationData ?? this.invitationData,
+      iceBreakers: iceBreakers ?? this.iceBreakers,
+      isNameCardCollected: isNameCardCollected ?? this.isNameCardCollected,
     );
   }
 }

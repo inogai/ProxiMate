@@ -65,7 +65,7 @@ class InvitationMessageCard extends StatelessWidget {
     );
   }
 
-  Widget _buildIceBreakers(List<Map<String, dynamic>> iceBreakers) {
+  Widget _buildIceBreakers(List<IceBreaker> iceBreakers) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -83,7 +83,7 @@ class InvitationMessageCard extends StatelessWidget {
     );
   }
 
-  Widget _buildIceBreaker(Map<String, dynamic> iceBreaker) {
+  Widget _buildIceBreaker(IceBreaker iceBreaker) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
@@ -97,7 +97,7 @@ class InvitationMessageCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            iceBreaker['question'] as String,
+            iceBreaker.question,
             style: TextStyle(
               fontWeight: FontWeight.w600,
               color: Colors.green[900],
@@ -105,7 +105,7 @@ class InvitationMessageCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            iceBreaker['answer'] as String,
+            iceBreaker.answer,
             style: TextStyle(
               color: Colors.grey[700],
               fontStyle: FontStyle.italic,
@@ -135,7 +135,7 @@ class InvitationMessageCard extends StatelessWidget {
           ),
         ],
       );
-    } else if (status == "accepted" && !message.isNameCardCollected) {
+    } else if (status == "accepted" && !(message.isNameCardCollected ?? false)) {
       return Column(
         children: [
           SizedBox(
@@ -157,7 +157,7 @@ class InvitationMessageCard extends StatelessWidget {
           ),
         ],
       );
-    } else if (message.isNameCardCollected) {
+    } else if (message.isNameCardCollected ?? false) {
       return const Text(
         'Name card collected ✓',
         style: TextStyle(

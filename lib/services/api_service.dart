@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:built_collection/built_collection.dart';
+import 'package:built_value/json_object.dart';
 import 'package:openapi/openapi.dart';
 import 'package:dio/dio.dart';
 import '../models/profile.dart';
@@ -11,7 +12,13 @@ import '../models/meeting.dart';
 import '../models/activity.dart';
 
 class ApiService {
-  late DefaultApi _api;
+  late UsersApi _usersApi;
+  late LocationsApi _locationsApi;
+  late ActivitiesApi _activitiesApi;
+  late InvitationsApi _invitationsApi;
+  late ChatroomsApi _chatroomsApi;
+  late MessagesApi _messagesApi;
+  late DefaultApi _defaultApi;
   String _baseUrl;
   final int _maxRetries;
   final Duration _timeout;
@@ -29,7 +36,13 @@ class ApiService {
   void _initializeApi() {
     try {
       final openapi = Openapi(basePathOverride: _baseUrl);
-      _api = openapi.getDefaultApi();
+      _usersApi = openapi.getUsersApi();
+      _locationsApi = openapi.getLocationsApi();
+      _activitiesApi = openapi.getActivitiesApi();
+      _invitationsApi = openapi.getInvitationsApi();
+      _chatroomsApi = openapi.getChatroomsApi();
+      _messagesApi = openapi.getMessagesApi();
+      _defaultApi = openapi.getDefaultApi();
       _debugLog('API Service initialized with base URL: $_baseUrl');
     } catch (e) {
       _debugLog('Failed to initialize API client: $e');
@@ -82,8 +95,16 @@ class ApiService {
 
   Future<UserRead> createUser(UserCreate user) async {
     final response = await _executeWithRetry(
-      () => _api.createUserUsersPost(userCreate: user),
+      () => _usersApi.createUserApiV1UsersPost(userCreate: user),
       'Create User',
+    );
+    return response.data!;
+  }
+
+  Future<UserRead> getOrCreateUser(UserCreate user) async {
+    final response = await _executeWithRetry(
+      () => _usersApi.getOrCreateUserApiV1UsersGetOrCreatePost(userCreate: user),
+      'Get or Create User',
     );
     return response.data!;
   }
@@ -91,30 +112,31 @@ class ApiService {
   Future<UserRead> updateUser(int userId, UserUpdate userUpdate) async {
     final response = await _executeWithRetry(
       () =>
-          _api.updateUserUsersUserIdPut(userId: userId, userUpdate: userUpdate),
+          _usersApi.updateUserApiV1UsersUserIdPut(userId: userId, userUpdate: userUpdate),
       'Update User',
     );
     return response.data!;
   }
 
   Future<UserRead> getUser(int userId) async {
-    // Note: getUser endpoint not available in current API
-    // We'll use getUsersUsersGet and filter by ID for now
     final response = await _executeWithRetry(
-      () => _api.getUsersUsersGet(),
-      'Get All Users',
+      () => _usersApi.getUserApiV1UsersUserIdGet(userId: userId),
+      'Get User',
     );
-    final users = response.data!;
-    final user = users.where((u) => u.id == userId).firstOrNull;
-    if (user == null) {
-      throw Exception('User with ID $userId not found');
-    }
-    return user;
+    return response.data!;
+  }
+
+  Future<UserRead> getUserByUsername(String username) async {
+    final response = await _executeWithRetry(
+      () => _usersApi.getUserByUsernameApiV1UsersUsernameUsernameGet(username: username),
+      'Get User by Username',
+    );
+    return response.data!;
   }
 
   Future<LocationRead> createLocation(LocationCreate location) async {
     final response = await _executeWithRetry(
-      () => _api.createLocationLocationsPost(locationCreate: location),
+      () => _locationsApi.createLocationApiV1LocationsPost(locationCreate: location),
       'Create Location',
     );
     return response.data!;
@@ -122,7 +144,7 @@ class ApiService {
 
   Future<BuiltList<LocationRead>> getUserLocations(int userId) async {
     final response = await _executeWithRetry(
-      () => _api.getUserLocationsLocationsUserIdGet(userId: userId),
+      () => _locationsApi.getUserLocationHistoryApiV1LocationsUsersUserIdGet(userId: userId),
       'Get User Locations',
     );
     return response.data!;
@@ -131,7 +153,7 @@ class ApiService {
   Future<bool> checkHealth() async {
     try {
       await _executeWithRetry(
-        () => _api.healthCheckHealthGet(),
+        () => _defaultApi.healthCheckHealthGet(),
         'Health Check',
       );
       return true;
@@ -152,7 +174,10 @@ class ApiService {
     int? offset,
   }) async {
     final response = await _executeWithRetry(
-      () => _api.getUsersUsersGet(),
+      () => _usersApi.getUsersApiV1UsersGet(
+        skip: offset ?? 0,
+        limit: limit ?? 100,
+      ),
       'Get All Users',
     );
 
@@ -203,7 +228,7 @@ class ApiService {
     int? limit,
   }) async {
     final response = await _executeWithRetry(
-      () => _api.getNearbyUsersUsersNearbyGet(
+      () => _locationsApi.findNearbyUsersApiV1LocationsNearbyUsersGet(
         latitude: latitude,
         longitude: longitude,
         radiusKm: radiusKm,
@@ -217,7 +242,7 @@ class ApiService {
   /// Get locations for multiple users in batch
   Future<BuiltList<LocationRead>> getBatchLocations(List<int> userIds) async {
     final response = await _executeWithRetry(
-      () => _api.getBatchLocationsLocationsBatchGet(userIds: userIds.join(',')),
+      () => _locationsApi.getBatchLocationsApiV1LocationsBatchGet(userIds: userIds.join(',')),
       'Get Batch Locations',
     );
     return response.data!;
@@ -306,13 +331,27 @@ class ApiService {
   }
 
   Invitation invitationReadToInvitation(InvitationRead invitationRead) {
+    // Parse createdAt string to DateTime
+    DateTime parsedCreatedAt;
+    try {
+      parsedCreatedAt = DateTime.parse(invitationRead.createdAt);
+      // Assume the timestamp is in UTC and convert to local
+      if (parsedCreatedAt.isUtc) {
+        parsedCreatedAt = parsedCreatedAt.toLocal();
+      }
+    } catch (e) {
+      // Fallback to current time if parsing fails
+      parsedCreatedAt = DateTime.now();
+      _debugLog('Failed to parse createdAt: ${invitationRead.createdAt}, using current time');
+    }
+
     return Invitation(
       id: invitationRead.id,
       peerId: invitationRead.senderId.toString(),
       peerName: '', // Will be filled by caller
       restaurant: invitationRead.restaurant,
       activityId: invitationRead.activityId,
-      createdAt: invitationRead.createdAt,
+      createdAt: parsedCreatedAt,
       sentByMe: invitationRead.sentByMe ?? false,
       status: _parseInvitationStatus(invitationRead.status),
       iceBreakers: _parseIceBreakers(invitationRead.iceBreakers),
@@ -346,56 +385,59 @@ class ApiService {
   }
 
   // Chat model converters
-  ChatRoomBase chatRoomToChatRoomBase(ChatRoom chatRoom) {
-    return ChatRoomBase((b) => b
+  ChatRoomCreateRequest chatRoomToChatRoomCreateRequest(ChatRoom chatRoom) {
+    return ChatRoomCreateRequest((b) => b
       ..user1Id = int.tryParse(chatRoom.user1Id) ?? 0
       ..user2Id = int.tryParse(chatRoom.user2Id) ?? 0
       ..restaurant = chatRoom.restaurant);
   }
 
   ChatRoom chatRoomReadToChatRoom(ChatRoomRead chatRoomRead) {
+    // Parse createdAt string to DateTime
+    DateTime parsedCreatedAt;
+    try {
+      parsedCreatedAt = DateTime.parse(chatRoomRead.createdAt);
+      // Assume the timestamp is in UTC and convert to local
+      if (parsedCreatedAt.isUtc) {
+        parsedCreatedAt = parsedCreatedAt.toLocal();
+      }
+    } catch (e) {
+      // Fallback to current time if parsing fails
+      parsedCreatedAt = DateTime.now();
+      _debugLog('Failed to parse createdAt: ${chatRoomRead.createdAt}, using current time');
+    }
+
     return ChatRoom(
       id: chatRoomRead.id,
       user1Id: chatRoomRead.user1Id.toString(),
       user2Id: chatRoomRead.user2Id.toString(),
       restaurant: chatRoomRead.restaurant,
-      createdAt: chatRoomRead.createdAt,
+      createdAt: parsedCreatedAt,
     );
   }
 
-  ChatMessageCreateRequest chatMessageToCreateRequest(String text, int senderId) {
-    return ChatMessageCreateRequest((b) => b
-      ..senderId = senderId
-      ..text = text
-      ..isMine = true);
-  }
+  // Chat message creation is now handled directly in sendChatMessage method
 
   ChatMessage chatMessageReadToChatMessage(ChatMessageRead messageRead, bool isMine) {
-    DateTime finalTimestamp;
-    
-    // Check if timestamp is already UTC or needs conversion
-    if (messageRead.timestamp.isUtc) {
-      // Convert UTC to local time
-      finalTimestamp = messageRead.timestamp.toLocal();
-    } else {
-      // Server is sending local-time formatted timestamps but they're actually UTC
-      // Convert to UTC first, then to local time to get correct offset
-      final utcTime = DateTime.utc(
-        messageRead.timestamp.year,
-        messageRead.timestamp.month,
-        messageRead.timestamp.day,
-        messageRead.timestamp.hour,
-        messageRead.timestamp.minute,
-        messageRead.timestamp.second,
-      );
-      finalTimestamp = utcTime.toLocal();
+    // Parse timestamp string to DateTime
+    DateTime parsedTimestamp;
+    try {
+      parsedTimestamp = DateTime.parse(messageRead.timestamp);
+      // Assume the timestamp is in UTC and convert to local
+      if (parsedTimestamp.isUtc) {
+        parsedTimestamp = parsedTimestamp.toLocal();
+      }
+    } catch (e) {
+      // Fallback to current time if parsing fails
+      parsedTimestamp = DateTime.now();
+      _debugLog('Failed to parse timestamp: ${messageRead.timestamp}, using current time');
     }
-    
+
     return ChatMessage(
       id: messageRead.id,
       text: messageRead.text,
       isMine: isMine,
-      timestamp: finalTimestamp,
+      timestamp: parsedTimestamp,
       isSystemMessage: false, // Backend doesn't support this field yet
     );
   }
@@ -408,11 +450,25 @@ class ApiService {
   }
 
   Activity activityReadToActivity(ActivityRead activityRead) {
+    // Parse createdAt string to DateTime
+    DateTime parsedCreatedAt;
+    try {
+      parsedCreatedAt = DateTime.parse(activityRead.createdAt);
+      // Assume the timestamp is in UTC and convert to local
+      if (parsedCreatedAt.isUtc) {
+        parsedCreatedAt = parsedCreatedAt.toLocal();
+      }
+    } catch (e) {
+      // Fallback to current time if parsing fails
+      parsedCreatedAt = DateTime.now();
+      _debugLog('Failed to parse createdAt: ${activityRead.createdAt}, using current time');
+    }
+
     return Activity(
       id: activityRead.id,
       name: activityRead.name,
       description: activityRead.description,
-      createdAt: activityRead.createdAt,
+      createdAt: parsedCreatedAt,
     );
   }
 
@@ -439,96 +495,19 @@ class ApiService {
   }
 
   /// Upload avatar image for a user
+  /// TODO: Implement when avatar endpoints are added to new backend
   Future<String?> uploadAvatar(int userId, dynamic imageFile) async {
-    try {
-      _debugLog('Starting avatar upload for user $userId');
-
-      MultipartFile multipartFile;
-
-      if (kIsWeb) {
-        // Handle web platform - expect Uint8List
-        if (imageFile is Uint8List) {
-          multipartFile = MultipartFile.fromBytes(
-            imageFile,
-            filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.png',
-          );
-        } else {
-          throw Exception('Invalid image file type for web platform');
-        }
-      } else {
-        // Handle mobile platform - expect File
-        if (imageFile is File) {
-          multipartFile = await MultipartFile.fromFile(
-            imageFile.path,
-            filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.png',
-          );
-        } else {
-          throw Exception('Invalid image file type for mobile platform');
-        }
-      }
-
-      final response = await _executeWithRetry(
-        () => _api.uploadAvatarUsersUserIdAvatarPost(
-          userId: userId,
-          file: multipartFile,
-        ),
-        'Upload Avatar',
-      );
-
-      // Extract avatar URL from response
-      final responseData = response.data;
-      _debugLog('Avatar upload response type: ${responseData.runtimeType}');
-      _debugLog('Avatar upload response data: $responseData');
-
-      if (responseData != null && responseData.containsKey('avatar_url')) {
-        final avatarUrlValue = responseData['avatar_url'];
-        _debugLog('Avatar URL value type: ${avatarUrlValue.runtimeType}');
-        _debugLog('Avatar URL value: $avatarUrlValue');
-
-        String? avatarUrl;
-
-        // Handle different response types
-        if (avatarUrlValue.runtimeType == String) {
-          avatarUrl = avatarUrlValue.toString();
-        } else if (avatarUrlValue != null) {
-          // Convert JsonObject to String
-          avatarUrl = avatarUrlValue.toString();
-        }
-
-        _debugLog('Avatar uploaded successfully: $avatarUrl');
-        return avatarUrl;
-      }
-
-      _debugLog('Avatar upload response missing avatar_url field');
-      return null;
-    } catch (e) {
-      _debugLog('Error uploading avatar: $e');
-      rethrow;
-    }
+    // Avatar endpoints not available in new backend yet
+    _debugLog('Avatar upload not implemented in new backend');
+    return null;
   }
 
   /// Delete avatar for a user
+  /// TODO: Implement when avatar endpoints are added to new backend
   Future<bool> deleteAvatar(int userId) async {
-    try {
-      _debugLog('Deleting avatar for user $userId');
-
-      final response = await _executeWithRetry(
-        () => _api.deleteAvatarUsersUserIdAvatarDelete(userId: userId),
-        'Delete Avatar',
-      );
-
-      // Check response for success indication
-      if (response.data != null) {
-        _debugLog('Avatar deleted successfully: ${response.data}');
-        return true;
-      } else {
-        _debugLog('Avatar delete response was null or empty');
-        return false;
-      }
-    } catch (e) {
-      _debugLog('Error deleting avatar: $e');
-      return false;
-    }
+    // Avatar endpoints not available in new backend yet
+    _debugLog('Avatar delete not implemented in new backend');
+    return false;
   }
 
   // Invitation endpoints
@@ -536,7 +515,7 @@ class ApiService {
   /// Create invitation
   Future<InvitationRead> createInvitation(InvitationCreate invitation) async {
     final response = await _executeWithRetry(
-      () => _api.createInvitationInvitationsPost(invitationCreate: invitation),
+      () => _invitationsApi.createInvitationApiV1InvitationsPost(invitationCreate: invitation),
       'Create Invitation',
     );
     return response.data!;
@@ -544,36 +523,38 @@ class ApiService {
 
   /// Get invitations for user
   Future<BuiltList<InvitationRead>> getInvitations(int userId) async {
-    final response = await _executeWithRetry(
-      () => _api.getInvitationsInvitationsGet(userId: userId),
-      'Get Invitations',
+    // Get sent and received invitations separately
+    final sentResponse = await _executeWithRetry(
+      () => _invitationsApi.getSentInvitationsApiV1InvitationsSentUserIdGet(userId: userId),
+      'Get Sent Invitations',
     );
-    return response.data!;
+    final receivedResponse = await _executeWithRetry(
+      () => _invitationsApi.getReceivedInvitationsApiV1InvitationsReceivedUserIdGet(userId: userId),
+      'Get Received Invitations',
+    );
+
+    // Combine the results
+    final allInvitations = BuiltList<InvitationRead>.from([
+      ...sentResponse.data!,
+      ...receivedResponse.data!,
+    ]);
+
+    return allInvitations;
   }
 
   /// Accept invitation
   Future<InvitationRead> acceptInvitation(String invitationId) async {
     final response = await _executeWithRetry(
-      () => _api.acceptInvitationInvitationsInvitationIdAcceptPut(invitationId: invitationId),
+      () => _invitationsApi.acceptInvitationApiV1InvitationsInvitationIdAcceptPost(invitationId: invitationId),
       'Accept Invitation',
     );
-    
-    // For now, let's assume the API returns the correct type
-    // If there are issues, we'll need to debug the actual response format
-    try {
-      return response.data! as InvitationRead;
-    } catch (e) {
-      _debugLog('Error parsing invitation response: $e');
-      _debugLog('Response data type: ${response.data.runtimeType}');
-      _debugLog('Response data: ${response.data}');
-      rethrow;
-    }
+    return response.data!;
   }
 
   /// Decline invitation
   Future<InvitationRead> declineInvitation(String invitationId) async {
     final response = await _executeWithRetry(
-      () => _api.declineInvitationInvitationsInvitationIdDeclinePut(invitationId: invitationId),
+      () => _invitationsApi.declineInvitationApiV1InvitationsInvitationIdDeclinePost(invitationId: invitationId),
       'Decline Invitation',
     );
     return response.data!;
@@ -581,8 +562,15 @@ class ApiService {
 
   /// Collect name card
   Future<InvitationRead> collectNameCard(String invitationId) async {
+    // Use updateInvitation to mark name card as collected
+    final updateData = BuiltMap<String, JsonObject>.from({
+      'name_card_collected': JsonObject(true),
+    });
     final response = await _executeWithRetry(
-      () => _api.collectNameCardInvitationsInvitationIdCollectNameCardPut(invitationId: invitationId),
+      () => _invitationsApi.updateInvitationApiV1InvitationsInvitationIdPut(
+        invitationId: invitationId,
+        requestBody: updateData,
+      ),
       'Collect Name Card',
     );
     return response.data!;
@@ -590,38 +578,46 @@ class ApiService {
 
   /// Mark chat opened
   Future<InvitationRead> markChatOpened(String invitationId) async {
+    // Use updateInvitation to mark chat as opened
+    final updateData = BuiltMap<String, JsonObject>.from({
+      'chat_opened': JsonObject(true),
+    });
     final response = await _executeWithRetry(
-      () => _api.markChatOpenedInvitationsInvitationIdChatOpenedPut(invitationId: invitationId),
+      () => _invitationsApi.updateInvitationApiV1InvitationsInvitationIdPut(
+        invitationId: invitationId,
+        requestBody: updateData,
+      ),
       'Mark Chat Opened',
     );
     return response.data!;
   }
 
-  /// Mark not good match
+  /// Mark not good match (decline invitation)
   Future<InvitationRead> markNotGoodMatch(String invitationId) async {
-    final response = await _executeWithRetry(
-      () => _api.markNotGoodMatchInvitationsInvitationIdNotGoodMatchPut(invitationId: invitationId),
-      'Mark Not Good Match',
-    );
-    return response.data!;
+    // For now, treat as declining the invitation
+    return declineInvitation(invitationId);
   }
 
   // Chat endpoints
 
   /// Create chat room
-  Future<ChatRoomRead> createChatRoom(ChatRoomBase chatRoom) async {
+  Future<ChatRoomRead> createChatRoom(ChatRoomCreateRequest chatRoom) async {
     final response = await _executeWithRetry(
-      () => _api.createChatroomChatroomsPost(chatRoomBase: chatRoom),
+      () => _chatroomsApi.createChatroomWithInvitationApiV1ChatroomsPost(chatRoomCreateRequest: chatRoom),
       'Create Chat Room',
     );
     return response.data!;
   }
 
   /// Find chat room between two users
-  Future<ChatRoomRead?> findChatRoomBetweenUsers(int user1Id, int user2Id) async {
+  Future<ChatRoomRead?> findChatRoomBetweenUsers(int user1Id, int user2Id, String restaurant) async {
     try {
       final response = await _executeWithRetry(
-        () => _api.findChatroomBetweenUsersChatroomsFindGet(user1Id: user1Id, user2Id: user2Id),
+        () => _chatroomsApi.getOrCreateChatRoomApiV1ChatroomsGetOrCreatePost(
+          user1Id: user1Id,
+          user2Id: user2Id,
+          restaurant: restaurant,
+        ),
         'Find Chat Room Between Users',
       );
       return response.data;
@@ -634,7 +630,7 @@ class ApiService {
   /// Get chat rooms for user
   Future<BuiltList<ChatRoomRead>> getChatRooms(int userId) async {
     final response = await _executeWithRetry(
-      () => _api.getChatroomsChatroomsGet(userId: userId),
+      () => _chatroomsApi.getUserChatRoomsApiV1ChatroomsUsersUserIdGet(userId: userId),
       'Get Chat Rooms',
     );
     return response.data!;
@@ -643,16 +639,21 @@ class ApiService {
   /// Get chat room by ID
   Future<ChatRoomRead> getChatRoom(String chatroomId) async {
     final response = await _executeWithRetry(
-      () => _api.getChatroomChatroomsChatroomIdGet(chatroomId: chatroomId),
+      () => _chatroomsApi.getChatRoomApiV1ChatroomsChatRoomIdGet(chatRoomId: chatroomId),
       'Get Chat Room',
     );
     return response.data!;
   }
 
   /// Send chat message
-  Future<ChatMessageRead> sendChatMessage(String chatroomId, ChatMessageCreateRequest message) async {
+  Future<ChatMessageRead> sendChatMessage(String chatroomId, int senderId, String text) async {
     final response = await _executeWithRetry(
-      () => _api.sendChatMessageChatroomsChatroomIdMessagesPost(chatroomId: chatroomId, chatMessageCreateRequest: message),
+      () => _messagesApi.sendMessageApiV1MessagesSendPost(
+        chatRoomId: chatroomId,
+        senderId: senderId,
+        text: text,
+        isMine: true,
+      ),
       'Send Chat Message',
     );
     return response.data!;
@@ -661,7 +662,7 @@ class ApiService {
   /// Get chat messages
   Future<BuiltList<ChatMessageRead>> getChatMessages(String chatroomId) async {
     final response = await _executeWithRetry(
-      () => _api.getChatMessagesChatroomsChatroomIdMessagesGet(chatroomId: chatroomId),
+      () => _messagesApi.getChatRoomMessagesApiV1MessagesChatroomsChatRoomIdGet(chatRoomId: chatroomId),
       'Get Chat Messages',
     );
     return response.data!;
@@ -672,7 +673,7 @@ class ApiService {
   /// Create activity
   Future<ActivityRead> createActivity(ActivityCreate activity) async {
     final response = await _executeWithRetry(
-      () => _api.createActivityActivitiesPost(activityCreate: activity),
+      () => _activitiesApi.createActivityApiV1ActivitiesPost(activityCreate: activity),
       'Create Activity',
     );
     return response.data!;
@@ -681,7 +682,7 @@ class ApiService {
   /// Get activities
   Future<BuiltList<ActivityRead>> getActivities() async {
     final response = await _executeWithRetry(
-      () => _api.getActivitiesActivitiesGet(),
+      () => _activitiesApi.getActivitiesApiV1ActivitiesGet(),
       'Get Activities',
     );
     return response.data!;
@@ -690,7 +691,7 @@ class ApiService {
   /// Delete activity
   Future<void> deleteActivity(String activityId) async {
     await _executeWithRetry(
-      () => _api.deleteActivityActivitiesActivityIdDelete(activityId: activityId),
+      () => _activitiesApi.deleteActivityApiV1ActivitiesActivityIdDelete(activityId: activityId),
       'Delete Activity',
     );
   }
