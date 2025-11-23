@@ -39,6 +39,7 @@ class NetworkGraphWidget extends StatefulWidget {
 }
 
 class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
+  late List<NetworkNode> _nodes;
   NetworkNode? _selectedNode;
   double _scale = 1.0;
   Offset _panOffset = Offset.zero;
@@ -52,13 +53,33 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   @override
   void initState() {
     super.initState();
+    // Create a copy of nodes to maintain state
+    _nodes = List.from(widget.nodes);
 
     // Set initial selected node if provided
     if (widget.initialSelectedNodeId != null) {
-      _selectedNode = widget.nodes.firstWhere(
+      _selectedNode = _nodes.firstWhere(
         (node) => node.id == widget.initialSelectedNodeId,
-        orElse: () => widget.nodes.first,
+        orElse: () => _nodes.first,
       );
+    }
+  }
+
+  @override
+  void didUpdateWidget(NetworkGraphWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only update nodes if the widget's nodes changed significantly
+    if (widget.nodes.length != oldWidget.nodes.length || 
+        !widget.nodes.every((node) => oldWidget.nodes.any((oldNode) => oldNode.id == node.id))) {
+      _nodes = List.from(widget.nodes);
+      
+      // Update selected node reference if it exists
+      if (_selectedNode != null) {
+        _selectedNode = _nodes.firstWhere(
+          (node) => node.id == _selectedNode!.id,
+          orElse: () => _nodes.isNotEmpty ? _nodes.first : _selectedNode!,
+        );
+      }
     }
   }
 
@@ -67,7 +88,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
 
     final margin = nodeRadius * 2;
 
-    for (final node in widget.nodes) {
+    for (final node in _nodes) {
       if (node.isTextNode) continue;
 
       // Clamp node positions to viewport bounds
@@ -151,10 +172,12 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   ) {
     if (!mounted) return;
     setState(() {
+      // Find the node in our local state and update it
+      final nodeInState = _nodes.firstWhere((n) => n.id == node.id);
       // Use delta for smooth incremental updates
       // Don't divide by scale since gesture detector is already inside Transform.scale
-      node.position += details.delta;
-      node.velocity = Offset.zero;
+      nodeInState.position += details.delta;
+      nodeInState.velocity = Offset.zero;
     });
   }
 
@@ -219,7 +242,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                 child: SizedBox.expand(
                   child: CustomPaint(
                      painter: NetworkGraphPainter(
-                        nodes: widget.nodes,
+                        nodes: _nodes,
                         selectedNode: _selectedNode,
                         theme: theme,
                         show1HopCircle: widget.show1HopCircle,
@@ -227,7 +250,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                       ),
                     child: Stack(
                       clipBehavior: Clip.none,
-                      children: widget.nodes.map((node) {
+                      children: _nodes.map((node) {
                         final isSelected = _selectedNode?.id == node.id;
                         final isYou =
                             widget.currentUserId != null &&
@@ -270,22 +293,23 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                           );
                         }
 
-                        return Positioned(
-                          left: node.position.dx - offset,
-                          top: node.position.dy - offset,
-                          child: GestureDetector(
-                            onPanStart: (details) =>
-                                _onNodePanStart(node, details, offset),
-                            onPanUpdate: (details) =>
-                                _onNodePanUpdate(node, details, offset),
-                            onPanEnd: (details) => _onNodePanEnd(node, details),
-                            onTap: () {
-                              setState(() {
-                                _selectedNode = node;
-                              });
-                              widget.onNodeTap?.call(node);
-                            },
-                            child: NetworkNodeWidget(
+                         return Positioned(
+                           left: node.position.dx - offset,
+                           top: node.position.dy - offset,
+                           child: GestureDetector(
+                             behavior: HitTestBehavior.opaque, // Ensure gesture detection works
+                             onPanStart: (details) =>
+                                 _onNodePanStart(node, details, offset),
+                             onPanUpdate: (details) =>
+                                 _onNodePanUpdate(node, details, offset),
+                             onPanEnd: (details) => _onNodePanEnd(node, details),
+                             onTap: () {
+                               setState(() {
+                                 _selectedNode = node;
+                               });
+                               widget.onNodeTap?.call(node);
+                             },
+                             child: NetworkNodeWidget(
                               node: node,
                               selectedNode: _selectedNode,
                               currentUserId: widget.currentUserId,
