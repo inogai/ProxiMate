@@ -76,7 +76,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           );
         }
       } else {
-        print('Error refreshing messages: $e');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -897,8 +896,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
-    print('!! Collecting name card for user: $otherUserId');
-
     final result = await storage.collectNameCard(otherUserId);
 
     switch (result) {
@@ -1026,14 +1023,27 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final chatRoom = updatedChatRoom;
     final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
+    // Check if there are any pending or answered connection requests
+    bool hasPendingConnectionRequest = false;
+    bool hasAnsweredConnectionRequest = false;
+
+    if (chatRoom != null && chatRoom.messages.isNotEmpty) {
+      for (final message in chatRoom.messages) {
+        if (message.isConnectionRequest) {
+          final status = message.connectionStatus ?? 'pending';
+          if (status == 'pending') {
+            hasPendingConnectionRequest = true;
+          } else if (status == 'accepted' || status == 'declined') {
+            hasAnsweredConnectionRequest = true;
+          }
+        }
+      }
+    }
+
     // Check if there's an accepted invitation with uncollected name card
     ChatMessage? acceptedInvitationMessage;
 
     if (chatRoom != null && chatRoom.messages.isNotEmpty) {
-      print(
-        "!! chatRoom.messages.length: ${chatRoom.messages.first.invitationData}",
-      );
-
       for (final message in chatRoom.messages) {
         if (message.isInvitation &&
             message.isAccepted &&
@@ -1048,9 +1058,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       (profile) => profile.id == otherUserId,
     );
 
-    print(
-      '!! Building action buttons - acceptedInvitationMessage: ${acceptedInvitationMessage != null}, hasConnection: $hasConnection',
-    );
+    // Don't show collect name card button if there's a pending or answered connection request
+    if (hasPendingConnectionRequest || hasAnsweredConnectionRequest) {
+      return const SizedBox.shrink();
+    }
 
     // Show collect name card / not good match buttons if there's an accepted invitation
     if (acceptedInvitationMessage != null && !hasConnection) {
@@ -1096,8 +1107,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       );
     }
 
-    // Show send invitation button if no pending invitation
-    if (!_hasPendingInvitation()) {
+    // Show send invitation button if no pending invitation and no connection yet
+    if (!_hasPendingInvitation() && !hasConnection) {
       return Container(
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 12),
@@ -1117,7 +1128,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       );
     }
 
-    // Otherwise show nothing (pending invitation or name card already collected)
+    // Otherwise show nothing (pending invitation, connection request, or name card already collected)
     return const SizedBox.shrink();
   }
 
