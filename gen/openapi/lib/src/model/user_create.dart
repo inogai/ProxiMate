@@ -11,7 +11,7 @@ part 'user_create.g.dart';
 /// Schema for creating a new user.
 ///
 /// Properties:
-/// * [username] 
+/// * [displayname] 
 /// * [school] 
 /// * [major] 
 /// * [interests] 
@@ -19,8 +19,8 @@ part 'user_create.g.dart';
 /// * [avatarUrl] 
 @BuiltValue()
 abstract class UserCreate implements Built<UserCreate, UserCreateBuilder> {
-  @BuiltValueField(wireName: r'username')
-  String get username;
+  @BuiltValueField(wireName: r'displayname')
+  String get displayname;
 
   @BuiltValueField(wireName: r'school')
   String? get school;
@@ -64,9 +64,9 @@ class _$UserCreateSerializer implements PrimitiveSerializer<UserCreate> {
     UserCreate object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
-    yield r'username';
+    yield r'displayname';
     yield serializers.serialize(
-      object.username,
+      object.displayname,
       specifiedType: const FullType(String),
     );
     if (object.school != null) {
@@ -127,12 +127,12 @@ class _$UserCreateSerializer implements PrimitiveSerializer<UserCreate> {
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
-        case r'username':
+        case r'displayname':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
-          result.username = valueDes;
+          result.displayname = valueDes;
           break;
         case r'school':
           final valueDes = serializers.deserialize(

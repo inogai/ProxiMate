@@ -997,7 +997,6 @@ class MessagesApi {
   /// * [chatRoomId] 
   /// * [senderId] 
   /// * [text] 
-  /// * [isMine] 
   /// * [invitationId] 
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
@@ -1012,7 +1011,6 @@ class MessagesApi {
     required String chatRoomId,
     required int senderId,
     required String text,
-    bool? isMine = false,
     String? invitationId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -1038,7 +1036,6 @@ class MessagesApi {
       r'chat_room_id': encodeQueryParameter(_serializers, chatRoomId, const FullType(String)),
       r'sender_id': encodeQueryParameter(_serializers, senderId, const FullType(int)),
       r'text': encodeQueryParameter(_serializers, text, const FullType(String)),
-      if (isMine != null) r'is_mine': encodeQueryParameter(_serializers, isMine, const FullType(bool)),
       r'invitation_id': encodeQueryParameter(_serializers, invitationId, const FullType(String)),
     };
 

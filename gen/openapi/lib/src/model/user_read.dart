@@ -11,7 +11,7 @@ part 'user_read.g.dart';
 /// Schema for reading user data.
 ///
 /// Properties:
-/// * [username] 
+/// * [displayname] 
 /// * [school] 
 /// * [major] 
 /// * [interests] 
@@ -21,8 +21,8 @@ part 'user_read.g.dart';
 /// * [createdAt] 
 @BuiltValue()
 abstract class UserRead implements Built<UserRead, UserReadBuilder> {
-  @BuiltValueField(wireName: r'username')
-  String get username;
+  @BuiltValueField(wireName: r'displayname')
+  String get displayname;
 
   @BuiltValueField(wireName: r'school')
   String? get school;
@@ -72,9 +72,9 @@ class _$UserReadSerializer implements PrimitiveSerializer<UserRead> {
     UserRead object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
-    yield r'username';
+    yield r'displayname';
     yield serializers.serialize(
-      object.username,
+      object.displayname,
       specifiedType: const FullType(String),
     );
     if (object.school != null) {
@@ -145,12 +145,12 @@ class _$UserReadSerializer implements PrimitiveSerializer<UserRead> {
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
-        case r'username':
+        case r'displayname':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
-          result.username = valueDes;
+          result.displayname = valueDes;
           break;
         case r'school':
           final valueDes = serializers.deserialize(

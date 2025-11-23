@@ -563,7 +563,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **sendMessageApiV1MessagesSendPost**
-> ChatMessageRead sendMessageApiV1MessagesSendPost(chatRoomId, senderId, text, isMine, invitationId)
+> ChatMessageRead sendMessageApiV1MessagesSendPost(chatRoomId, senderId, text, invitationId)
 
 Send Message
 
@@ -577,11 +577,10 @@ final api = Openapi().getMessagesApi();
 final String chatRoomId = chatRoomId_example; // String | 
 final int senderId = 56; // int | 
 final String text = text_example; // String | 
-final bool isMine = true; // bool | 
 final String invitationId = invitationId_example; // String | 
 
 try {
-    final response = api.sendMessageApiV1MessagesSendPost(chatRoomId, senderId, text, isMine, invitationId);
+    final response = api.sendMessageApiV1MessagesSendPost(chatRoomId, senderId, text, invitationId);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling MessagesApi->sendMessageApiV1MessagesSendPost: $e\n');
@@ -595,7 +594,6 @@ Name | Type | Description  | Notes
  **chatRoomId** | **String**|  | 
  **senderId** | **int**|  | 
  **text** | **String**|  | 
- **isMine** | **bool**|  | [optional] [default to false]
  **invitationId** | **String**|  | [optional] 
 
 ### Return type

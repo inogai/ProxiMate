@@ -8,7 +8,7 @@ part of 'user_read.dart';
 
 class _$UserRead extends UserRead {
   @override
-  final String username;
+  final String displayname;
   @override
   final String? school;
   @override
@@ -28,7 +28,7 @@ class _$UserRead extends UserRead {
       (UserReadBuilder()..update(updates))._build();
 
   _$UserRead._(
-      {required this.username,
+      {required this.displayname,
       this.school,
       this.major,
       this.interests,
@@ -48,7 +48,7 @@ class _$UserRead extends UserRead {
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
     return other is UserRead &&
-        username == other.username &&
+        displayname == other.displayname &&
         school == other.school &&
         major == other.major &&
         interests == other.interests &&
@@ -61,7 +61,7 @@ class _$UserRead extends UserRead {
   @override
   int get hashCode {
     var _$hash = 0;
-    _$hash = $jc(_$hash, username.hashCode);
+    _$hash = $jc(_$hash, displayname.hashCode);
     _$hash = $jc(_$hash, school.hashCode);
     _$hash = $jc(_$hash, major.hashCode);
     _$hash = $jc(_$hash, interests.hashCode);
@@ -76,7 +76,7 @@ class _$UserRead extends UserRead {
   @override
   String toString() {
     return (newBuiltValueToStringHelper(r'UserRead')
-          ..add('username', username)
+          ..add('displayname', displayname)
           ..add('school', school)
           ..add('major', major)
           ..add('interests', interests)
@@ -91,9 +91,9 @@ class _$UserRead extends UserRead {
 class UserReadBuilder implements Builder<UserRead, UserReadBuilder> {
   _$UserRead? _$v;
 
-  String? _username;
-  String? get username => _$this._username;
-  set username(String? username) => _$this._username = username;
+  String? _displayname;
+  String? get displayname => _$this._displayname;
+  set displayname(String? displayname) => _$this._displayname = displayname;
 
   String? _school;
   String? get school => _$this._school;
@@ -130,7 +130,7 @@ class UserReadBuilder implements Builder<UserRead, UserReadBuilder> {
   UserReadBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
-      _username = $v.username;
+      _displayname = $v.displayname;
       _school = $v.school;
       _major = $v.major;
       _interests = $v.interests;
@@ -159,8 +159,8 @@ class UserReadBuilder implements Builder<UserRead, UserReadBuilder> {
   _$UserRead _build() {
     final _$result = _$v ??
         _$UserRead._(
-          username: BuiltValueNullFieldError.checkNotNull(
-              username, r'UserRead', 'username'),
+          displayname: BuiltValueNullFieldError.checkNotNull(
+              displayname, r'UserRead', 'displayname'),
           school: school,
           major: major,
           interests: interests,

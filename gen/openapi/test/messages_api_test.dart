@@ -119,7 +119,7 @@ void main() {
     //
     // Send a message in a chat room.
     //
-    //Future<ChatMessageRead> sendMessageApiV1MessagesSendPost(String chatRoomId, int senderId, String text, { bool isMine, String invitationId }) async
+    //Future<ChatMessageRead> sendMessageApiV1MessagesSendPost(String chatRoomId, int senderId, String text, { String invitationId }) async
     test('test sendMessageApiV1MessagesSendPost', () async {
       // TODO
     });

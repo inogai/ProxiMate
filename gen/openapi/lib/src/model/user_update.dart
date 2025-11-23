@@ -11,7 +11,7 @@ part 'user_update.g.dart';
 /// Schema for updating user information.
 ///
 /// Properties:
-/// * [username] 
+/// * [displayname] 
 /// * [school] 
 /// * [major] 
 /// * [interests] 
@@ -19,8 +19,8 @@ part 'user_update.g.dart';
 /// * [avatarUrl] 
 @BuiltValue()
 abstract class UserUpdate implements Built<UserUpdate, UserUpdateBuilder> {
-  @BuiltValueField(wireName: r'username')
-  String? get username;
+  @BuiltValueField(wireName: r'displayname')
+  String? get displayname;
 
   @BuiltValueField(wireName: r'school')
   String? get school;
@@ -60,10 +60,10 @@ class _$UserUpdateSerializer implements PrimitiveSerializer<UserUpdate> {
     UserUpdate object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
-    if (object.username != null) {
-      yield r'username';
+    if (object.displayname != null) {
+      yield r'displayname';
       yield serializers.serialize(
-        object.username,
+        object.displayname,
         specifiedType: const FullType.nullable(String),
       );
     }
@@ -125,13 +125,13 @@ class _$UserUpdateSerializer implements PrimitiveSerializer<UserUpdate> {
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
-        case r'username':
+        case r'displayname':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType.nullable(String),
           ) as String?;
           if (valueDes == null) continue;
-          result.username = valueDes;
+          result.displayname = valueDes;
           break;
         case r'school':
           final valueDes = serializers.deserialize(

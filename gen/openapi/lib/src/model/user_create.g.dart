@@ -8,7 +8,7 @@ part of 'user_create.dart';
 
 class _$UserCreate extends UserCreate {
   @override
-  final String username;
+  final String displayname;
   @override
   final String? school;
   @override
@@ -24,7 +24,7 @@ class _$UserCreate extends UserCreate {
       (UserCreateBuilder()..update(updates))._build();
 
   _$UserCreate._(
-      {required this.username,
+      {required this.displayname,
       this.school,
       this.major,
       this.interests,
@@ -42,7 +42,7 @@ class _$UserCreate extends UserCreate {
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
     return other is UserCreate &&
-        username == other.username &&
+        displayname == other.displayname &&
         school == other.school &&
         major == other.major &&
         interests == other.interests &&
@@ -53,7 +53,7 @@ class _$UserCreate extends UserCreate {
   @override
   int get hashCode {
     var _$hash = 0;
-    _$hash = $jc(_$hash, username.hashCode);
+    _$hash = $jc(_$hash, displayname.hashCode);
     _$hash = $jc(_$hash, school.hashCode);
     _$hash = $jc(_$hash, major.hashCode);
     _$hash = $jc(_$hash, interests.hashCode);
@@ -66,7 +66,7 @@ class _$UserCreate extends UserCreate {
   @override
   String toString() {
     return (newBuiltValueToStringHelper(r'UserCreate')
-          ..add('username', username)
+          ..add('displayname', displayname)
           ..add('school', school)
           ..add('major', major)
           ..add('interests', interests)
@@ -79,9 +79,9 @@ class _$UserCreate extends UserCreate {
 class UserCreateBuilder implements Builder<UserCreate, UserCreateBuilder> {
   _$UserCreate? _$v;
 
-  String? _username;
-  String? get username => _$this._username;
-  set username(String? username) => _$this._username = username;
+  String? _displayname;
+  String? get displayname => _$this._displayname;
+  set displayname(String? displayname) => _$this._displayname = displayname;
 
   String? _school;
   String? get school => _$this._school;
@@ -110,7 +110,7 @@ class UserCreateBuilder implements Builder<UserCreate, UserCreateBuilder> {
   UserCreateBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
-      _username = $v.username;
+      _displayname = $v.displayname;
       _school = $v.school;
       _major = $v.major;
       _interests = $v.interests;
@@ -137,8 +137,8 @@ class UserCreateBuilder implements Builder<UserCreate, UserCreateBuilder> {
   _$UserCreate _build() {
     final _$result = _$v ??
         _$UserCreate._(
-          username: BuiltValueNullFieldError.checkNotNull(
-              username, r'UserCreate', 'username'),
+          displayname: BuiltValueNullFieldError.checkNotNull(
+              displayname, r'UserCreate', 'displayname'),
           school: school,
           major: major,
           interests: interests,
