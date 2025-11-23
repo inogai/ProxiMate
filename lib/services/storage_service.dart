@@ -39,7 +39,8 @@ class StorageService extends ChangeNotifier {
   String?
   _selectedActivityId; // Currently selected activity for viewing invitations
   String? _apiUserId; // Store API user ID for backend integration
-  final Map<String, DateTime> _lastMessageFetch = {}; // Track last fetch time per chat room
+  final Map<String, DateTime> _lastMessageFetch =
+      {}; // Track last fetch time per chat room
 
   Profile? get currentProfile => _currentProfile;
   List<Connection> get connections => _connections;
@@ -92,12 +93,14 @@ class StorageService extends ChangeNotifier {
       _debugLog('=== FETCHING MESSAGES FOR CHAT ROOM $chatRoomId ===');
       final messages = await _apiService.getChatMessages(chatRoomId);
       final messageReads = messages.toList();
-      
+
       _debugLog('Server returned ${messageReads.length} messages');
       for (int i = 0; i < messageReads.length; i++) {
-        _debugLog('Server message ${i + 1}: ID=${messageReads[i].id}, sender=${messageReads[i].senderId}, text="${messageReads[i].text}"');
+        _debugLog(
+          'Server message ${i + 1}: ID=${messageReads[i].id}, sender=${messageReads[i].senderId}, text="${messageReads[i].text}"',
+        );
       }
-      
+
       final chatRoomIndex = _chatRooms.indexWhere((cr) => cr.id == chatRoomId);
       if (chatRoomIndex == -1) {
         _debugLog('Chat room $chatRoomId not found locally');
@@ -107,11 +110,13 @@ class StorageService extends ChangeNotifier {
       final currentMessages = _chatRooms[chatRoomIndex].messages;
       _debugLog('Current local messages count: ${currentMessages.length}');
       for (int i = 0; i < currentMessages.length; i++) {
-        _debugLog('Local message ${i + 1}: ID=${currentMessages[i].id}, isMine=${currentMessages[i].isMine}, text="${currentMessages[i].text}"');
+        _debugLog(
+          'Local message ${i + 1}: ID=${currentMessages[i].id}, isMine=${currentMessages[i].isMine}, text="${currentMessages[i].text}"',
+        );
       }
-      
+
       final newMessages = <ChatMessage>[];
-      
+
       for (final messageRead in messageReads) {
         // Check if message already exists by ID or by content+timestamp+sender (for temporary IDs)
         final existingMessage = currentMessages.firstWhere(
@@ -120,7 +125,7 @@ class StorageService extends ChangeNotifier {
             // Try to find a match by content, timestamp, and sender (for locally sent messages with temp IDs)
             final currentUserId = _currentProfile?.id ?? '';
             final isMine = messageRead.senderId.toString() == currentUserId;
-            
+
             // Get the server timestamp in local format for comparison
             DateTime serverTimestampLocal;
             try {
@@ -145,12 +150,16 @@ class StorageService extends ChangeNotifier {
               // Fallback to current time if parsing fails
               serverTimestampLocal = DateTime.now();
             }
-            
+
             final matchByContent = currentMessages.firstWhere(
-              (msg) => 
-                msg.text.trim() == messageRead.text.trim() &&
-                msg.isMine == isMine &&
-                msg.timestamp.difference(serverTimestampLocal).abs().inMinutes < 1, // Within 1 minute
+              (msg) =>
+                  msg.text.trim() == messageRead.text.trim() &&
+                  msg.isMine == isMine &&
+                  msg.timestamp
+                          .difference(serverTimestampLocal)
+                          .abs()
+                          .inMinutes <
+                      1, // Within 1 minute
               orElse: () => ChatMessage(
                 id: 'dummy',
                 text: '',
@@ -158,18 +167,20 @@ class StorageService extends ChangeNotifier {
                 timestamp: DateTime.now(),
               ),
             );
-            
+
             return matchByContent;
           },
         );
-        
+
         if (existingMessage.id == 'dummy') {
           // New message found
           final currentUserId = _currentProfile?.id ?? '';
           final isMine = messageRead.senderId.toString() == currentUserId;
-          
+
           _debugLog('Adding new message: ID=${messageRead.id}, isMine=$isMine');
-          newMessages.add(_apiService.chatMessageReadToChatMessage(messageRead, isMine));
+          newMessages.add(
+            _apiService.chatMessageReadToChatMessage(messageRead, isMine),
+          );
         } else if (existingMessage.id != messageRead.id) {
           // Found by content match but ID differs - update the local message with server ID and timestamp
           DateTime serverTimestampLocal;
@@ -195,10 +206,16 @@ class StorageService extends ChangeNotifier {
             // Fallback to current time if parsing fails
             serverTimestampLocal = DateTime.now();
           }
-          
-          _debugLog('Updating temporary message ID: localID=${existingMessage.id} -> serverID=${messageRead.id}');
-          _debugLog('Updating timestamp: local=${existingMessage.timestamp} -> server=$serverTimestampLocal');
-          final messageIndex = currentMessages.indexWhere((msg) => msg.id == existingMessage.id);
+
+          _debugLog(
+            'Updating temporary message ID: localID=${existingMessage.id} -> serverID=${messageRead.id}',
+          );
+          _debugLog(
+            'Updating timestamp: local=${existingMessage.timestamp} -> server=$serverTimestampLocal',
+          );
+          final messageIndex = currentMessages.indexWhere(
+            (msg) => msg.id == existingMessage.id,
+          );
           if (messageIndex != -1) {
             currentMessages[messageIndex] = existingMessage.copyWith(
               id: messageRead.id,
@@ -214,11 +231,11 @@ class StorageService extends ChangeNotifier {
         // Sort all messages by timestamp
         final allMessages = [...currentMessages, ...newMessages];
         allMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        
+
         _chatRooms[chatRoomIndex] = _chatRooms[chatRoomIndex].copyWith(
           messages: allMessages,
         );
-        
+
         _lastMessageFetch[chatRoomId] = DateTime.now();
         notifyListeners();
       }
@@ -287,7 +304,7 @@ class StorageService extends ChangeNotifier {
   ChatRoom? getChatRoomByPeerId(String peerId) {
     final currentUserId = _currentProfile?.id ?? '';
     if (currentUserId.isEmpty) return null;
-    
+
     try {
       return _chatRooms.firstWhere(
         (cr) => cr.containsUser(currentUserId) && cr.containsUser(peerId),
@@ -361,10 +378,10 @@ class StorageService extends ChangeNotifier {
 
       // Load activities from API
       await _loadActivitiesFromApi();
-      
+
       // Load chat rooms from API
       await _fetchChatRooms();
-      
+
       // Start invitation polling if user is logged in
       if (_apiUserId != null) {
         startInvitationPolling();
@@ -386,21 +403,23 @@ class StorageService extends ChangeNotifier {
 
       _debugLog('Loading activities from API...');
       final apiActivities = await _apiService.getActivities();
-      
+
       _activities.clear();
       for (final apiActivity in apiActivities) {
         final activity = _apiService.activityReadToActivity(apiActivity);
         _activities.add(activity);
       }
-      
+
       _debugLog('Loaded ${_activities.length} activities from API');
-      
+
       // Select first activity if none is selected
       if (_selectedActivityId == null && _activities.isNotEmpty) {
         _selectedActivityId = _activities.first.id.toString();
-        _debugLog('Auto-selected activity: ${_activities.first.name} (ID: ${_activities.first.id}, type: ${_activities.first.id.runtimeType})');
+        _debugLog(
+          'Auto-selected activity: ${_activities.first.name} (ID: ${_activities.first.id}, type: ${_activities.first.id.runtimeType})',
+        );
       }
-      
+
       notifyListeners();
     } catch (e) {
       _debugLog('Error loading activities from API: $e');
@@ -495,7 +514,7 @@ class StorageService extends ChangeNotifier {
 
       // Start location tracking for the new user
       _startLocationTracking();
-      
+
       // Start invitation polling for the new user
       startInvitationPolling();
 
@@ -576,7 +595,7 @@ class StorageService extends ChangeNotifier {
         // Create user update with only avatar URL changed
         final userUpdate = UserUpdate(
           (b) => b
-            ..username = _currentProfile!.userName
+            ..displayname = _currentProfile!.userName
             ..school = _currentProfile!.school ?? ''
             ..major = _currentProfile!.major ?? ''
             ..interests = _currentProfile!.interests ?? ''
@@ -617,7 +636,7 @@ class StorageService extends ChangeNotifier {
 
     // Stop location tracking when user logs out
     _locationService.stopLocationTracking();
-    
+
     // Stop invitation polling when user logs out
     stopInvitationPolling();
 
@@ -630,20 +649,24 @@ class StorageService extends ChangeNotifier {
     await clearProfile();
   }
 
-/// Create a new activity via API
+  /// Create a new activity via API
   Future<Activity> createActivity(String name, String description) async {
-    final activityCreate = ActivityCreate((b) => b
-      ..name = name
-      ..description = description);
+    final activityCreate = ActivityCreate(
+      (b) => b
+        ..name = name
+        ..description = description,
+    );
 
     final apiActivity = await _apiService.createActivity(activityCreate);
     final activity = _apiService.activityReadToActivity(apiActivity);
-    
+
     _activities.add(activity);
     _selectedActivityId = activity.id.toString();
-    _debugLog('Created activity via API: ${activity.id} (type: ${activity.id.runtimeType})');
+    _debugLog(
+      'Created activity via API: ${activity.id} (type: ${activity.id.runtimeType})',
+    );
     notifyListeners();
-    
+
     return activity;
   }
 
@@ -659,7 +682,9 @@ class StorageService extends ChangeNotifier {
   /// Select an activity to view its invitations
   void selectActivity(String activityId) {
     _selectedActivityId = activityId.toString();
-    _debugLog('Selected activity ID: $activityId (type: ${activityId.runtimeType})');
+    _debugLog(
+      'Selected activity ID: $activityId (type: ${activityId.runtimeType})',
+    );
     notifyListeners();
   }
 
@@ -677,7 +702,7 @@ class StorageService extends ChangeNotifier {
     final existingSearchActivity = _activities
         .where((a) => a.name == searchActivityName)
         .firstOrNull;
-    
+
     if (existingSearchActivity != null) {
       _selectedActivityId = existingSearchActivity.id.toString();
       _debugLog('Using existing search activity: ${existingSearchActivity.id}');
@@ -686,18 +711,23 @@ class StorageService extends ChangeNotifier {
     }
 
     // Create a new search activity via API
-    final activityCreate = ActivityCreate((b) => b
-      ..name = searchActivityName
-      ..description = 'Looking for people nearby who want to grab food together');
+    final activityCreate = ActivityCreate(
+      (b) => b
+        ..name = searchActivityName
+        ..description =
+            'Looking for people nearby who want to grab food together',
+    );
 
     final apiActivity = await _apiService.createActivity(activityCreate);
     final activity = _apiService.activityReadToActivity(apiActivity);
-    
+
     _activities.add(activity);
     _selectedActivityId = activity.id.toString();
-    _debugLog('Created search activity via API: ${activity.id} (type: ${activity.id.runtimeType})');
+    _debugLog(
+      'Created search activity via API: ${activity.id} (type: ${activity.id.runtimeType})',
+    );
     notifyListeners();
-    
+
     return activity;
   }
 
@@ -1176,10 +1206,12 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
-/// Send invitation for activity
+  /// Send invitation for activity
   Future<Invitation> sendInvitation(Peer peer, String activityName) async {
-    _debugLog('sendInvitation called for peer: ${peer.name}, activity: $activityName');
-    
+    _debugLog(
+      'sendInvitation called for peer: ${peer.name}, activity: $activityName',
+    );
+
     // Require activity to be selected
     if (_selectedActivityId == null) {
       _debugLog('No activity selected - throwing exception');
@@ -1193,38 +1225,40 @@ class StorageService extends ChangeNotifier {
     }
 
     _debugLog('Validation passed - proceeding with API call');
-    _debugLog('Creating invitation with senderId: $_apiUserId, receiverId: ${peer.id}, activityId: $_selectedActivityId (type: ${_selectedActivityId.runtimeType})');
+    _debugLog(
+      'Creating invitation with senderId: $_apiUserId, receiverId: ${peer.id}, activityId: $_selectedActivityId (type: ${_selectedActivityId.runtimeType})',
+    );
 
     // Generate ice-breaking questions
     final iceBreakers = _generateIceBreakers(peer);
 
     try {
       _debugLog('Creating invitation using new message-based system...');
-      
+
       final currentUserId = int.parse(_apiUserId!);
       final activityId = _selectedActivityId!.toString();
-      
+
       // Step 1: Get or create chat room between users
       _debugLog('Getting/creating chat room for invitation...');
       final chatRoomRead = await _apiService.findChatRoomBetweenUsers(
         currentUserId,
         int.parse(peer.id),
-        activityName
+        activityName,
       );
-      
+
       if (chatRoomRead == null) {
         throw Exception('Failed to create or get chat room');
       }
-      
+
       final chatRoom = _apiService.chatRoomReadToChatRoom(chatRoomRead);
       _chatRooms.add(chatRoom);
       _debugLog('Chat room created/fetched: ${chatRoom.id}');
-      
+
       // Step 2: Create invitation message in the chat room
       _debugLog('Creating invitation message...');
       final invitationId = 'inv_${DateTime.now().millisecondsSinceEpoch}';
       final iceBreakerStrings = iceBreakers.map((ib) => ib.question).toList();
-      
+
       // Create local invitation object for compatibility first
       final invitation = Invitation(
         id: invitationId,
@@ -1239,7 +1273,7 @@ class StorageService extends ChangeNotifier {
         nameCardCollected: false,
         chatOpened: false,
       );
-      
+
       final invitationMessage = await _apiService.createInvitationMessage(
         chatRoom.id,
         currentUserId,
@@ -1248,7 +1282,7 @@ class StorageService extends ChangeNotifier {
         BuiltList<String>(iceBreakerStrings),
         null, // responseDeadline - not set for now
       );
-      
+
       _debugLog('Invitation message created: ${invitationMessage.id}');
 
       _invitations.add(invitation);
@@ -1278,12 +1312,14 @@ class StorageService extends ChangeNotifier {
     stopInvitationPolling();
 
     _debugLog('Starting invitation polling every 30 seconds');
-    
+
     // Fetch immediately
     fetchInvitations();
-    
+
     // Then fetch every 30 seconds
-    _invitationFetchTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _invitationFetchTimer = Timer.periodic(const Duration(seconds: 30), (
+      timer,
+    ) {
       _debugLog('Periodic invitation fetch...');
       fetchInvitations();
     });
@@ -1305,24 +1341,26 @@ class StorageService extends ChangeNotifier {
 
     try {
       _debugLog('Fetching invitations for user $_apiUserId...');
-      
+
       // TODO: Implement message-based invitation fetching
       // final invitationReads = await _apiService.getInvitations(int.parse(_apiUserId!));
       final invitationReads = <dynamic>[];
       _debugLog('Fetched ${invitationReads.length} invitations from server');
-      
+
       // Convert API invitations to local Invitation objects
       final fetchedInvitations = <Invitation>[];
-      
+
       for (final invitationRead in invitationReads) {
         try {
           // Get peer name from sender/receiver info
           String peerName = 'Unknown User';
           bool sentByMe = invitationRead.senderId.toString() == _apiUserId;
-          
+
           // If we sent it, peer is the receiver, otherwise peer is the sender
-          final peerId = sentByMe ? invitationRead.receiverId.toString() : invitationRead.senderId.toString();
-          
+          final peerId = sentByMe
+              ? invitationRead.receiverId.toString()
+              : invitationRead.senderId.toString();
+
           // Try to get peer name from profiles or nearby peers
           final profile = await getProfileById(peerId);
           if (profile != null) {
@@ -1336,7 +1374,7 @@ class StorageService extends ChangeNotifier {
               peerName = 'User $peerId';
             }
           }
-          
+
           // Create invitation from message data (since we removed old invitation API)
           DateTime parsedCreatedAt;
           try {
@@ -1346,7 +1384,9 @@ class StorageService extends ChangeNotifier {
             }
           } catch (e) {
             parsedCreatedAt = DateTime.now();
-            _debugLog('Failed to parse createdAt: ${invitationRead.createdAt}, using current time');
+            _debugLog(
+              'Failed to parse createdAt: ${invitationRead.createdAt}, using current time',
+            );
           }
 
           final invitation = Invitation(
@@ -1362,18 +1402,19 @@ class StorageService extends ChangeNotifier {
             nameCardCollected: false, // Not available in new API
             chatOpened: false, // Not available in new API
           );
-          
+
           fetchedInvitations.add(invitation);
         } catch (e) {
           _debugLog('Error processing invitation ${invitationRead.id}: $e');
         }
       }
-      
+
       // Update local invitations list
       _invitations = fetchedInvitations;
-      _debugLog('Updated local invitations list with ${_invitations.length} invitations');
+      _debugLog(
+        'Updated local invitations list with ${_invitations.length} invitations',
+      );
       notifyListeners();
-      
     } catch (e) {
       _debugLog('Failed to fetch invitations: $e');
       // Don't throw - keep existing local invitations if fetch fails
@@ -1382,10 +1423,9 @@ class StorageService extends ChangeNotifier {
 
   /// Serialize iceBreakers to JSON string for API
   String _serializeIceBreakers(List<IceBreaker> iceBreakers) {
-    final iceBreakerMap = iceBreakers.map((ib) => {
-      'question': ib.question,
-      'answer': ib.answer,
-    }).toList();
+    final iceBreakerMap = iceBreakers
+        .map((ib) => {'question': ib.question, 'answer': ib.answer})
+        .toList();
     return jsonEncode(iceBreakerMap);
   }
 
@@ -1394,9 +1434,13 @@ class StorageService extends ChangeNotifier {
     try {
       final parsedTimestamp = DateTime.parse(timestampString);
       // Convert to local time if it's UTC
-      return parsedTimestamp.isUtc ? parsedTimestamp.toLocal() : parsedTimestamp;
+      return parsedTimestamp.isUtc
+          ? parsedTimestamp.toLocal()
+          : parsedTimestamp;
     } catch (e) {
-      _debugLog('Failed to parse timestamp: $timestampString, using current time');
+      _debugLog(
+        'Failed to parse timestamp: $timestampString, using current time',
+      );
       return DateTime.now();
     }
   }
@@ -1534,7 +1578,7 @@ class StorageService extends ChangeNotifier {
         'accept',
         currentUserId,
       );
-      
+
       _debugLog('Invitation accepted via API: $invitationId');
     } catch (e) {
       _debugLog('Failed to accept invitation via API: $e');
@@ -1578,7 +1622,7 @@ class StorageService extends ChangeNotifier {
         'decline',
         currentUserId,
       );
-      
+
       _debugLog('Invitation declined via API: $invitationId');
     } catch (e) {
       _debugLog('Failed to decline invitation via API: $e');
@@ -1739,8 +1783,6 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
-
-
   /// Send message in chat room
   Future<void> sendMessage(String chatRoomId, String text) async {
     final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
@@ -1763,13 +1805,15 @@ class StorageService extends ChangeNotifier {
       _debugLog('Chat Room ID: $chatRoomId');
       _debugLog('Local Message ID: ${message.id}');
       _debugLog('Message Text: ${message.text}');
-      _debugLog('Current messages count before send: ${_chatRooms[index].messages.length}');
+      _debugLog(
+        'Current messages count before send: ${_chatRooms[index].messages.length}',
+      );
 
       try {
         // Send to backend
         final currentUserId = int.tryParse(_currentProfile?.id ?? '0') ?? 0;
         await _apiService.sendChatMessage(chatRoomId, currentUserId, text);
-        
+
         // Don't refresh messages immediately to avoid duplication
         // The message is already added locally, and periodic polling will sync server-assigned ID
         _debugLog('Message sent successfully to chat room $chatRoomId');
@@ -1809,13 +1853,12 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-
-
   /// Get chat room between two users
   ChatRoom? getChatRoomBetweenUsers(String user1Id, String user2Id) {
     try {
-      return _chatRooms.firstWhere((c) => 
-        c.containsUser(user1Id) && c.containsUser(user2Id));
+      return _chatRooms.firstWhere(
+        (c) => c.containsUser(user1Id) && c.containsUser(user2Id),
+      );
     } catch (e) {
       return null;
     }
@@ -1832,9 +1875,9 @@ class StorageService extends ChangeNotifier {
         print('Invalid API user ID format: $_apiUserId');
         return;
       }
-      
+
       final response = await _apiService.getChatRooms(apiUserIdInt);
-      
+
       // Convert ChatRoomRead objects to local ChatRoom objects
       _chatRooms = response.map((chatRoomRead) {
         return ChatRoom(
@@ -1846,12 +1889,12 @@ class StorageService extends ChangeNotifier {
           messages: [],
         );
       }).toList();
-      
+
       // Fetch messages for each chat room
       for (final chatRoom in _chatRooms) {
         await _fetchMessagesForChatRoom(chatRoom.id);
       }
-      
+
       notifyListeners();
     } catch (e) {
       print('Error fetching chat rooms: $e');
@@ -1952,12 +1995,12 @@ class StorageService extends ChangeNotifier {
   /// Get profile by ID (fetches from API if not found locally)
   Future<Profile?> getProfileById(String id) async {
     if (id == _currentProfile?.id) return _currentProfile;
-    
+
     // Check local cache first
     if (_profiles.containsKey(id)) {
       return _profiles[id];
     }
-    
+
     // Fetch from API if not found locally
     try {
       final userIdInt = int.tryParse(id);
@@ -1965,15 +2008,15 @@ class StorageService extends ChangeNotifier {
         _debugLog('Invalid user ID format: $id');
         return null;
       }
-      
+
       final userRead = await _apiService.getUser(userIdInt);
       final profile = _apiService.userReadToProfile(userRead);
-      
+
       // Cache the profile locally
       _profiles[id] = profile;
       await _persistProfiles();
       notifyListeners();
-      
+
       return profile;
     } catch (e) {
       _debugLog('Error fetching profile for user $id: $e');
@@ -1999,8 +2042,9 @@ class StorageService extends ChangeNotifier {
     // Remove from chat rooms
     final invitation = _invitations.firstWhere((i) => i.id == invitationId);
     final currentUserId = _currentProfile?.id ?? '';
-    _chatRooms.removeWhere((c) => 
-      c.containsUser(currentUserId) && c.containsUser(invitation.peerId));
+    _chatRooms.removeWhere(
+      (c) => c.containsUser(currentUserId) && c.containsUser(invitation.peerId),
+    );
 
     notifyListeners();
   }

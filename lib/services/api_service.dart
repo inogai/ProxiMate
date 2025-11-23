@@ -100,7 +100,8 @@ class ApiService {
 
   Future<UserRead> getOrCreateUser(UserCreate user) async {
     final response = await _executeWithRetry(
-      () => _usersApi.getOrCreateUserApiV1UsersGetOrCreatePost(userCreate: user),
+      () =>
+          _usersApi.getOrCreateUserApiV1UsersGetOrCreatePost(userCreate: user),
       'Get or Create User',
     );
     return response.data!;
@@ -108,8 +109,10 @@ class ApiService {
 
   Future<UserRead> updateUser(int userId, UserUpdate userUpdate) async {
     final response = await _executeWithRetry(
-      () =>
-          _usersApi.updateUserApiV1UsersUserIdPut(userId: userId, userUpdate: userUpdate),
+      () => _usersApi.updateUserApiV1UsersUserIdPut(
+        userId: userId,
+        userUpdate: userUpdate,
+      ),
       'Update User',
     );
     return response.data!;
@@ -125,7 +128,9 @@ class ApiService {
 
   Future<UserRead> getUserByUsername(String username) async {
     final response = await _executeWithRetry(
-      () => _usersApi.getUserByUsernameApiV1UsersUsernameUsernameGet(username: username),
+      () => _usersApi.getUserByUsernameApiV1UsersUsernameUsernameGet(
+        username: username,
+      ),
       'Get User by Username',
     );
     return response.data!;
@@ -133,7 +138,9 @@ class ApiService {
 
   Future<LocationRead> createLocation(LocationCreate location) async {
     final response = await _executeWithRetry(
-      () => _locationsApi.createLocationApiV1LocationsPost(locationCreate: location),
+      () => _locationsApi.createLocationApiV1LocationsPost(
+        locationCreate: location,
+      ),
       'Create Location',
     );
     return response.data!;
@@ -141,7 +148,9 @@ class ApiService {
 
   Future<BuiltList<LocationRead>> getUserLocations(int userId) async {
     final response = await _executeWithRetry(
-      () => _locationsApi.getUserLocationHistoryApiV1LocationsUsersUserIdGet(userId: userId),
+      () => _locationsApi.getUserLocationHistoryApiV1LocationsUsersUserIdGet(
+        userId: userId,
+      ),
       'Get User Locations',
     );
     return response.data!;
@@ -239,7 +248,9 @@ class ApiService {
   /// Get locations for multiple users in batch
   Future<BuiltList<LocationRead>> getBatchLocations(List<int> userIds) async {
     final response = await _executeWithRetry(
-      () => _locationsApi.getBatchLocationsApiV1LocationsBatchGet(userIds: userIds.join(',')),
+      () => _locationsApi.getBatchLocationsApiV1LocationsBatchGet(
+        userIds: userIds.join(','),
+      ),
       'Get Batch Locations',
     );
     return response.data!;
@@ -248,7 +259,7 @@ class ApiService {
   Profile userReadToProfile(UserRead user) {
     return Profile(
       id: user.id.toString(),
-      userName: user.username,
+      userName: user.displayname,
       school: (user.school?.isEmpty ?? true) ? null : user.school,
       major: (user.major?.isEmpty ?? true) ? null : user.major,
       interests: (user.interests?.isEmpty ?? true) ? null : user.interests,
@@ -262,7 +273,7 @@ class ApiService {
   UserCreate profileToUserCreate(Profile profile) {
     return UserCreate(
       (b) => b
-        ..username = profile.userName
+        ..displayname = profile.userName
         ..school = profile.school ?? ''
         ..major = profile.major ?? ''
         ..interests = profile.interests ?? ''
@@ -274,7 +285,7 @@ class ApiService {
   UserUpdate profileToUserUpdate(Profile profile) {
     return UserUpdate(
       (b) => b
-        ..username = profile.userName
+        ..displayname = profile.userName
         ..school = profile.school ?? ''
         ..major = profile.major ?? ''
         ..interests = profile.interests ?? ''
@@ -290,7 +301,7 @@ class ApiService {
   }) {
     return Peer(
       id: user.id.toString(),
-      name: user.username,
+      name: user.displayname,
       school: user.school ?? '',
       major: user.major ?? '',
       interests: user.interests ?? '',
@@ -313,14 +324,14 @@ class ApiService {
     );
   }
 
-
-
   // Chat model converters
   ChatRoomCreateRequest chatRoomToChatRoomCreateRequest(ChatRoom chatRoom) {
-    return ChatRoomCreateRequest((b) => b
-      ..user1Id = int.tryParse(chatRoom.user1Id) ?? 0
-      ..user2Id = int.tryParse(chatRoom.user2Id) ?? 0
-      ..restaurant = chatRoom.restaurant);
+    return ChatRoomCreateRequest(
+      (b) => b
+        ..user1Id = int.tryParse(chatRoom.user1Id) ?? 0
+        ..user2Id = int.tryParse(chatRoom.user2Id) ?? 0
+        ..restaurant = chatRoom.restaurant,
+    );
   }
 
   ChatRoom chatRoomReadToChatRoom(ChatRoomRead chatRoomRead) {
@@ -335,7 +346,9 @@ class ApiService {
     } catch (e) {
       // Fallback to current time if parsing fails
       parsedCreatedAt = DateTime.now();
-      _debugLog('Failed to parse createdAt: ${chatRoomRead.createdAt}, using current time');
+      _debugLog(
+        'Failed to parse createdAt: ${chatRoomRead.createdAt}, using current time',
+      );
     }
 
     return ChatRoom(
@@ -349,7 +362,10 @@ class ApiService {
 
   // Chat message creation is now handled directly in sendChatMessage method
 
-  ChatMessage chatMessageReadToChatMessage(ChatMessageRead messageRead, bool isMine) {
+  ChatMessage chatMessageReadToChatMessage(
+    ChatMessageRead messageRead,
+    bool isMine,
+  ) {
     // Parse timestamp string to DateTime
     DateTime parsedTimestamp;
     try {
@@ -361,7 +377,9 @@ class ApiService {
     } catch (e) {
       // Fallback to current time if parsing fails
       parsedTimestamp = DateTime.now();
-      _debugLog('Failed to parse timestamp: ${messageRead.timestamp}, using current time');
+      _debugLog(
+        'Failed to parse timestamp: ${messageRead.timestamp}, using current time',
+      );
     }
 
     return ChatMessage(
@@ -369,15 +387,18 @@ class ApiService {
       text: messageRead.text,
       isMine: isMine,
       timestamp: parsedTimestamp,
-      messageType: MessageType.text, // Backend doesn't support invitation messages yet
+      messageType:
+          MessageType.text, // Backend doesn't support invitation messages yet
     );
   }
 
   // Activity model converters
   ActivityCreate activityToActivityCreate(Activity activity) {
-    return ActivityCreate((b) => b
-      ..name = activity.name
-      ..description = activity.description);
+    return ActivityCreate(
+      (b) => b
+        ..name = activity.name
+        ..description = activity.description,
+    );
   }
 
   Activity activityReadToActivity(ActivityRead activityRead) {
@@ -392,7 +413,9 @@ class ApiService {
     } catch (e) {
       // Fallback to current time if parsing fails
       parsedCreatedAt = DateTime.now();
-      _debugLog('Failed to parse createdAt: ${activityRead.createdAt}, using current time');
+      _debugLog(
+        'Failed to parse createdAt: ${activityRead.createdAt}, using current time',
+      );
     }
 
     return Activity(
@@ -441,21 +464,25 @@ class ApiService {
     return false;
   }
 
-
-
   // Chat endpoints
 
   /// Create chat room
   Future<ChatRoomRead> createChatRoom(ChatRoomCreateRequest chatRoom) async {
     final response = await _executeWithRetry(
-      () => _chatroomsApi.createChatroomWithInvitationApiV1ChatroomsPost(chatRoomCreateRequest: chatRoom),
+      () => _chatroomsApi.createChatroomWithInvitationApiV1ChatroomsPost(
+        chatRoomCreateRequest: chatRoom,
+      ),
       'Create Chat Room',
     );
     return response.data!;
   }
 
   /// Find chat room between two users
-  Future<ChatRoomRead?> findChatRoomBetweenUsers(int user1Id, int user2Id, String restaurant) async {
+  Future<ChatRoomRead?> findChatRoomBetweenUsers(
+    int user1Id,
+    int user2Id,
+    String restaurant,
+  ) async {
     try {
       final response = await _executeWithRetry(
         () => _chatroomsApi.getOrCreateChatRoomApiV1ChatroomsGetOrCreatePost(
@@ -475,7 +502,9 @@ class ApiService {
   /// Get chat rooms for user
   Future<BuiltList<ChatRoomRead>> getChatRooms(int userId) async {
     final response = await _executeWithRetry(
-      () => _chatroomsApi.getUserChatRoomsApiV1ChatroomsUsersUserIdGet(userId: userId),
+      () => _chatroomsApi.getUserChatRoomsApiV1ChatroomsUsersUserIdGet(
+        userId: userId,
+      ),
       'Get Chat Rooms',
     );
     return response.data!;
@@ -484,20 +513,25 @@ class ApiService {
   /// Get chat room by ID
   Future<ChatRoomRead> getChatRoom(String chatroomId) async {
     final response = await _executeWithRetry(
-      () => _chatroomsApi.getChatRoomApiV1ChatroomsChatRoomIdGet(chatRoomId: chatroomId),
+      () => _chatroomsApi.getChatRoomApiV1ChatroomsChatRoomIdGet(
+        chatRoomId: chatroomId,
+      ),
       'Get Chat Room',
     );
     return response.data!;
   }
 
   /// Send chat message
-  Future<ChatMessageRead> sendChatMessage(String chatroomId, int senderId, String text) async {
+  Future<ChatMessageRead> sendChatMessage(
+    String chatroomId,
+    int senderId,
+    String text,
+  ) async {
     final response = await _executeWithRetry(
       () => _messagesApi.sendMessageApiV1MessagesSendPost(
         chatRoomId: chatroomId,
         senderId: senderId,
         text: text,
-        isMine: true,
       ),
       'Send Chat Message',
     );
@@ -507,7 +541,9 @@ class ApiService {
   /// Get chat messages
   Future<BuiltList<ChatMessageRead>> getChatMessages(String chatroomId) async {
     final response = await _executeWithRetry(
-      () => _messagesApi.getChatRoomMessagesApiV1MessagesChatroomsChatRoomIdGet(chatRoomId: chatroomId),
+      () => _messagesApi.getChatRoomMessagesApiV1MessagesChatroomsChatRoomIdGet(
+        chatRoomId: chatroomId,
+      ),
       'Get Chat Messages',
     );
     return response.data!;
@@ -524,7 +560,7 @@ class ApiService {
   ) async {
     // Generate unique invitation ID
     final invitationId = 'inv_${DateTime.now().millisecondsSinceEpoch}';
-    
+
     final response = await _executeWithRetry(
       () => _messagesApi.createInvitationMessageApiV1MessagesInvitationPost(
         chatRoomId: chatroomId,
@@ -546,11 +582,12 @@ class ApiService {
     int responderId,
   ) async {
     final response = await _executeWithRetry(
-      () => _messagesApi.respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(
-        messageId: messageId,
-        action: action,
-        responderId: responderId,
-      ),
+      () => _messagesApi
+          .respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(
+            messageId: messageId,
+            action: action,
+            responderId: responderId,
+          ),
       'Respond to Invitation Message',
     );
     // For now, return a simple success response
@@ -559,11 +596,14 @@ class ApiService {
   }
 
   /// Collect name card from invitation message
-  Future<Map<String, dynamic>> collectNameCardFromMessage(String messageId) async {
+  Future<Map<String, dynamic>> collectNameCardFromMessage(
+    String messageId,
+  ) async {
     final response = await _executeWithRetry(
-      () => _messagesApi.collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut(
-        messageId: messageId,
-      ),
+      () => _messagesApi
+          .collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut(
+            messageId: messageId,
+          ),
       'Collect Name Card From Message',
     );
     // For now, return a simple success response
@@ -576,7 +616,9 @@ class ApiService {
   /// Create activity
   Future<ActivityRead> createActivity(ActivityCreate activity) async {
     final response = await _executeWithRetry(
-      () => _activitiesApi.createActivityApiV1ActivitiesPost(activityCreate: activity),
+      () => _activitiesApi.createActivityApiV1ActivitiesPost(
+        activityCreate: activity,
+      ),
       'Create Activity',
     );
     return response.data!;
@@ -594,7 +636,9 @@ class ApiService {
   /// Delete activity
   Future<void> deleteActivity(String activityId) async {
     await _executeWithRetry(
-      () => _activitiesApi.deleteActivityApiV1ActivitiesActivityIdDelete(activityId: activityId),
+      () => _activitiesApi.deleteActivityApiV1ActivitiesActivityIdDelete(
+        activityId: activityId,
+      ),
       'Delete Activity',
     );
   }
