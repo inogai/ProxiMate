@@ -109,7 +109,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get1hopConnectionsApiV1Connections1hopUserIdGet**
-> JsonObject get1hopConnectionsApiV1Connections1hopUserIdGet(userId)
+> BuiltList<ConnectionRead> get1hopConnectionsApiV1Connections1hopUserIdGet(userId)
 
 Get 1Hop Connections
 
@@ -138,7 +138,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**JsonObject**](JsonObject.md)
+[**BuiltList&lt;ConnectionRead&gt;**](ConnectionRead.md)
 
 ### Authorization
 
@@ -152,7 +152,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get2hopConnectionsApiV1Connections2hopUserIdGet**
-> JsonObject get2hopConnectionsApiV1Connections2hopUserIdGet(userId)
+> BuiltList<TwoHopConnection> get2hopConnectionsApiV1Connections2hopUserIdGet(userId)
 
 Get 2Hop Connections
 
@@ -181,7 +181,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**JsonObject**](JsonObject.md)
+[**BuiltList&lt;TwoHopConnection&gt;**](TwoHopConnection.md)
 
 ### Authorization
 

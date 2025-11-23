@@ -142,6 +142,7 @@ Class | Method | HTTP request | Description
  - [LocationCreate](doc/LocationCreate.md)
  - [LocationRead](doc/LocationRead.md)
  - [LocationUpdate](doc/LocationUpdate.md)
+ - [TwoHopConnection](doc/TwoHopConnection.md)
  - [UserCreate](doc/UserCreate.md)
  - [UserRead](doc/UserRead.md)
  - [UserReadWithDistance](doc/UserReadWithDistance.md)

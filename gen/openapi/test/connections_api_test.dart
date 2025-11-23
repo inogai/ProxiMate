@@ -29,7 +29,7 @@ void main() {
     //
     // Get 1-hop connections (accepted) for a user.
     //
-    //Future<JsonObject> get1hopConnectionsApiV1Connections1hopUserIdGet(int userId) async
+    //Future<BuiltList<ConnectionRead>> get1hopConnectionsApiV1Connections1hopUserIdGet(int userId) async
     test('test get1hopConnectionsApiV1Connections1hopUserIdGet', () async {
       // TODO
     });
@@ -38,7 +38,7 @@ void main() {
     //
     // Get 2-hop user IDs for a user.
     //
-    //Future<JsonObject> get2hopConnectionsApiV1Connections2hopUserIdGet(int userId) async
+    //Future<BuiltList<TwoHopConnection>> get2hopConnectionsApiV1Connections2hopUserIdGet(int userId) async
     test('test get2hopConnectionsApiV1Connections2hopUserIdGet', () async {
       // TODO
     });

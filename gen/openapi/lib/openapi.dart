@@ -33,6 +33,7 @@ export 'package:openapi/src/model/invitation_respond_request.dart';
 export 'package:openapi/src/model/location_create.dart';
 export 'package:openapi/src/model/location_read.dart';
 export 'package:openapi/src/model/location_update.dart';
+export 'package:openapi/src/model/two_hop_connection.dart';
 export 'package:openapi/src/model/user_create.dart';
 export 'package:openapi/src/model/user_read.dart';
 export 'package:openapi/src/model/user_read_with_distance.dart';

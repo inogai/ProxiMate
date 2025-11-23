@@ -14,6 +14,7 @@ import 'package:openapi/src/api_util.dart';
 import 'package:openapi/src/model/connection_create_request.dart';
 import 'package:openapi/src/model/connection_read.dart';
 import 'package:openapi/src/model/http_validation_error.dart';
+import 'package:openapi/src/model/two_hop_connection.dart';
 
 class ConnectionsApi {
 
@@ -207,9 +208,9 @@ class ConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [JsonObject] as data
+  /// Returns a [Future] containing a [Response] with a [BuiltList<ConnectionRead>] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<JsonObject>> get1hopConnectionsApiV1Connections1hopUserIdGet({ 
+  Future<Response<BuiltList<ConnectionRead>>> get1hopConnectionsApiV1Connections1hopUserIdGet({ 
     required int userId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -239,14 +240,14 @@ class ConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    JsonObject? _responseData;
+    BuiltList<ConnectionRead>? _responseData;
 
     try {
       final rawResponse = _response.data;
       _responseData = rawResponse == null ? null : _serializers.deserialize(
         rawResponse,
-        specifiedType: const FullType(JsonObject),
-      ) as JsonObject;
+        specifiedType: const FullType(BuiltList, [FullType(ConnectionRead)]),
+      ) as BuiltList<ConnectionRead>;
 
     } catch (error, stackTrace) {
       throw DioException(
@@ -258,7 +259,7 @@ class ConnectionsApi {
       );
     }
 
-    return Response<JsonObject>(
+    return Response<BuiltList<ConnectionRead>>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -282,9 +283,9 @@ class ConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [JsonObject] as data
+  /// Returns a [Future] containing a [Response] with a [BuiltList<TwoHopConnection>] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<JsonObject>> get2hopConnectionsApiV1Connections2hopUserIdGet({ 
+  Future<Response<BuiltList<TwoHopConnection>>> get2hopConnectionsApiV1Connections2hopUserIdGet({ 
     required int userId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -314,14 +315,14 @@ class ConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    JsonObject? _responseData;
+    BuiltList<TwoHopConnection>? _responseData;
 
     try {
       final rawResponse = _response.data;
       _responseData = rawResponse == null ? null : _serializers.deserialize(
         rawResponse,
-        specifiedType: const FullType(JsonObject),
-      ) as JsonObject;
+        specifiedType: const FullType(BuiltList, [FullType(TwoHopConnection)]),
+      ) as BuiltList<TwoHopConnection>;
 
     } catch (error, stackTrace) {
       throw DioException(
@@ -333,7 +334,7 @@ class ConnectionsApi {
       );
     }
 
-    return Response<JsonObject>(
+    return Response<BuiltList<TwoHopConnection>>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

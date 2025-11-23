@@ -22,6 +22,7 @@ doc/LocationRead.md
 doc/LocationUpdate.md
 doc/LocationsApi.md
 doc/MessagesApi.md
+doc/TwoHopConnection.md
 doc/UserCreate.md
 doc/UserRead.md
 doc/UserReadWithDistance.md
@@ -61,6 +62,7 @@ lib/src/model/invitation_respond_request.dart
 lib/src/model/location_create.dart
 lib/src/model/location_read.dart
 lib/src/model/location_update.dart
+lib/src/model/two_hop_connection.dart
 lib/src/model/user_create.dart
 lib/src/model/user_read.dart
 lib/src/model/user_read_with_distance.dart
@@ -90,6 +92,7 @@ test/location_read_test.dart
 test/location_update_test.dart
 test/locations_api_test.dart
 test/messages_api_test.dart
+test/two_hop_connection_test.dart
 test/user_create_test.dart
 test/user_read_test.dart
 test/user_read_with_distance_test.dart

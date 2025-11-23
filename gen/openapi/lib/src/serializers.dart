@@ -29,6 +29,7 @@ import 'package:openapi/src/model/invitation_respond_request.dart';
 import 'package:openapi/src/model/location_create.dart';
 import 'package:openapi/src/model/location_read.dart';
 import 'package:openapi/src/model/location_update.dart';
+import 'package:openapi/src/model/two_hop_connection.dart';
 import 'package:openapi/src/model/user_create.dart';
 import 'package:openapi/src/model/user_read.dart';
 import 'package:openapi/src/model/user_read_with_distance.dart';
@@ -54,6 +55,7 @@ part 'serializers.g.dart';
   LocationCreate,
   LocationRead,
   LocationUpdate,
+  TwoHopConnection,
   UserCreate,
   UserRead,
   UserReadWithDistance,
@@ -69,6 +71,10 @@ Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(ActivityRead)]),
         () => ListBuilder<ActivityRead>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(TwoHopConnection)]),
+        () => ListBuilder<TwoHopConnection>(),
       )
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(ConnectionRead)]),
