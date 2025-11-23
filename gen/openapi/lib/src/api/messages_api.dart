@@ -24,7 +24,7 @@ class MessagesApi {
   const MessagesApi(this._dio, this._serializers);
 
   /// Collect Name Card From Message
-  /// Collect name card from accepted invitation.
+  /// Collect name card from accepted invitation and create connection.
   ///
   /// Parameters:
   /// * [messageId] 
@@ -87,6 +87,121 @@ class MessagesApi {
     }
 
     return Response<JsonObject>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Create Invitation Message
+  /// Create a new invitation message.
+  ///
+  /// Parameters:
+  /// * [chatRoomId] 
+  /// * [senderId] 
+  /// * [invitationId] 
+  /// * [activityId] 
+  /// * [restaurant] 
+  /// * [requestBody] 
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [ChatMessageRead] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<ChatMessageRead>> createInvitationMessageApiV1MessagesInvitationPost({ 
+    required String chatRoomId,
+    required int senderId,
+    required String invitationId,
+    required String activityId,
+    required String restaurant,
+    BuiltList<String>? requestBody,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/messages/invitation';
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    final _queryParameters = <String, dynamic>{
+      r'chat_room_id': encodeQueryParameter(_serializers, chatRoomId, const FullType(String)),
+      r'sender_id': encodeQueryParameter(_serializers, senderId, const FullType(int)),
+      r'invitation_id': encodeQueryParameter(_serializers, invitationId, const FullType(String)),
+      r'activity_id': encodeQueryParameter(_serializers, activityId, const FullType(String)),
+      r'restaurant': encodeQueryParameter(_serializers, restaurant, const FullType(String)),
+    };
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(BuiltList, [FullType(String)]);
+      _bodyData = requestBody == null ? null : _serializers.serialize(requestBody, specifiedType: _type);
+
+    } catch(error, stackTrace) {
+      throw DioException(
+         requestOptions: _options.compose(
+          _dio.options,
+          _path,
+          queryParameters: _queryParameters,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      queryParameters: _queryParameters,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    ChatMessageRead? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(ChatMessageRead),
+      ) as ChatMessageRead;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<ChatMessageRead>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -697,6 +812,91 @@ class MessagesApi {
     }
 
     return Response<BuiltList<ChatMessageRead>>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Respond To Invitation
+  /// Respond to an invitation message.
+  ///
+  /// Parameters:
+  /// * [messageId] 
+  /// * [action] 
+  /// * [responderId] 
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [JsonObject] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<JsonObject>> respondToInvitationApiV1MessagesMessageIdInvitationRespondPut({ 
+    required String messageId,
+    required String action,
+    required int responderId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/messages/{message_id}/invitation-respond'.replaceAll('{' r'message_id' '}', encodeQueryParameter(_serializers, messageId, const FullType(String)).toString());
+    final _options = Options(
+      method: r'PUT',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _queryParameters = <String, dynamic>{
+      r'action': encodeQueryParameter(_serializers, action, const FullType(String)),
+      r'responder_id': encodeQueryParameter(_serializers, responderId, const FullType(int)),
+    };
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      queryParameters: _queryParameters,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    JsonObject? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(JsonObject),
+      ) as JsonObject;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<JsonObject>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

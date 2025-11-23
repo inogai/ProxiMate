@@ -16,6 +16,7 @@ part 'chat_message_create.g.dart';
 /// * [text] 
 /// * [isMine] 
 /// * [messageType] 
+/// * [invitationId] 
 /// * [invitationData] 
 @BuiltValue()
 abstract class ChatMessageCreate implements Built<ChatMessageCreate, ChatMessageCreateBuilder> {
@@ -33,6 +34,9 @@ abstract class ChatMessageCreate implements Built<ChatMessageCreate, ChatMessage
 
   @BuiltValueField(wireName: r'message_type')
   String? get messageType;
+
+  @BuiltValueField(wireName: r'invitation_id')
+  String? get invitationId;
 
   @BuiltValueField(wireName: r'invitation_data')
   String? get invitationData;
@@ -89,6 +93,13 @@ class _$ChatMessageCreateSerializer implements PrimitiveSerializer<ChatMessageCr
       yield serializers.serialize(
         object.messageType,
         specifiedType: const FullType(String),
+      );
+    }
+    if (object.invitationId != null) {
+      yield r'invitation_id';
+      yield serializers.serialize(
+        object.invitationId,
+        specifiedType: const FullType.nullable(String),
       );
     }
     if (object.invitationData != null) {
@@ -155,6 +166,14 @@ class _$ChatMessageCreateSerializer implements PrimitiveSerializer<ChatMessageCr
             specifiedType: const FullType(String),
           ) as String;
           result.messageType = valueDes;
+          break;
+        case r'invitation_id':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
+          result.invitationId = valueDes;
           break;
         case r'invitation_data':
           final valueDes = serializers.deserialize(

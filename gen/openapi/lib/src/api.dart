@@ -11,8 +11,8 @@ import 'package:openapi/src/auth/bearer_auth.dart';
 import 'package:openapi/src/auth/oauth.dart';
 import 'package:openapi/src/api/activities_api.dart';
 import 'package:openapi/src/api/chatrooms_api.dart';
+import 'package:openapi/src/api/connections_api.dart';
 import 'package:openapi/src/api/default_api.dart';
-import 'package:openapi/src/api/invitations_api.dart';
 import 'package:openapi/src/api/locations_api.dart';
 import 'package:openapi/src/api/messages_api.dart';
 import 'package:openapi/src/api/users_api.dart';
@@ -83,16 +83,16 @@ class Openapi {
     return ChatroomsApi(dio, serializers);
   }
 
+  /// Get ConnectionsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  ConnectionsApi getConnectionsApi() {
+    return ConnectionsApi(dio, serializers);
+  }
+
   /// Get DefaultApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   DefaultApi getDefaultApi() {
     return DefaultApi(dio, serializers);
-  }
-
-  /// Get InvitationsApi instance, base route and serializer can be overridden by a given but be careful,
-  /// by doing that all interceptors will not be executed
-  InvitationsApi getInvitationsApi() {
-    return InvitationsApi(dio, serializers);
   }
 
   /// Get LocationsApi instance, base route and serializer can be overridden by a given but be careful,

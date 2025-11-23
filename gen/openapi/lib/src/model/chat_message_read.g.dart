@@ -18,6 +18,8 @@ class _$ChatMessageRead extends ChatMessageRead {
   @override
   final String? messageType;
   @override
+  final String? invitationId;
+  @override
   final String? invitationData;
   @override
   final String id;
@@ -33,6 +35,7 @@ class _$ChatMessageRead extends ChatMessageRead {
       required this.text,
       this.isMine,
       this.messageType,
+      this.invitationId,
       this.invitationData,
       required this.id,
       required this.timestamp})
@@ -53,6 +56,7 @@ class _$ChatMessageRead extends ChatMessageRead {
         text == other.text &&
         isMine == other.isMine &&
         messageType == other.messageType &&
+        invitationId == other.invitationId &&
         invitationData == other.invitationData &&
         id == other.id &&
         timestamp == other.timestamp;
@@ -66,6 +70,7 @@ class _$ChatMessageRead extends ChatMessageRead {
     _$hash = $jc(_$hash, text.hashCode);
     _$hash = $jc(_$hash, isMine.hashCode);
     _$hash = $jc(_$hash, messageType.hashCode);
+    _$hash = $jc(_$hash, invitationId.hashCode);
     _$hash = $jc(_$hash, invitationData.hashCode);
     _$hash = $jc(_$hash, id.hashCode);
     _$hash = $jc(_$hash, timestamp.hashCode);
@@ -81,6 +86,7 @@ class _$ChatMessageRead extends ChatMessageRead {
           ..add('text', text)
           ..add('isMine', isMine)
           ..add('messageType', messageType)
+          ..add('invitationId', invitationId)
           ..add('invitationData', invitationData)
           ..add('id', id)
           ..add('timestamp', timestamp))
@@ -112,6 +118,10 @@ class ChatMessageReadBuilder
   String? get messageType => _$this._messageType;
   set messageType(String? messageType) => _$this._messageType = messageType;
 
+  String? _invitationId;
+  String? get invitationId => _$this._invitationId;
+  set invitationId(String? invitationId) => _$this._invitationId = invitationId;
+
   String? _invitationData;
   String? get invitationData => _$this._invitationData;
   set invitationData(String? invitationData) =>
@@ -137,6 +147,7 @@ class ChatMessageReadBuilder
       _text = $v.text;
       _isMine = $v.isMine;
       _messageType = $v.messageType;
+      _invitationId = $v.invitationId;
       _invitationData = $v.invitationData;
       _id = $v.id;
       _timestamp = $v.timestamp;
@@ -169,6 +180,7 @@ class ChatMessageReadBuilder
               text, r'ChatMessageRead', 'text'),
           isMine: isMine,
           messageType: messageType,
+          invitationId: invitationId,
           invitationData: invitationData,
           id: BuiltValueNullFieldError.checkNotNull(
               id, r'ChatMessageRead', 'id'),

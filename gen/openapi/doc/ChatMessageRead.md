@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **text** | **String** |  | 
 **isMine** | **bool** |  | [optional] [default to false]
 **messageType** | **String** |  | [optional] [default to 'text']
+**invitationId** | **String** |  | [optional] 
 **invitationData** | **String** |  | [optional] 
 **id** | **String** |  | 
 **timestamp** | **String** |  | 

@@ -1,12 +1,12 @@
 import 'package:test/test.dart';
 import 'package:openapi/openapi.dart';
 
-// tests for ChatRoomRead
+// tests for ConnectionRead
 void main() {
-  final instance = ChatRoomReadBuilder();
+  final instance = ConnectionReadBuilder();
   // TODO add properties to the builder and call build()
 
-  group(ChatRoomRead, () {
+  group(ConnectionRead, () {
     // int user1Id
     test('to test the property `user1Id`', () async {
       // TODO
@@ -17,13 +17,8 @@ void main() {
       // TODO
     });
 
-    // String restaurant
-    test('to test the property `restaurant`', () async {
-      // TODO
-    });
-
-    // bool isClosed (default value: false)
-    test('to test the property `isClosed`', () async {
+    // String invitationId
+    test('to test the property `invitationId`', () async {
       // TODO
     });
 

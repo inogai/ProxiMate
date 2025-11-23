@@ -1,51 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'chat_room_read.dart';
+part of 'connection_read.dart';
 
 // **************************************************************************
 // BuiltValueGenerator
 // **************************************************************************
 
-class _$ChatRoomRead extends ChatRoomRead {
+class _$ConnectionRead extends ConnectionRead {
   @override
   final int user1Id;
   @override
   final int user2Id;
   @override
-  final String restaurant;
-  @override
-  final bool? isClosed;
+  final String invitationId;
   @override
   final String id;
   @override
   final String createdAt;
 
-  factory _$ChatRoomRead([void Function(ChatRoomReadBuilder)? updates]) =>
-      (ChatRoomReadBuilder()..update(updates))._build();
+  factory _$ConnectionRead([void Function(ConnectionReadBuilder)? updates]) =>
+      (ConnectionReadBuilder()..update(updates))._build();
 
-  _$ChatRoomRead._(
+  _$ConnectionRead._(
       {required this.user1Id,
       required this.user2Id,
-      required this.restaurant,
-      this.isClosed,
+      required this.invitationId,
       required this.id,
       required this.createdAt})
       : super._();
   @override
-  ChatRoomRead rebuild(void Function(ChatRoomReadBuilder) updates) =>
+  ConnectionRead rebuild(void Function(ConnectionReadBuilder) updates) =>
       (toBuilder()..update(updates)).build();
 
   @override
-  ChatRoomReadBuilder toBuilder() => ChatRoomReadBuilder()..replace(this);
+  ConnectionReadBuilder toBuilder() => ConnectionReadBuilder()..replace(this);
 
   @override
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
-    return other is ChatRoomRead &&
+    return other is ConnectionRead &&
         user1Id == other.user1Id &&
         user2Id == other.user2Id &&
-        restaurant == other.restaurant &&
-        isClosed == other.isClosed &&
+        invitationId == other.invitationId &&
         id == other.id &&
         createdAt == other.createdAt;
   }
@@ -55,8 +51,7 @@ class _$ChatRoomRead extends ChatRoomRead {
     var _$hash = 0;
     _$hash = $jc(_$hash, user1Id.hashCode);
     _$hash = $jc(_$hash, user2Id.hashCode);
-    _$hash = $jc(_$hash, restaurant.hashCode);
-    _$hash = $jc(_$hash, isClosed.hashCode);
+    _$hash = $jc(_$hash, invitationId.hashCode);
     _$hash = $jc(_$hash, id.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jf(_$hash);
@@ -65,20 +60,19 @@ class _$ChatRoomRead extends ChatRoomRead {
 
   @override
   String toString() {
-    return (newBuiltValueToStringHelper(r'ChatRoomRead')
+    return (newBuiltValueToStringHelper(r'ConnectionRead')
           ..add('user1Id', user1Id)
           ..add('user2Id', user2Id)
-          ..add('restaurant', restaurant)
-          ..add('isClosed', isClosed)
+          ..add('invitationId', invitationId)
           ..add('id', id)
           ..add('createdAt', createdAt))
         .toString();
   }
 }
 
-class ChatRoomReadBuilder
-    implements Builder<ChatRoomRead, ChatRoomReadBuilder> {
-  _$ChatRoomRead? _$v;
+class ConnectionReadBuilder
+    implements Builder<ConnectionRead, ConnectionReadBuilder> {
+  _$ConnectionRead? _$v;
 
   int? _user1Id;
   int? get user1Id => _$this._user1Id;
@@ -88,13 +82,9 @@ class ChatRoomReadBuilder
   int? get user2Id => _$this._user2Id;
   set user2Id(int? user2Id) => _$this._user2Id = user2Id;
 
-  String? _restaurant;
-  String? get restaurant => _$this._restaurant;
-  set restaurant(String? restaurant) => _$this._restaurant = restaurant;
-
-  bool? _isClosed;
-  bool? get isClosed => _$this._isClosed;
-  set isClosed(bool? isClosed) => _$this._isClosed = isClosed;
+  String? _invitationId;
+  String? get invitationId => _$this._invitationId;
+  set invitationId(String? invitationId) => _$this._invitationId = invitationId;
 
   String? _id;
   String? get id => _$this._id;
@@ -104,17 +94,16 @@ class ChatRoomReadBuilder
   String? get createdAt => _$this._createdAt;
   set createdAt(String? createdAt) => _$this._createdAt = createdAt;
 
-  ChatRoomReadBuilder() {
-    ChatRoomRead._defaults(this);
+  ConnectionReadBuilder() {
+    ConnectionRead._defaults(this);
   }
 
-  ChatRoomReadBuilder get _$this {
+  ConnectionReadBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
       _user1Id = $v.user1Id;
       _user2Id = $v.user2Id;
-      _restaurant = $v.restaurant;
-      _isClosed = $v.isClosed;
+      _invitationId = $v.invitationId;
       _id = $v.id;
       _createdAt = $v.createdAt;
       _$v = null;
@@ -123,31 +112,31 @@ class ChatRoomReadBuilder
   }
 
   @override
-  void replace(ChatRoomRead other) {
-    _$v = other as _$ChatRoomRead;
+  void replace(ConnectionRead other) {
+    _$v = other as _$ConnectionRead;
   }
 
   @override
-  void update(void Function(ChatRoomReadBuilder)? updates) {
+  void update(void Function(ConnectionReadBuilder)? updates) {
     if (updates != null) updates(this);
   }
 
   @override
-  ChatRoomRead build() => _build();
+  ConnectionRead build() => _build();
 
-  _$ChatRoomRead _build() {
+  _$ConnectionRead _build() {
     final _$result = _$v ??
-        _$ChatRoomRead._(
+        _$ConnectionRead._(
           user1Id: BuiltValueNullFieldError.checkNotNull(
-              user1Id, r'ChatRoomRead', 'user1Id'),
+              user1Id, r'ConnectionRead', 'user1Id'),
           user2Id: BuiltValueNullFieldError.checkNotNull(
-              user2Id, r'ChatRoomRead', 'user2Id'),
-          restaurant: BuiltValueNullFieldError.checkNotNull(
-              restaurant, r'ChatRoomRead', 'restaurant'),
-          isClosed: isClosed,
-          id: BuiltValueNullFieldError.checkNotNull(id, r'ChatRoomRead', 'id'),
+              user2Id, r'ConnectionRead', 'user2Id'),
+          invitationId: BuiltValueNullFieldError.checkNotNull(
+              invitationId, r'ConnectionRead', 'invitationId'),
+          id: BuiltValueNullFieldError.checkNotNull(
+              id, r'ConnectionRead', 'id'),
           createdAt: BuiltValueNullFieldError.checkNotNull(
-              createdAt, r'ChatRoomRead', 'createdAt'),
+              createdAt, r'ConnectionRead', 'createdAt'),
         );
     replace(_$result);
     return _$result;

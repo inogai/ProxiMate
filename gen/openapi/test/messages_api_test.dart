@@ -9,10 +9,19 @@ void main() {
   group(MessagesApi, () {
     // Collect Name Card From Message
     //
-    // Collect name card from accepted invitation.
+    // Collect name card from accepted invitation and create connection.
     //
     //Future<JsonObject> collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut(String messageId) async
     test('test collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut', () async {
+      // TODO
+    });
+
+    // Create Invitation Message
+    //
+    // Create a new invitation message.
+    //
+    //Future<ChatMessageRead> createInvitationMessageApiV1MessagesInvitationPost(String chatRoomId, int senderId, String invitationId, String activityId, String restaurant, { BuiltList<String> requestBody }) async
+    test('test createInvitationMessageApiV1MessagesInvitationPost', () async {
       // TODO
     });
 
@@ -85,6 +94,15 @@ void main() {
     //
     //Future<BuiltList<ChatMessageRead>> getUserMessagesApiV1MessagesUsersSenderIdGet(int senderId) async
     test('test getUserMessagesApiV1MessagesUsersSenderIdGet', () async {
+      // TODO
+    });
+
+    // Respond To Invitation
+    //
+    // Respond to an invitation message.
+    //
+    //Future<JsonObject> respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(String messageId, String action, int responderId) async
+    test('test respondToInvitationApiV1MessagesMessageIdInvitationRespondPut', () async {
       // TODO
     });
 

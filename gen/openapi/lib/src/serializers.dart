@@ -20,9 +20,8 @@ import 'package:openapi/src/model/chat_message_create.dart';
 import 'package:openapi/src/model/chat_message_read.dart';
 import 'package:openapi/src/model/chat_room_create_request.dart';
 import 'package:openapi/src/model/chat_room_read.dart';
+import 'package:openapi/src/model/connection_read.dart';
 import 'package:openapi/src/model/http_validation_error.dart';
-import 'package:openapi/src/model/invitation_create.dart';
-import 'package:openapi/src/model/invitation_read.dart';
 import 'package:openapi/src/model/location_create.dart';
 import 'package:openapi/src/model/location_read.dart';
 import 'package:openapi/src/model/location_update.dart';
@@ -42,9 +41,8 @@ part 'serializers.g.dart';
   ChatMessageRead,
   ChatRoomCreateRequest,
   ChatRoomRead,
+  ConnectionRead,
   HTTPValidationError,
-  InvitationCreate,
-  InvitationRead,
   LocationCreate,
   LocationRead,
   LocationUpdate,
@@ -65,6 +63,10 @@ Serializers serializers = (_$serializers.toBuilder()
         () => ListBuilder<ActivityRead>(),
       )
       ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(ConnectionRead)]),
+        () => ListBuilder<ConnectionRead>(),
+      )
+      ..addBuilderFactory(
         const FullType(BuiltList, [FullType(ChatMessageRead)]),
         () => ListBuilder<ChatMessageRead>(),
       )
@@ -77,12 +79,12 @@ Serializers serializers = (_$serializers.toBuilder()
         () => ListBuilder<LocationRead>(),
       )
       ..addBuilderFactory(
-        const FullType(BuiltList, [FullType(InvitationRead)]),
-        () => ListBuilder<InvitationRead>(),
-      )
-      ..addBuilderFactory(
         const FullType(BuiltList, [FullType(ChatRoomRead)]),
         () => ListBuilder<ChatRoomRead>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(String)]),
+        () => ListBuilder<String>(),
       )
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(UserRead)]),

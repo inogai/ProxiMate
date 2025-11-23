@@ -18,6 +18,8 @@ class _$ChatMessageCreate extends ChatMessageCreate {
   @override
   final String? messageType;
   @override
+  final String? invitationId;
+  @override
   final String? invitationData;
 
   factory _$ChatMessageCreate(
@@ -30,6 +32,7 @@ class _$ChatMessageCreate extends ChatMessageCreate {
       required this.text,
       this.isMine,
       this.messageType,
+      this.invitationId,
       this.invitationData})
       : super._();
   @override
@@ -49,6 +52,7 @@ class _$ChatMessageCreate extends ChatMessageCreate {
         text == other.text &&
         isMine == other.isMine &&
         messageType == other.messageType &&
+        invitationId == other.invitationId &&
         invitationData == other.invitationData;
   }
 
@@ -60,6 +64,7 @@ class _$ChatMessageCreate extends ChatMessageCreate {
     _$hash = $jc(_$hash, text.hashCode);
     _$hash = $jc(_$hash, isMine.hashCode);
     _$hash = $jc(_$hash, messageType.hashCode);
+    _$hash = $jc(_$hash, invitationId.hashCode);
     _$hash = $jc(_$hash, invitationData.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
@@ -73,6 +78,7 @@ class _$ChatMessageCreate extends ChatMessageCreate {
           ..add('text', text)
           ..add('isMine', isMine)
           ..add('messageType', messageType)
+          ..add('invitationId', invitationId)
           ..add('invitationData', invitationData))
         .toString();
   }
@@ -102,6 +108,10 @@ class ChatMessageCreateBuilder
   String? get messageType => _$this._messageType;
   set messageType(String? messageType) => _$this._messageType = messageType;
 
+  String? _invitationId;
+  String? get invitationId => _$this._invitationId;
+  set invitationId(String? invitationId) => _$this._invitationId = invitationId;
+
   String? _invitationData;
   String? get invitationData => _$this._invitationData;
   set invitationData(String? invitationData) =>
@@ -119,6 +129,7 @@ class ChatMessageCreateBuilder
       _text = $v.text;
       _isMine = $v.isMine;
       _messageType = $v.messageType;
+      _invitationId = $v.invitationId;
       _invitationData = $v.invitationData;
       _$v = null;
     }
@@ -149,6 +160,7 @@ class ChatMessageCreateBuilder
               text, r'ChatMessageCreate', 'text'),
           isMine: isMine,
           messageType: messageType,
+          invitationId: invitationId,
           invitationData: invitationData,
         );
     replace(_$result);

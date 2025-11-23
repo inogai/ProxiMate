@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **user1Id** | **int** |  | 
 **user2Id** | **int** |  | 
 **restaurant** | **String** |  | 
+**isClosed** | **bool** |  | [optional] [default to false]
 **id** | **String** |  | 
 **createdAt** | **String** |  | 
 

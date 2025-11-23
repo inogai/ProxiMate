@@ -10,6 +10,7 @@ All URIs are relative to *http://localhost*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut**](MessagesApi.md#collectnamecardfrommessageapiv1messagesmessageidcollectcardput) | **PUT** /api/v1/messages/{message_id}/collect-card | Collect Name Card From Message
+[**createInvitationMessageApiV1MessagesInvitationPost**](MessagesApi.md#createinvitationmessageapiv1messagesinvitationpost) | **POST** /api/v1/messages/invitation | Create Invitation Message
 [**createMessageApiV1MessagesPost**](MessagesApi.md#createmessageapiv1messagespost) | **POST** /api/v1/messages/ | Create Message
 [**deleteMessageApiV1MessagesMessageIdDelete**](MessagesApi.md#deletemessageapiv1messagesmessageiddelete) | **DELETE** /api/v1/messages/{message_id} | Delete Message
 [**getChatRoomMessagesApiV1MessagesChatroomsChatRoomIdGet**](MessagesApi.md#getchatroommessagesapiv1messageschatroomschatroomidget) | **GET** /api/v1/messages/chatrooms/{chat_room_id} | Get Chat Room Messages
@@ -18,6 +19,7 @@ Method | HTTP request | Description
 [**getMessageApiV1MessagesMessageIdGet**](MessagesApi.md#getmessageapiv1messagesmessageidget) | **GET** /api/v1/messages/{message_id} | Get Message
 [**getMessagesApiV1MessagesGet**](MessagesApi.md#getmessagesapiv1messagesget) | **GET** /api/v1/messages/ | Get Messages
 [**getUserMessagesApiV1MessagesUsersSenderIdGet**](MessagesApi.md#getusermessagesapiv1messagesuserssenderidget) | **GET** /api/v1/messages/users/{sender_id} | Get User Messages
+[**respondToInvitationApiV1MessagesMessageIdInvitationRespondPut**](MessagesApi.md#respondtoinvitationapiv1messagesmessageidinvitationrespondput) | **PUT** /api/v1/messages/{message_id}/invitation-respond | Respond To Invitation
 [**respondToInvitationMessageApiV1MessagesMessageIdRespondPut**](MessagesApi.md#respondtoinvitationmessageapiv1messagesmessageidrespondput) | **PUT** /api/v1/messages/{message_id}/respond | Respond To Invitation Message
 [**sendMessageApiV1MessagesSendPost**](MessagesApi.md#sendmessageapiv1messagessendpost) | **POST** /api/v1/messages/send | Send Message
 [**updateMessageApiV1MessagesMessageIdPut**](MessagesApi.md#updatemessageapiv1messagesmessageidput) | **PUT** /api/v1/messages/{message_id} | Update Message
@@ -28,7 +30,7 @@ Method | HTTP request | Description
 
 Collect Name Card From Message
 
-Collect name card from accepted invitation.
+Collect name card from accepted invitation and create connection.
 
 ### Example
 ```dart
@@ -62,6 +64,59 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **createInvitationMessageApiV1MessagesInvitationPost**
+> ChatMessageRead createInvitationMessageApiV1MessagesInvitationPost(chatRoomId, senderId, invitationId, activityId, restaurant, requestBody)
+
+Create Invitation Message
+
+Create a new invitation message.
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getMessagesApi();
+final String chatRoomId = chatRoomId_example; // String | 
+final int senderId = 56; // int | 
+final String invitationId = invitationId_example; // String | 
+final String activityId = activityId_example; // String | 
+final String restaurant = restaurant_example; // String | 
+final BuiltList<String> requestBody = ; // BuiltList<String> | 
+
+try {
+    final response = api.createInvitationMessageApiV1MessagesInvitationPost(chatRoomId, senderId, invitationId, activityId, restaurant, requestBody);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling MessagesApi->createInvitationMessageApiV1MessagesInvitationPost: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **chatRoomId** | **String**|  | 
+ **senderId** | **int**|  | 
+ **invitationId** | **String**|  | 
+ **activityId** | **String**|  | 
+ **restaurant** | **String**|  | 
+ **requestBody** | [**BuiltList&lt;String&gt;**](String.md)|  | [optional] 
+
+### Return type
+
+[**ChatMessageRead**](ChatMessageRead.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -403,6 +458,53 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**BuiltList&lt;ChatMessageRead&gt;**](ChatMessageRead.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **respondToInvitationApiV1MessagesMessageIdInvitationRespondPut**
+> JsonObject respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(messageId, action, responderId)
+
+Respond To Invitation
+
+Respond to an invitation message.
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getMessagesApi();
+final String messageId = messageId_example; // String | 
+final String action = action_example; // String | 
+final int responderId = 56; // int | 
+
+try {
+    final response = api.respondToInvitationApiV1MessagesMessageIdInvitationRespondPut(messageId, action, responderId);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling MessagesApi->respondToInvitationApiV1MessagesMessageIdInvitationRespondPut: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **messageId** | **String**|  | 
+ **action** | **String**|  | 
+ **responderId** | **int**|  | 
+
+### Return type
+
+[**JsonObject**](JsonObject.md)
 
 ### Authorization
 

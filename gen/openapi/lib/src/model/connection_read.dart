@@ -6,30 +6,26 @@
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
-part 'chat_room_read.g.dart';
+part 'connection_read.g.dart';
 
-/// Schema for reading chat room data.
+/// Schema for reading connection data.
 ///
 /// Properties:
 /// * [user1Id] 
 /// * [user2Id] 
-/// * [restaurant] 
-/// * [isClosed] 
+/// * [invitationId] 
 /// * [id] 
 /// * [createdAt] 
 @BuiltValue()
-abstract class ChatRoomRead implements Built<ChatRoomRead, ChatRoomReadBuilder> {
+abstract class ConnectionRead implements Built<ConnectionRead, ConnectionReadBuilder> {
   @BuiltValueField(wireName: r'user1_id')
   int get user1Id;
 
   @BuiltValueField(wireName: r'user2_id')
   int get user2Id;
 
-  @BuiltValueField(wireName: r'restaurant')
-  String get restaurant;
-
-  @BuiltValueField(wireName: r'is_closed')
-  bool? get isClosed;
+  @BuiltValueField(wireName: r'invitation_id')
+  String get invitationId;
 
   @BuiltValueField(wireName: r'id')
   String get id;
@@ -37,28 +33,27 @@ abstract class ChatRoomRead implements Built<ChatRoomRead, ChatRoomReadBuilder> 
   @BuiltValueField(wireName: r'created_at')
   String get createdAt;
 
-  ChatRoomRead._();
+  ConnectionRead._();
 
-  factory ChatRoomRead([void updates(ChatRoomReadBuilder b)]) = _$ChatRoomRead;
+  factory ConnectionRead([void updates(ConnectionReadBuilder b)]) = _$ConnectionRead;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(ChatRoomReadBuilder b) => b
-      ..isClosed = false;
+  static void _defaults(ConnectionReadBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<ChatRoomRead> get serializer => _$ChatRoomReadSerializer();
+  static Serializer<ConnectionRead> get serializer => _$ConnectionReadSerializer();
 }
 
-class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
+class _$ConnectionReadSerializer implements PrimitiveSerializer<ConnectionRead> {
   @override
-  final Iterable<Type> types = const [ChatRoomRead, _$ChatRoomRead];
+  final Iterable<Type> types = const [ConnectionRead, _$ConnectionRead];
 
   @override
-  final String wireName = r'ChatRoomRead';
+  final String wireName = r'ConnectionRead';
 
   Iterable<Object?> _serializeProperties(
     Serializers serializers,
-    ChatRoomRead object, {
+    ConnectionRead object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
     yield r'user1_id';
@@ -71,18 +66,11 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
       object.user2Id,
       specifiedType: const FullType(int),
     );
-    yield r'restaurant';
+    yield r'invitation_id';
     yield serializers.serialize(
-      object.restaurant,
+      object.invitationId,
       specifiedType: const FullType(String),
     );
-    if (object.isClosed != null) {
-      yield r'is_closed';
-      yield serializers.serialize(
-        object.isClosed,
-        specifiedType: const FullType(bool),
-      );
-    }
     yield r'id';
     yield serializers.serialize(
       object.id,
@@ -98,7 +86,7 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
   @override
   Object serialize(
     Serializers serializers,
-    ChatRoomRead object, {
+    ConnectionRead object, {
     FullType specifiedType = FullType.unspecified,
   }) {
     return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
@@ -109,7 +97,7 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
     required List<Object?> serializedList,
-    required ChatRoomReadBuilder result,
+    required ConnectionReadBuilder result,
     required List<Object?> unhandled,
   }) {
     for (var i = 0; i < serializedList.length; i += 2) {
@@ -130,19 +118,12 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
           ) as int;
           result.user2Id = valueDes;
           break;
-        case r'restaurant':
+        case r'invitation_id':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
-          result.restaurant = valueDes;
-          break;
-        case r'is_closed':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(bool),
-          ) as bool;
-          result.isClosed = valueDes;
+          result.invitationId = valueDes;
           break;
         case r'id':
           final valueDes = serializers.deserialize(
@@ -167,12 +148,12 @@ class _$ChatRoomReadSerializer implements PrimitiveSerializer<ChatRoomRead> {
   }
 
   @override
-  ChatRoomRead deserialize(
+  ConnectionRead deserialize(
     Serializers serializers,
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    final result = ChatRoomReadBuilder();
+    final result = ConnectionReadBuilder();
     final serializedList = (serialized as Iterable<Object?>).toList();
     final unhandled = <Object?>[];
     _deserializeProperties(
