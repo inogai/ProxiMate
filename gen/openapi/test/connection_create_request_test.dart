@@ -1,12 +1,12 @@
 import 'package:test/test.dart';
 import 'package:openapi/openapi.dart';
 
-// tests for ConnectionRead
+// tests for ConnectionCreateRequest
 void main() {
-  final instance = ConnectionReadBuilder();
+  final instance = ConnectionCreateRequestBuilder();
   // TODO add properties to the builder and call build()
 
-  group(ConnectionRead, () {
+  group(ConnectionCreateRequest, () {
     // int user1Id
     test('to test the property `user1Id`', () async {
       // TODO
@@ -22,18 +22,8 @@ void main() {
       // TODO
     });
 
-    // String status (default value: 'accepted')
+    // String status (default value: 'pending')
     test('to test the property `status`', () async {
-      // TODO
-    });
-
-    // String id
-    test('to test the property `id`', () async {
-      // TODO
-    });
-
-    // String createdAt
-    test('to test the property `createdAt`', () async {
       // TODO
     });
 

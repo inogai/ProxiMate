@@ -20,7 +20,10 @@ import 'package:openapi/src/model/chat_message_create.dart';
 import 'package:openapi/src/model/chat_message_read.dart';
 import 'package:openapi/src/model/chat_room_create_request.dart';
 import 'package:openapi/src/model/chat_room_read.dart';
+import 'package:openapi/src/model/connection_create_request.dart';
 import 'package:openapi/src/model/connection_read.dart';
+import 'package:openapi/src/model/connection_request_request.dart';
+import 'package:openapi/src/model/connection_respond_request.dart';
 import 'package:openapi/src/model/http_validation_error.dart';
 import 'package:openapi/src/model/invitation_respond_request.dart';
 import 'package:openapi/src/model/location_create.dart';
@@ -42,7 +45,10 @@ part 'serializers.g.dart';
   ChatMessageRead,
   ChatRoomCreateRequest,
   ChatRoomRead,
+  ConnectionCreateRequest,
   ConnectionRead,
+  ConnectionRequestRequest,
+  ConnectionRespondRequest,
   HTTPValidationError,
   InvitationRespondRequest,
   LocationCreate,

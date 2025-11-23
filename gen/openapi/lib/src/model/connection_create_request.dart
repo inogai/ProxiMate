@@ -6,19 +6,17 @@
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
-part 'connection_read.g.dart';
+part 'connection_create_request.g.dart';
 
-/// Schema for reading connection data.
+/// ConnectionCreateRequest
 ///
 /// Properties:
 /// * [user1Id] 
 /// * [user2Id] 
 /// * [invitationId] 
 /// * [status] 
-/// * [id] 
-/// * [createdAt] 
 @BuiltValue()
-abstract class ConnectionRead implements Built<ConnectionRead, ConnectionReadBuilder> {
+abstract class ConnectionCreateRequest implements Built<ConnectionCreateRequest, ConnectionCreateRequestBuilder> {
   @BuiltValueField(wireName: r'user1_id')
   int get user1Id;
 
@@ -31,34 +29,28 @@ abstract class ConnectionRead implements Built<ConnectionRead, ConnectionReadBui
   @BuiltValueField(wireName: r'status')
   String? get status;
 
-  @BuiltValueField(wireName: r'id')
-  String get id;
+  ConnectionCreateRequest._();
 
-  @BuiltValueField(wireName: r'created_at')
-  String get createdAt;
-
-  ConnectionRead._();
-
-  factory ConnectionRead([void updates(ConnectionReadBuilder b)]) = _$ConnectionRead;
+  factory ConnectionCreateRequest([void updates(ConnectionCreateRequestBuilder b)]) = _$ConnectionCreateRequest;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(ConnectionReadBuilder b) => b
-      ..status = 'accepted';
+  static void _defaults(ConnectionCreateRequestBuilder b) => b
+      ..status = 'pending';
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<ConnectionRead> get serializer => _$ConnectionReadSerializer();
+  static Serializer<ConnectionCreateRequest> get serializer => _$ConnectionCreateRequestSerializer();
 }
 
-class _$ConnectionReadSerializer implements PrimitiveSerializer<ConnectionRead> {
+class _$ConnectionCreateRequestSerializer implements PrimitiveSerializer<ConnectionCreateRequest> {
   @override
-  final Iterable<Type> types = const [ConnectionRead, _$ConnectionRead];
+  final Iterable<Type> types = const [ConnectionCreateRequest, _$ConnectionCreateRequest];
 
   @override
-  final String wireName = r'ConnectionRead';
+  final String wireName = r'ConnectionCreateRequest';
 
   Iterable<Object?> _serializeProperties(
     Serializers serializers,
-    ConnectionRead object, {
+    ConnectionCreateRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
     yield r'user1_id';
@@ -83,22 +75,12 @@ class _$ConnectionReadSerializer implements PrimitiveSerializer<ConnectionRead> 
         specifiedType: const FullType(String),
       );
     }
-    yield r'id';
-    yield serializers.serialize(
-      object.id,
-      specifiedType: const FullType(String),
-    );
-    yield r'created_at';
-    yield serializers.serialize(
-      object.createdAt,
-      specifiedType: const FullType(String),
-    );
   }
 
   @override
   Object serialize(
     Serializers serializers,
-    ConnectionRead object, {
+    ConnectionCreateRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) {
     return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
@@ -109,7 +91,7 @@ class _$ConnectionReadSerializer implements PrimitiveSerializer<ConnectionRead> 
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
     required List<Object?> serializedList,
-    required ConnectionReadBuilder result,
+    required ConnectionCreateRequestBuilder result,
     required List<Object?> unhandled,
   }) {
     for (var i = 0; i < serializedList.length; i += 2) {
@@ -144,20 +126,6 @@ class _$ConnectionReadSerializer implements PrimitiveSerializer<ConnectionRead> 
           ) as String;
           result.status = valueDes;
           break;
-        case r'id':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(String),
-          ) as String;
-          result.id = valueDes;
-          break;
-        case r'created_at':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(String),
-          ) as String;
-          result.createdAt = valueDes;
-          break;
         default:
           unhandled.add(key);
           unhandled.add(value);
@@ -167,12 +135,12 @@ class _$ConnectionReadSerializer implements PrimitiveSerializer<ConnectionRead> 
   }
 
   @override
-  ConnectionRead deserialize(
+  ConnectionCreateRequest deserialize(
     Serializers serializers,
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    final result = ConnectionReadBuilder();
+    final result = ConnectionCreateRequestBuilder();
     final serializedList = (serialized as Iterable<Object?>).toList();
     final unhandled = <Object?>[];
     _deserializeProperties(

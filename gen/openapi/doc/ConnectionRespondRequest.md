@@ -1,4 +1,4 @@
-# openapi.model.ConnectionRead
+# openapi.model.ConnectionRespondRequest
 
 ## Load the model package
 ```dart
@@ -8,12 +8,8 @@ import 'package:openapi/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**user1Id** | **int** |  | 
-**user2Id** | **int** |  | 
-**invitationId** | **String** |  | 
-**status** | **String** |  | [optional] [default to 'accepted']
-**id** | **String** |  | 
-**createdAt** | **String** |  | 
+**action** | **String** |  | 
+**responderId** | **int** |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

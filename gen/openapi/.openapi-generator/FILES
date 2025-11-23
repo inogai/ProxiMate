@@ -9,7 +9,10 @@ doc/ChatMessageRead.md
 doc/ChatRoomCreateRequest.md
 doc/ChatRoomRead.md
 doc/ChatroomsApi.md
+doc/ConnectionCreateRequest.md
 doc/ConnectionRead.md
+doc/ConnectionRequestRequest.md
+doc/ConnectionRespondRequest.md
 doc/ConnectionsApi.md
 doc/DefaultApi.md
 doc/HTTPValidationError.md
@@ -48,7 +51,10 @@ lib/src/model/chat_message_create.dart
 lib/src/model/chat_message_read.dart
 lib/src/model/chat_room_create_request.dart
 lib/src/model/chat_room_read.dart
+lib/src/model/connection_create_request.dart
 lib/src/model/connection_read.dart
+lib/src/model/connection_request_request.dart
+lib/src/model/connection_respond_request.dart
 lib/src/model/date.dart
 lib/src/model/http_validation_error.dart
 lib/src/model/invitation_respond_request.dart
@@ -71,7 +77,10 @@ test/chat_message_read_test.dart
 test/chat_room_create_request_test.dart
 test/chat_room_read_test.dart
 test/chatrooms_api_test.dart
+test/connection_create_request_test.dart
 test/connection_read_test.dart
+test/connection_request_request_test.dart
+test/connection_respond_request_test.dart
 test/connections_api_test.dart
 test/default_api_test.dart
 test/http_validation_error_test.dart

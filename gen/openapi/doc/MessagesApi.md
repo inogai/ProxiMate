@@ -10,6 +10,7 @@ All URIs are relative to *http://localhost*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**collectNameCardFromMessageApiV1MessagesMessageIdCollectCardPut**](MessagesApi.md#collectnamecardfrommessageapiv1messagesmessageidcollectcardput) | **PUT** /api/v1/messages/{message_id}/collect-card | Collect Name Card From Message
+[**createConnectionRequestApiV1MessagesConnectionRequestPost**](MessagesApi.md#createconnectionrequestapiv1messagesconnectionrequestpost) | **POST** /api/v1/messages/connection-request | Create Connection Request
 [**createInvitationMessageApiV1MessagesInvitationPost**](MessagesApi.md#createinvitationmessageapiv1messagesinvitationpost) | **POST** /api/v1/messages/invitation | Create Invitation Message
 [**createMessageApiV1MessagesPost**](MessagesApi.md#createmessageapiv1messagespost) | **POST** /api/v1/messages/ | Create Message
 [**deleteMessageApiV1MessagesMessageIdDelete**](MessagesApi.md#deletemessageapiv1messagesmessageiddelete) | **DELETE** /api/v1/messages/{message_id} | Delete Message
@@ -19,6 +20,7 @@ Method | HTTP request | Description
 [**getMessageApiV1MessagesMessageIdGet**](MessagesApi.md#getmessageapiv1messagesmessageidget) | **GET** /api/v1/messages/{message_id} | Get Message
 [**getMessagesApiV1MessagesGet**](MessagesApi.md#getmessagesapiv1messagesget) | **GET** /api/v1/messages/ | Get Messages
 [**getUserMessagesApiV1MessagesUsersSenderIdGet**](MessagesApi.md#getusermessagesapiv1messagesuserssenderidget) | **GET** /api/v1/messages/users/{sender_id} | Get User Messages
+[**respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut**](MessagesApi.md#respondtoconnectionrequestapiv1messagesmessageidconnectionrespondput) | **PUT** /api/v1/messages/{message_id}/connection-respond | Respond To Connection Request
 [**respondToInvitationApiV1MessagesMessageIdInvitationRespondPut**](MessagesApi.md#respondtoinvitationapiv1messagesmessageidinvitationrespondput) | **PUT** /api/v1/messages/{message_id}/invitation-respond | Respond To Invitation
 [**sendMessageApiV1MessagesSendPost**](MessagesApi.md#sendmessageapiv1messagessendpost) | **POST** /api/v1/messages/send | Send Message
 [**updateMessageApiV1MessagesMessageIdPut**](MessagesApi.md#updatemessageapiv1messagesmessageidput) | **PUT** /api/v1/messages/{message_id} | Update Message
@@ -63,6 +65,51 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **createConnectionRequestApiV1MessagesConnectionRequestPost**
+> ChatMessageRead createConnectionRequestApiV1MessagesConnectionRequestPost(connectionRequestRequest, invitationId)
+
+Create Connection Request
+
+Create a new connection request message.
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getMessagesApi();
+final ConnectionRequestRequest connectionRequestRequest = ; // ConnectionRequestRequest | 
+final String invitationId = invitationId_example; // String | 
+
+try {
+    final response = api.createConnectionRequestApiV1MessagesConnectionRequestPost(connectionRequestRequest, invitationId);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling MessagesApi->createConnectionRequestApiV1MessagesConnectionRequestPost: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **connectionRequestRequest** | [**ConnectionRequestRequest**](ConnectionRequestRequest.md)|  | 
+ **invitationId** | **String**|  | [optional] 
+
+### Return type
+
+[**ChatMessageRead**](ChatMessageRead.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -465,6 +512,51 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut**
+> JsonObject respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut(messageId, connectionRespondRequest)
+
+Respond To Connection Request
+
+Respond to a connection request message.
+
+### Example
+```dart
+import 'package:openapi/api.dart';
+
+final api = Openapi().getMessagesApi();
+final String messageId = messageId_example; // String | 
+final ConnectionRespondRequest connectionRespondRequest = ; // ConnectionRespondRequest | 
+
+try {
+    final response = api.respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut(messageId, connectionRespondRequest);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling MessagesApi->respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **messageId** | **String**|  | 
+ **connectionRespondRequest** | [**ConnectionRespondRequest**](ConnectionRespondRequest.md)|  | 
+
+### Return type
+
+[**JsonObject**](JsonObject.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

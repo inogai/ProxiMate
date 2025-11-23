@@ -1,12 +1,12 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'connection_read.dart';
+part of 'connection_create_request.dart';
 
 // **************************************************************************
 // BuiltValueGenerator
 // **************************************************************************
 
-class _$ConnectionRead extends ConnectionRead {
+class _$ConnectionCreateRequest extends ConnectionCreateRequest {
   @override
   final int user1Id;
   @override
@@ -15,39 +15,34 @@ class _$ConnectionRead extends ConnectionRead {
   final String invitationId;
   @override
   final String? status;
-  @override
-  final String id;
-  @override
-  final String createdAt;
 
-  factory _$ConnectionRead([void Function(ConnectionReadBuilder)? updates]) =>
-      (ConnectionReadBuilder()..update(updates))._build();
+  factory _$ConnectionCreateRequest(
+          [void Function(ConnectionCreateRequestBuilder)? updates]) =>
+      (ConnectionCreateRequestBuilder()..update(updates))._build();
 
-  _$ConnectionRead._(
+  _$ConnectionCreateRequest._(
       {required this.user1Id,
       required this.user2Id,
       required this.invitationId,
-      this.status,
-      required this.id,
-      required this.createdAt})
+      this.status})
       : super._();
   @override
-  ConnectionRead rebuild(void Function(ConnectionReadBuilder) updates) =>
+  ConnectionCreateRequest rebuild(
+          void Function(ConnectionCreateRequestBuilder) updates) =>
       (toBuilder()..update(updates)).build();
 
   @override
-  ConnectionReadBuilder toBuilder() => ConnectionReadBuilder()..replace(this);
+  ConnectionCreateRequestBuilder toBuilder() =>
+      ConnectionCreateRequestBuilder()..replace(this);
 
   @override
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
-    return other is ConnectionRead &&
+    return other is ConnectionCreateRequest &&
         user1Id == other.user1Id &&
         user2Id == other.user2Id &&
         invitationId == other.invitationId &&
-        status == other.status &&
-        id == other.id &&
-        createdAt == other.createdAt;
+        status == other.status;
   }
 
   @override
@@ -57,28 +52,25 @@ class _$ConnectionRead extends ConnectionRead {
     _$hash = $jc(_$hash, user2Id.hashCode);
     _$hash = $jc(_$hash, invitationId.hashCode);
     _$hash = $jc(_$hash, status.hashCode);
-    _$hash = $jc(_$hash, id.hashCode);
-    _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
 
   @override
   String toString() {
-    return (newBuiltValueToStringHelper(r'ConnectionRead')
+    return (newBuiltValueToStringHelper(r'ConnectionCreateRequest')
           ..add('user1Id', user1Id)
           ..add('user2Id', user2Id)
           ..add('invitationId', invitationId)
-          ..add('status', status)
-          ..add('id', id)
-          ..add('createdAt', createdAt))
+          ..add('status', status))
         .toString();
   }
 }
 
-class ConnectionReadBuilder
-    implements Builder<ConnectionRead, ConnectionReadBuilder> {
-  _$ConnectionRead? _$v;
+class ConnectionCreateRequestBuilder
+    implements
+        Builder<ConnectionCreateRequest, ConnectionCreateRequestBuilder> {
+  _$ConnectionCreateRequest? _$v;
 
   int? _user1Id;
   int? get user1Id => _$this._user1Id;
@@ -96,59 +88,45 @@ class ConnectionReadBuilder
   String? get status => _$this._status;
   set status(String? status) => _$this._status = status;
 
-  String? _id;
-  String? get id => _$this._id;
-  set id(String? id) => _$this._id = id;
-
-  String? _createdAt;
-  String? get createdAt => _$this._createdAt;
-  set createdAt(String? createdAt) => _$this._createdAt = createdAt;
-
-  ConnectionReadBuilder() {
-    ConnectionRead._defaults(this);
+  ConnectionCreateRequestBuilder() {
+    ConnectionCreateRequest._defaults(this);
   }
 
-  ConnectionReadBuilder get _$this {
+  ConnectionCreateRequestBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
       _user1Id = $v.user1Id;
       _user2Id = $v.user2Id;
       _invitationId = $v.invitationId;
       _status = $v.status;
-      _id = $v.id;
-      _createdAt = $v.createdAt;
       _$v = null;
     }
     return this;
   }
 
   @override
-  void replace(ConnectionRead other) {
-    _$v = other as _$ConnectionRead;
+  void replace(ConnectionCreateRequest other) {
+    _$v = other as _$ConnectionCreateRequest;
   }
 
   @override
-  void update(void Function(ConnectionReadBuilder)? updates) {
+  void update(void Function(ConnectionCreateRequestBuilder)? updates) {
     if (updates != null) updates(this);
   }
 
   @override
-  ConnectionRead build() => _build();
+  ConnectionCreateRequest build() => _build();
 
-  _$ConnectionRead _build() {
+  _$ConnectionCreateRequest _build() {
     final _$result = _$v ??
-        _$ConnectionRead._(
+        _$ConnectionCreateRequest._(
           user1Id: BuiltValueNullFieldError.checkNotNull(
-              user1Id, r'ConnectionRead', 'user1Id'),
+              user1Id, r'ConnectionCreateRequest', 'user1Id'),
           user2Id: BuiltValueNullFieldError.checkNotNull(
-              user2Id, r'ConnectionRead', 'user2Id'),
+              user2Id, r'ConnectionCreateRequest', 'user2Id'),
           invitationId: BuiltValueNullFieldError.checkNotNull(
-              invitationId, r'ConnectionRead', 'invitationId'),
+              invitationId, r'ConnectionCreateRequest', 'invitationId'),
           status: status,
-          id: BuiltValueNullFieldError.checkNotNull(
-              id, r'ConnectionRead', 'id'),
-          createdAt: BuiltValueNullFieldError.checkNotNull(
-              createdAt, r'ConnectionRead', 'createdAt'),
         );
     replace(_$result);
     return _$result;

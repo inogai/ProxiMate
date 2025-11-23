@@ -16,6 +16,15 @@ void main() {
       // TODO
     });
 
+    // Create Connection Request
+    //
+    // Create a new connection request message.
+    //
+    //Future<ChatMessageRead> createConnectionRequestApiV1MessagesConnectionRequestPost(ConnectionRequestRequest connectionRequestRequest, { String invitationId }) async
+    test('test createConnectionRequestApiV1MessagesConnectionRequestPost', () async {
+      // TODO
+    });
+
     // Create Invitation Message
     //
     // Create a new invitation message.
@@ -94,6 +103,15 @@ void main() {
     //
     //Future<BuiltList<ChatMessageRead>> getUserMessagesApiV1MessagesUsersSenderIdGet(int senderId) async
     test('test getUserMessagesApiV1MessagesUsersSenderIdGet', () async {
+      // TODO
+    });
+
+    // Respond To Connection Request
+    //
+    // Respond to a connection request message.
+    //
+    //Future<JsonObject> respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut(String messageId, ConnectionRespondRequest connectionRespondRequest) async
+    test('test respondToConnectionRequestApiV1MessagesMessageIdConnectionRespondPut', () async {
       // TODO
     });
 
