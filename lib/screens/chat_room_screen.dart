@@ -5,6 +5,7 @@ import '../models/profile.dart';
 import '../services/storage_service.dart';
 import '../widgets/custom_buttons.dart';
 import '../widgets/invitation_message_card.dart';
+import '../widgets/rating_dialog.dart';
 
 /// Chat room screen for communicating about meetup
 class ChatRoomScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   /// Refresh messages for current chat room
   Future<void> _refreshMessages() async {
     if (widget.chatRoom == null) return;
-    
+
     setState(() {
       _isLoading = true;
     });
@@ -84,7 +85,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     final storage = context.read<StorageService>();
     ChatRoom? currentChatRoom;
-    
+
     if (widget.chatRoom != null) {
       currentChatRoom = storage.chatRooms.firstWhere(
         (c) => c.id == widget.chatRoom!.id,
@@ -94,26 +95,28 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       // Find chat room by user pair
       final currentUserId = storage.currentProfile?.id ?? '';
       currentChatRoom = storage.chatRooms
-          .where((cr) => cr.containsUser(currentUserId) && 
-                        cr.containsUser(widget.invitation!.peerId))
+          .where(
+            (cr) =>
+                cr.containsUser(currentUserId) &&
+                cr.containsUser(widget.invitation!.peerId),
+          )
           .firstOrNull;
     }
-    
+
     if (currentChatRoom != null) {
-      storage.sendMessage(
-        currentChatRoom.id,
-        _messageController.text.trim(),
-      ).catchError((e) {
-        // NEW: Handle send errors gracefully
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to send message: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      });
+      storage
+          .sendMessage(currentChatRoom.id, _messageController.text.trim())
+          .catchError((e) {
+            // NEW: Handle send errors gracefully
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to send message: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          });
     } else {
       // NEW: Handle case where chat room doesn't exist
       if (context.mounted) {
@@ -144,7 +147,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
     ChatRoom? chatRoom;
-    
+
     if (widget.chatRoom != null) {
       chatRoom = storage.chatRooms.firstWhere(
         (c) => c.id == widget.chatRoom!.id,
@@ -154,8 +157,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       // Try to find existing chat room for this invitation by user pair
       final currentUserId = storage.currentProfile?.id ?? '';
       chatRoom = storage.chatRooms
-          .where((cr) => cr.containsUser(currentUserId) && 
-                        cr.containsUser(widget.invitation!.peerId))
+          .where(
+            (cr) =>
+                cr.containsUser(currentUserId) &&
+                cr.containsUser(widget.invitation!.peerId),
+          )
           .firstOrNull;
     }
 
@@ -176,23 +182,27 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final currentUserId = storage.currentProfile?.id ?? '';
     String otherUserId = '';
     String initialPeerName = widget.invitation?.peerName ?? 'Unknown';
-    
+
     if (chatRoom != null) {
       otherUserId = chatRoom.getOtherUserId(currentUserId);
     } else if (widget.invitation != null) {
       otherUserId = widget.invitation!.peerId;
     }
-    
-    final restaurant = chatRoom?.restaurant ?? widget.invitation?.restaurant ?? '';
+
+    final restaurant =
+        chatRoom?.restaurant ?? widget.invitation?.restaurant ?? '';
 
     return Scaffold(
       appBar: AppBar(
         title: FutureBuilder<Profile?>(
-          future: otherUserId.isNotEmpty ? storage.getProfileById(otherUserId) : Future.value(null),
+          future: otherUserId.isNotEmpty
+              ? storage.getProfileById(otherUserId)
+              : Future.value(null),
           builder: (context, snapshot) {
             String peerName = initialPeerName;
-            
-            if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+
+            if (snapshot.connectionState == ConnectionState.done &&
+                snapshot.hasData) {
               peerName = snapshot.data!.userName;
             } else if (otherUserId.isNotEmpty) {
               // Fallback to nearby peers if profile not found
@@ -201,7 +211,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 peerName = peer.name;
               }
             }
-            
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -241,11 +251,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               showDialog(
                 context: context,
                 builder: (context) => FutureBuilder<Profile?>(
-                  future: otherUserId.isNotEmpty ? storage.getProfileById(otherUserId) : Future.value(null),
+                  future: otherUserId.isNotEmpty
+                      ? storage.getProfileById(otherUserId)
+                      : Future.value(null),
                   builder: (context, snapshot) {
                     String dialogPeerName = initialPeerName;
-                    
-                    if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+
+                    if (snapshot.connectionState == ConnectionState.done &&
+                        snapshot.hasData) {
                       dialogPeerName = snapshot.data!.userName;
                     } else if (otherUserId.isNotEmpty) {
                       final peer = storage.getPeerById(otherUserId);
@@ -253,7 +266,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         dialogPeerName = peer.name;
                       }
                     }
-                    
+
                     return AlertDialog(
                       title: const Text('Meetup Details'),
                       content: Column(
@@ -279,14 +292,22 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           Row(
                             children: [
                               Icon(
-                                _isChatRoomClosed ? Icons.lock : Icons.lock_open,
-                                color: _isChatRoomClosed ? Colors.red : Colors.green,
+                                _isChatRoomClosed
+                                    ? Icons.lock
+                                    : Icons.lock_open,
+                                color: _isChatRoomClosed
+                                    ? Colors.red
+                                    : Colors.green,
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                _isChatRoomClosed ? 'Chat room closed' : 'Chat room open',
+                                _isChatRoomClosed
+                                    ? 'Chat room closed'
+                                    : 'Chat room open',
                                 style: TextStyle(
-                                  color: _isChatRoomClosed ? Colors.red : Colors.green,
+                                  color: _isChatRoomClosed
+                                      ? Colors.red
+                                      : Colors.green,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -319,11 +340,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.lock,
-                    color: Colors.red[700],
-                    size: 16,
-                  ),
+                  Icon(Icons.lock, color: Colors.red[700], size: 16),
                   const SizedBox(width: 8),
                   Text(
                     'Chat room closed - Read only mode',
@@ -343,7 +360,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -367,19 +386,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: _refreshMessages,
-              child: (chatRoom?.messages.isEmpty ?? true) && widget.invitation == null
+              child:
+                  (chatRoom?.messages.isEmpty ?? true) &&
+                      widget.invitation == null
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            _isChatRoomClosed ? Icons.lock : Icons.chat_bubble_outline,
+                            _isChatRoomClosed
+                                ? Icons.lock
+                                : Icons.chat_bubble_outline,
                             size: 60,
                             color: Colors.grey[400],
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            _isChatRoomClosed 
+                            _isChatRoomClosed
                                 ? 'This chat room has been closed'
                                 : 'Start chatting about your meetup!',
                             style: Theme.of(context).textTheme.bodyLarge
@@ -424,7 +447,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         icon: const Icon(Icons.restaurant_menu),
                         label: const Text('Send Invitation'),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Theme.of(context).primaryColor),
+                          side: BorderSide(
+                            color: Theme.of(context).primaryColor,
+                          ),
                           foregroundColor: Theme.of(context).primaryColor,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -472,7 +497,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
-  Widget _buildInvitationCard(BuildContext context, Invitation invitation, StorageService storage) {
+  Widget _buildInvitationCard(
+    BuildContext context,
+    Invitation invitation,
+    StorageService storage,
+  ) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -496,7 +525,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: invitation.sentByMe ? Colors.blue : Colors.orange,
+                backgroundColor: invitation.sentByMe
+                    ? Colors.blue
+                    : Colors.orange,
                 child: Text(
                   _getInitials(invitation.peerName),
                   style: const TextStyle(
@@ -520,10 +551,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       ),
                     ),
                     Text(
-                      invitation.sentByMe ? 'Invitation Sent' : 'Wants to connect',
+                      invitation.sentByMe
+                          ? 'Invitation Sent'
+                          : 'Wants to connect',
                       style: TextStyle(
                         fontSize: 12,
-                        color: invitation.sentByMe ? Colors.blue : Colors.orange,
+                        color: invitation.sentByMe
+                            ? Colors.blue
+                            : Colors.orange,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -533,7 +568,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (invitation.sentByMe ? Colors.blue : Colors.orange).withValues(alpha: 0.1),
+                  color: (invitation.sentByMe ? Colors.blue : Colors.orange)
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -547,7 +583,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               ),
             ],
           ),
-          
+
           // Restaurant info
           if (invitation.restaurant.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -557,15 +593,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 const SizedBox(width: 4),
                 Text(
                   invitation.restaurant,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
               ],
             ),
           ],
-          
+
           // Action buttons for received invitations
           if (!invitation.sentByMe && invitation.isPending) ...[
             const SizedBox(height: 16),
@@ -579,7 +612,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         if (context.mounted) {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Invitation declined')),
+                            const SnackBar(
+                              content: Text('Invitation declined'),
+                            ),
                           );
                         }
                       } catch (e) {
@@ -614,16 +649,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           // Refresh the screen to show chat room
                           Navigator.pop(context);
                           // Find the new chat room and navigate back
-                          final currentUserId = storage.currentProfile?.id ?? '';
+                          final currentUserId =
+                              storage.currentProfile?.id ?? '';
                           final newChatRoom = storage.chatRooms
-                              .where((cr) => cr.containsUser(currentUserId) && 
-                                            cr.containsUser(invitation.peerId))
+                              .where(
+                                (cr) =>
+                                    cr.containsUser(currentUserId) &&
+                                    cr.containsUser(invitation.peerId),
+                              )
                               .firstOrNull;
                           if (newChatRoom != null) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ChatRoomScreen(chatRoom: newChatRoom),
+                                builder: (context) =>
+                                    ChatRoomScreen(chatRoom: newChatRoom),
                               ),
                             );
                           }
@@ -653,7 +693,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               ],
             ),
           ],
-          
+
           // Options for sent invitations
           if (invitation.sentByMe && invitation.isPending) ...[
             const SizedBox(height: 16),
@@ -683,7 +723,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Future<void> _handleInvitationResponse(String messageId, bool accept) async {
     try {
       final storage = context.read<StorageService>();
-      
+
       if (accept) {
         await storage.acceptInvitation(messageId);
         if (context.mounted) {
@@ -709,7 +749,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           );
         }
       }
-      
+
       // Refresh messages to update UI
       await _refreshMessages();
     } catch (e) {
@@ -729,7 +769,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     try {
       final storage = context.read<StorageService>();
       await storage.collectNameCard(messageId);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -738,7 +778,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         );
       }
-      
+
       // Refresh messages to update UI
       await _refreshMessages();
     } catch (e) {
@@ -758,12 +798,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     try {
       final storage = context.read<StorageService>();
       await storage.markNotGoodMatch(messageId);
-      
+
       // Close chat room
       setState(() {
         _isChatRoomClosed = true;
       });
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -772,7 +812,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         );
       }
-      
+
       // Refresh messages to update UI
       await _refreshMessages();
     } catch (e) {
@@ -792,12 +832,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
     final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
-    
+
     // Check if there are any pending invitations between these users
-    return storage.invitations.any((inv) => 
-      inv.isPending && 
-      ((inv.peerId == otherUserId && inv.sentByMe) || 
-       (inv.peerId == currentUserId && !inv.sentByMe))
+    return storage.invitations.any(
+      (inv) =>
+          inv.isPending &&
+          ((inv.peerId == otherUserId && inv.sentByMe) ||
+              (inv.peerId == currentUserId && !inv.sentByMe)),
     );
   }
 
@@ -863,22 +904,25 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: (isCreating || restaurantController.text.trim().isEmpty || selectedActivityId == null)
+              onPressed:
+                  (isCreating ||
+                      restaurantController.text.trim().isEmpty ||
+                      selectedActivityId == null)
                   ? null
                   : () async {
                       setState(() => isCreating = true);
-                      
+
                       try {
                         final storage = context.read<StorageService>();
                         final peer = storage.getPeerById(otherUserId);
-                        
+
                         if (peer != null) {
                           final activity = storage.activities.firstWhere(
                             (a) => a.id.toString() == selectedActivityId,
                           );
-                          
+
                           await storage.sendInvitation(peer, activity.name);
-                          
+
                           if (context.mounted) {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -888,7 +932,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               ),
                             );
                           }
-                          
+
                           // Refresh to show the new invitation
                           await _refreshMessages();
                         }
@@ -926,23 +970,40 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
     final otherUserId = widget.chatRoom?.getOtherUserId(currentUserId) ?? '';
-    
+
     // Handle invitation messages with enhanced card
     if (message.isInvitation) {
       final isFromMe = message.isMine;
-      
+
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: InvitationMessageCard(
           message: message,
-          senderName: isFromMe ? 'You' : otherUserId.isNotEmpty ? storage.getPeerById(otherUserId)?.name : 'Unknown',
+          senderName: isFromMe
+              ? 'You'
+              : otherUserId.isNotEmpty
+              ? storage.getPeerById(otherUserId)?.name
+              : 'Unknown',
           isFromMe: isFromMe,
-          onAccept: !isFromMe && message.isPending ? () => _handleInvitationResponse(message.invitationId ?? message.id, true) : null,
-          onDecline: !isFromMe && message.isPending ? () => _handleInvitationResponse(message.invitationId ?? message.id, false) : null,
-          onCollectCard: message.isAccepted && !(message.isNameCardCollected ?? false) 
-              ? () => _handleCollectNameCard(message.invitationId ?? message.id) 
+          onAccept: !isFromMe && message.isPending
+              ? () => _handleInvitationResponse(
+                  message.invitationId ?? message.id,
+                  true,
+                )
               : null,
-          onNotGoodMatch: message.isAccepted ? () => _handleNotGoodMatch(message.invitationId ?? message.id) : null,
+          onDecline: !isFromMe && message.isPending
+              ? () => _handleInvitationResponse(
+                  message.invitationId ?? message.id,
+                  false,
+                )
+              : null,
+          onCollectCard:
+              message.isAccepted && !(message.isNameCardCollected ?? false)
+              ? () => _handleCollectNameCard(message.invitationId ?? message.id)
+              : null,
+          onNotGoodMatch: message.isAccepted
+              ? () => _handleNotGoodMatch(message.invitationId ?? message.id)
+              : null,
         ),
       );
     }
@@ -953,7 +1014,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       Color borderColor = Colors.green.withValues(alpha: 0.3);
       Color textColor = Colors.green[700]!;
       IconData icon = Icons.celebration;
-      
+
       if (message.text.contains('declined')) {
         bgColor = Colors.red.withValues(alpha: 0.1);
         borderColor = Colors.red.withValues(alpha: 0.3);
@@ -965,7 +1026,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         textColor = Colors.green[700]!;
         icon = Icons.check_circle;
       }
-      
+
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: Container(
@@ -981,11 +1042,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    icon,
-                    color: textColor,
-                    size: 20,
-                  ),
+                  Icon(icon, color: textColor, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

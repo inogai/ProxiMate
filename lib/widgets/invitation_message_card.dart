@@ -7,6 +7,7 @@ class InvitationMessageCard extends StatefulWidget {
   final VoidCallback? onDecline;
   final VoidCallback? onCollectCard;
   final VoidCallback? onNotGoodMatch;
+  final Future<void> Function()? onRate;
   final String? senderName;
   final bool isFromMe;
 
@@ -17,6 +18,7 @@ class InvitationMessageCard extends StatefulWidget {
     this.onDecline,
     this.onCollectCard,
     this.onNotGoodMatch,
+    this.onRate,
     this.senderName,
     this.isFromMe = false,
   });
@@ -33,7 +35,8 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
   @override
   Widget build(BuildContext context) {
     final status = widget.message.invitationStatus ?? "pending";
-    final restaurant = widget.message.invitationData?["restaurant"] as String? ?? '';
+    final restaurant =
+        widget.message.invitationData?["restaurant"] as String? ?? '';
     final iceBreakers = widget.message.iceBreakers ?? [];
     final responseDeadline = widget.message.responseDeadline;
 
@@ -112,10 +115,7 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
               if (widget.senderName != null)
                 Text(
                   widget.senderName!,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
             ],
           ),
@@ -206,7 +206,9 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isExpired ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
+        color: isExpired
+            ? Colors.red.withValues(alpha: 0.1)
+            : Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -332,9 +334,29 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
           ),
         ],
       );
-    } else if (status == "accepted" && !(widget.message.isNameCardCollected ?? false)) {
+    } else if (status == "accepted" &&
+        !(widget.message.isNameCardCollected ?? false)) {
       return Column(
         children: [
+          if (widget.onRate != null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _handleRate(),
+                icon: const Icon(Icons.star),
+                label: const Text('Rate Peer'),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.amber),
+                  foregroundColor: Colors.amber[800],
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -349,7 +371,9 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
                       ),
                     )
                   : const Icon(Icons.contacts),
-              label: Text(_isCollecting ? 'Collecting...' : 'Collect Name Card'),
+              label: Text(
+                _isCollecting ? 'Collecting...' : 'Collect Name Card',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -460,6 +484,10 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
         setState(() => _isCollecting = false);
       }
     }
+  }
+
+  Future<void> _handleRate() async {
+    await widget.onRate?.call();
   }
 
   Color _getCardColor(String status) {

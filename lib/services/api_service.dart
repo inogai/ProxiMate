@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
@@ -388,8 +389,11 @@ class ApiService {
       text: messageRead.text,
       isMine: isMine,
       timestamp: parsedTimestamp,
-      messageType:
-          MessageType.text, // Backend doesn't support invitation messages yet
+      messageType: _parseMessageType(messageRead.messageType),
+      invitationId: messageRead.invitationId,
+      invitationData: messageRead.invitationData != null
+          ? json.decode(messageRead.invitationData!) as Map<String, dynamic>
+          : null,
     );
   }
 
@@ -691,6 +695,21 @@ class ApiService {
 
   void dispose() {
     _debugLog('API Service disposed');
+  }
+
+  /// Parse message type from API string to enum
+  MessageType _parseMessageType(String? messageType) {
+    switch (messageType?.toLowerCase()) {
+      case 'invitation':
+        return MessageType.invitation;
+      case 'invitation_response':
+        return MessageType.invitationResponse;
+      case 'system':
+        return MessageType.system;
+      case 'text':
+      default:
+        return MessageType.text;
+    }
   }
 }
 
