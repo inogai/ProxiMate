@@ -77,7 +77,9 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
     final discovery = context.watch<PeerDiscoveryService>();
-    final peers = discovery.nearbyPeers;
+    final peers = discovery.nearbyPeers.where(
+      (p) => p.id != storage.currentProfile?.id,
+    );
 
     // Derive the lists from the live discovery results and storage connections
     final currentProfile = storage.currentProfile;
