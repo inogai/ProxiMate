@@ -1054,7 +1054,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       }
     }
 
-    final hasConnection = storage.connectedProfiles.any(
+    final hasConnection = storage.connections.any(
       (profile) => profile.id == otherUserId,
     );
 
@@ -1062,9 +1062,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     List<Widget> buttons = [];
 
     // Show collect name card / not good match buttons if there's an accepted invitation and no connection requests
-    if (acceptedInvitationMessage != null && 
-        !hasConnection && 
-        !hasPendingConnectionRequest && 
+    if (acceptedInvitationMessage != null &&
+        !hasConnection &&
+        !hasPendingConnectionRequest &&
         !hasAnsweredConnectionRequest) {
       buttons.addAll([
         SizedBox(
@@ -1088,8 +1088,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () =>
-                _handleNotGoodMatch(acceptedInvitationMessage!.id),
+            onPressed: () => _handleNotGoodMatch(acceptedInvitationMessage!.id),
             icon: const Icon(Icons.close),
             label: const Text('Not Good Match'),
             style: OutlinedButton.styleFrom(

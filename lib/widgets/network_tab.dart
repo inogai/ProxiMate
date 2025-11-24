@@ -34,23 +34,34 @@ class _NetworkTabState extends State<NetworkTab> {
       final twoHopResult = results[1] as TwoHopConnectionsResult;
       final directProfiles = results[0] as List<Profile>;
       final twoHopProfiles = twoHopResult.profiles;
-      final twoHopConnections = twoHopResult.connections;
+
+      // Transform connections to edge list
+      final twoHopEdges = <NetworkEdge>[];
+      final currentUserId = storage.currentProfile?.id ?? '';
+
+      twoHopResult.connections.forEach((profileId, connectionList) {
+        for (final connectionId in connectionList) {
+          twoHopEdges.add(
+            NetworkEdge(from: currentUserId, to: profileId, via: connectionId),
+          );
+        }
+      });
 
       print(
-        '🏗️ _fetchNetworkData: Complete - Direct: ${directProfiles.length}, 2-hop: ${twoHopProfiles.length}',
+        '🏗️ _fetchNetworkData: Complete - Direct: ${directProfiles.length}, 2-hop: ${twoHopProfiles.length}, edges: ${twoHopEdges.length}',
       );
 
       return NetworkData(
         connectedProfiles: directProfiles,
         twoHopProfiles: twoHopProfiles,
-        twoHopConnections: twoHopConnections,
+        twoHopEdges: twoHopEdges,
       );
     } catch (e) {
       print('🏗️ _fetchNetworkData: Error: $e');
       return NetworkData(
         connectedProfiles: <Profile>[],
         twoHopProfiles: <Profile>[],
-        twoHopConnections: <String, String>{},
+        twoHopEdges: <NetworkEdge>[],
       );
     }
   }
@@ -171,7 +182,7 @@ class _NetworkTabState extends State<NetworkTab> {
       context,
       nodes,
       networkData.twoHopProfiles,
-      networkData.twoHopConnections,
+      networkData.twoHopEdges,
       currentProfile,
       size,
     );
@@ -240,7 +251,7 @@ class _NetworkTabState extends State<NetworkTab> {
     BuildContext context,
     List<NetworkNode> nodes,
     List<Profile> twoHopProfiles,
-    Map<String, String> twoHopConnections,
+    List<NetworkEdge> twoHopEdges,
     Profile currentProfile,
     Size size,
   ) {
@@ -249,10 +260,13 @@ class _NetworkTabState extends State<NetworkTab> {
       final angle = (i / twoHopProfiles.length) * 2 * pi;
       final radius = min(size.width, size.height) * 0.35;
 
-      final oneHopConnectionId = twoHopConnections[profile.id];
-      final List<String> twoHopNodeConnections = oneHopConnectionId != null
-          ? [oneHopConnectionId]
-          : [];
+      // Find all edges that end at this profile
+      final profileEdges = twoHopEdges
+          .where((edge) => edge.to == profile.id)
+          .toList();
+      final twoHopNodeConnections = profileEdges
+          .map((edge) => edge.via)
+          .toList();
 
       nodes.add(
         NetworkNode(
@@ -407,14 +421,14 @@ class _NetworkTabState extends State<NetworkTab> {
     NetworkNode node,
     Profile currentProfile,
     List<Connection> connections,
-  ) {
+  ) async {
     if (node.id == currentProfile.id) {
       _showCurrentUserProfile(context);
       return;
     }
 
     final storage = context.read<StorageService>();
-    final connectedProfiles = storage.connectedProfiles;
+    final connectedProfiles = await storage.getConnectedProfiles();
 
     final profile = connectedProfiles.firstWhere(
       (p) => p.id == node.id,
@@ -442,15 +456,24 @@ class _NetworkTabState extends State<NetworkTab> {
   }
 }
 
+/// Network edge representing a 2-hop connection
+class NetworkEdge {
+  final String from;
+  final String to;
+  final String via;
+
+  NetworkEdge({required this.from, required this.to, required this.via});
+}
+
 class NetworkData {
   final List<Profile> connectedProfiles;
   final List<Profile> twoHopProfiles;
-  final Map<String, String> twoHopConnections;
+  final List<NetworkEdge> twoHopEdges;
 
   NetworkData({
     required this.connectedProfiles,
     required this.twoHopProfiles,
-    required this.twoHopConnections,
+    required this.twoHopEdges,
   });
 }
 
@@ -458,17 +481,21 @@ Widget _buildNetworkGrid(BuildContext context) {
   final storage = context.watch<StorageService>();
   final connections = storage.connections;
 
-  return ListView.builder(
-    padding: const EdgeInsets.all(16),
-    itemCount: connections.length,
-    itemBuilder: (context, index) {
-      final connection = connections[index];
-      return Builder(
-        builder: (context) {
-          // Get the profile name from storage or use a default
-          final storage = context.read<StorageService>();
-          final profiles = storage.connectedProfiles;
-          final profile = profiles.cast<Profile?>().firstWhere(
+  return FutureBuilder<List<Profile>>(
+    future: storage.getConnectedProfiles(),
+    builder: (context, profilesSnapshot) {
+      if (!profilesSnapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      final connectedProfiles = profilesSnapshot.data!;
+
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: connections.length,
+        itemBuilder: (context, index) {
+          final connection = connections[index];
+          final profile = connectedProfiles.cast<Profile?>().firstWhere(
             (p) => p?.id == connection.toProfileId,
             orElse: () => null as Profile?,
           );

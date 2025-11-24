@@ -20,12 +20,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Result class for 2-hop connections with relationship mapping
 class TwoHopConnectionsResult {
   final List<Profile> profiles;
-  final Map<String, String> connections;
+  final Map<String, List<String>> connections;
 
-  TwoHopConnectionsResult({
-    required this.profiles,
-    required this.connections,
-  });
+  TwoHopConnectionsResult({required this.profiles, required this.connections});
 }
 
 /// Storage service with API-only integration (no local fallbacks)
@@ -53,8 +50,10 @@ class StorageService extends ChangeNotifier {
   final Map<String, DateTime> _lastMessageFetch =
       {}; // Track last fetch time per chat room
   DateTime? _lastConnectionSync; // Track last connection sync time
-  DateTime? _lastNearbyPeersSync; // Track last nearby peers sync time
+  DateTime? _lastNearbyPeersSync; // Track last activities sync time
   DateTime? _lastActivitiesSync; // Track last activities sync time
+
+  // Private variables for internal state tracking
 
   Profile? get currentProfile => _currentProfile;
   List<Connection> get connections => _connections;
@@ -71,46 +70,68 @@ class StorageService extends ChangeNotifier {
   bool get hasUser => _currentProfile != null && _apiUserId != null;
 
   /// Get new friends (peers that connected to current user)
-  List<Peer> get newFriends => _nearbyPeers.where((p) => 
-    _connections.any((c) => 
-      ((c.fromProfileId == _currentProfile?.id && c.toProfileId == p.id) ||
-       (c.toProfileId == _currentProfile?.id && c.fromProfileId == p.id)) &&
-      c.status == ConnectionStatus.accepted
-    )
-  ).toList();
+  List<Peer> get newFriends => _nearbyPeers
+      .where(
+        (p) => _connections.any(
+          (c) =>
+              ((c.fromProfileId == _currentProfile?.id &&
+                      c.toProfileId == p.id) ||
+                  (c.toProfileId == _currentProfile?.id &&
+                      c.fromProfileId == p.id)) &&
+              c.status == ConnectionStatus.accepted,
+        ),
+      )
+      .toList();
 
   /// Get current user's connections as peers
   List<Peer> get yourConnections {
     final connectedIds = _connections
-        .where((c) => 
-            (c.fromProfileId == _currentProfile?.id || c.toProfileId == _currentProfile?.id) &&
-            c.status == ConnectionStatus.accepted)
-        .map((c) => c.fromProfileId == _currentProfile?.id ? c.toProfileId : c.fromProfileId)
+        .where(
+          (c) =>
+              (c.fromProfileId == _currentProfile?.id ||
+                  c.toProfileId == _currentProfile?.id) &&
+              c.status == ConnectionStatus.accepted,
+        )
+        .map(
+          (c) => c.fromProfileId == _currentProfile?.id
+              ? c.toProfileId
+              : c.fromProfileId,
+        )
         .toSet();
-    
+
     return _nearbyPeers.where((p) => connectedIds.contains(p.id)).toList();
   }
 
   /// Get profiles that current user is connected to (async version)
   Future<List<Profile>> getConnectedProfiles() async {
-    _debugLog('getConnectedProfiles called: _currentProfile=${_currentProfile?.id}, _connections=${_connections.length}');
+    _debugLog(
+      'getConnectedProfiles called: _currentProfile=${_currentProfile?.id}, _connections=${_connections.length}',
+    );
     if (_currentProfile == null) {
       _debugLog('getConnectedProfiles: No current profile');
       return [];
     }
-    
+
     // Get accepted connections for current user
     final currentUserId = _currentProfile!.id;
-    final acceptedConnections = _connections.where((c) => c.status == ConnectionStatus.accepted).toList();
+    final acceptedConnections = _connections
+        .where((c) => c.status == ConnectionStatus.accepted)
+        .toList();
     final connectionIds = acceptedConnections
-        .map((c) => c.fromProfileId == currentUserId ? c.toProfileId : c.fromProfileId)
+        .map(
+          (c) => c.fromProfileId == currentUserId
+              ? c.toProfileId
+              : c.fromProfileId,
+        )
         .toSet();
-    
-    _debugLog('getConnectedProfiles: Found ${acceptedConnections.length} accepted connections, connectionIds: $connectionIds');
-    
+
+    _debugLog(
+      'getConnectedProfiles: Found ${acceptedConnections.length} accepted connections, connectionIds: $connectionIds',
+    );
+
     // Fetch profile data for each connected user from API
     final List<Profile> connectedProfiles = [];
-    
+
     for (final connectionId in connectionIds) {
       try {
         // Get user data from API
@@ -122,206 +143,55 @@ class StorageService extends ChangeNotifier {
         // Continue with other profiles even if one fails
       }
     }
-    
-    _debugLog('getConnectedProfiles: Successfully fetched ${connectedProfiles.length} profiles from API');
+
+    _debugLog(
+      'getConnectedProfiles: Successfully fetched ${connectedProfiles.length} profiles from API',
+    );
     return connectedProfiles;
   }
 
   /// Get 2-hop connections (friends of friends) with relationship mapping
   Future<TwoHopConnectionsResult> getTwoHopConnectionsWithMapping() async {
-    print('🔍 getTwoHopConnectionsWithMapping: Starting...');
-    
     if (_currentProfile == null) {
-      print('🔍 getTwoHopConnectionsWithMapping: No current profile, using mock data');
-      // Return mock data for testing purposes
-      final mockTwoHopProfiles = <Profile>[];
-      final mockConnections = <String, String>{};
-      
-      // Create some mock 2-hop connections
-      for (int i = 0; i < 3; i++) {
-        final twoHopId = '2hop_${i + 1}';
-        mockTwoHopProfiles.add(Profile(
-          id: twoHopId,
-          userName: 'Friend of Friend ${i + 1}',
-          major: ['Computer Science', 'Business', 'Engineering'][i % 3],
-          interests: 'Technology, Innovation, Networking',
-          background: 'Connected through your network',
-          school: 'University',
-        ));
-        
-        // Mock connection to a fake 1-hop node
-        mockConnections[twoHopId] = 'mock_1hop_${i + 1}';
-      }
-      
-      return TwoHopConnectionsResult(
-        profiles: mockTwoHopProfiles,
-        connections: mockConnections,
-      );
+      return TwoHopConnectionsResult(profiles: [], connections: {});
     }
 
-    try {
-      final userId = int.tryParse(_currentProfile!.id);
-      if (userId == null) {
-        print('🔍 getTwoHopConnectionsWithMapping: Invalid user ID format');
-        return TwoHopConnectionsResult(
-          profiles: <Profile>[],
-          connections: <String, String>{},
-        );
-      }
+    final userId = int.parse(_currentProfile!.id);
+    final twoHopConnections = await _apiService.getTwoHopConnections(userId);
 
-print('🔍 getTwoHopConnectionsWithMapping: Fetching 2-hop connections for user $userId');
-      
-      try {
-        // Fetch 2-hop connections from API
-        final twoHopConnections = await _apiService.getTwoHopConnections(userId);
-        print('🔍 getTwoHopConnectionsWithMapping: Received ${twoHopConnections.length} 2-hop connections from API');
-        
-        // Debug: Print each connection to understand the data
-        for (int i = 0; i < twoHopConnections.length; i++) {
-          final conn = twoHopConnections[i];
-          print('🔍 2-hop connection $i: twoHopUserId=${conn.twoHopUserId}, oneHopUserId=${conn.oneHopUserId}');
-        }
-        
-        if (twoHopConnections.isEmpty) {
-          print('🔍 getTwoHopConnectionsWithMapping: No 2-hop connections found');
-          return TwoHopConnectionsResult(
-            profiles: [],
-            connections: {},
-          );
-        }
-        
-        // Convert TwoHopConnection objects to Profile objects with mapping
-        final profiles = <Profile>[];
-        final connections = <String, String>{};
-        
-        // Batch fetch user profiles for all two-hop users
-        final futures = <Future<Profile>>[];
-        final validConnections = <TwoHopConnection>[];
-        
-        // Validate connections before processing
-        for (final connection in twoHopConnections) {
-          if (connection.twoHopUserId > 0 && connection.oneHopUserId > 0) {
-            futures.add(_apiService.getUser(connection.twoHopUserId).then((userRead) => _apiService.userReadToProfile(userRead)));
-            validConnections.add(connection);
-          } else {
-            print('Invalid TwoHopConnection: twoHopUserId=${connection.twoHopUserId}, oneHopUserId=${connection.oneHopUserId}');
-          }
-        }
-        
-        if (futures.isEmpty) {
-          print('No valid 2-hop connections to process');
-          return TwoHopConnectionsResult(
-            profiles: [],
-            connections: {},
-          );
-        }
-        
-        try {
-          final fetchedProfiles = await Future.wait(
-            futures,
-            eagerError: false,
-          ).timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              print('Timeout fetching 2-hop user profiles');
-              throw TimeoutException('Timeout fetching 2-hop user profiles', const Duration(seconds: 30));
-            },
-          );
-          
-          // Build results, filtering out failed profile fetches
-          for (int i = 0; i < validConnections.length; i++) {
-            final connection = validConnections[i];
-            final profile = fetchedProfiles[i];
-            
-            // Only add if profile was successfully fetched
-            if (profile.id.isNotEmpty && profile.userName.isNotEmpty) {
-              profiles.add(profile);
-              connections[profile.id] = connection.oneHopUserId.toString();
-            } else {
-              print('Failed to fetch valid profile for user ${connection.twoHopUserId}');
-            }
-          }
-          
-          print('Successfully processed ${profiles.length} out of ${validConnections.length} 2-hop connections');
-          
-          // Debug: Print final mapping
-          for (final entry in connections.entries) {
-            print('🔍 Final mapping: ${entry.key} -> ${entry.value}');
-          }
-          
-          return TwoHopConnectionsResult(
-            profiles: profiles,
-            connections: connections,
-          );
-        } on TimeoutException catch (e) {
-          print('Timeout fetching 2-hop user profiles: $e');
-          return TwoHopConnectionsResult(
-            profiles: [],
-            connections: {},
-          );
-        } catch (e) {
-          print('Error fetching 2-hop user profiles: $e');
-          return TwoHopConnectionsResult(
-            profiles: [],
-            connections: {},
-          );
-        }
-      } catch (e) {
-        print('🔍 getTwoHopConnectionsWithMapping: Error fetching 2-hop connections: $e');
-        return TwoHopConnectionsResult(
-          profiles: [],
-          connections: {},
-        );
-      }
-    } catch (e) {
-      print('🔍 getTwoHopConnectionsWithMapping: Error fetching 2-hop connections: $e');
-      return TwoHopConnectionsResult(
-        profiles: <Profile>[],
-        connections: <String, String>{},
-      );
+    if (twoHopConnections.isEmpty) {
+      return TwoHopConnectionsResult(profiles: [], connections: {});
     }
-  }
 
-  /// Get 2-hop connections (friends of friends) - legacy method for backward compatibility
-  Future<List<Profile>> getTwoHopConnections() async {
-    final result = await getTwoHopConnectionsWithMapping();
-    return result.profiles;
-  }
-
-  /// Get profiles that current user is connected to (sync version using nearby peers)
-  List<Profile> get connectedProfiles {
-    _debugLog('connectedProfiles called: _currentProfile=${_currentProfile?.id}, _connections=${_connections.length}, _nearbyPeers=${_nearbyPeers.length}');
-    if (_currentProfile == null) {
-      _debugLog('connectedProfiles: No current profile');
-      return [];
-    }
-    
-    // Get accepted connections for current user
-    final currentUserId = _currentProfile!.id;
-    final acceptedConnections = _connections.where((c) => c.status == ConnectionStatus.accepted).toList();
-    final connectionIds = acceptedConnections
-        .map((c) => c.fromProfileId == currentUserId ? c.toProfileId : c.fromProfileId)
-        .toSet();
-    
-    _debugLog('connectedProfiles: Found ${acceptedConnections.length} accepted connections, connectionIds: $connectionIds');
-    
-    // Get profiles from nearby peers that match connection IDs
-    final connectedPeers = _nearbyPeers
-        .where((p) => connectionIds.contains(p.id))
+    final futures = twoHopConnections
+        .where((conn) => conn.twoHopUserId > 0 && conn.oneHopUserId > 0)
+        .map(
+          (conn) => _apiService
+              .getUser(conn.twoHopUserId)
+              .then((userRead) => _apiService.userReadToProfile(userRead)),
+        )
         .toList();
-    
-    _debugLog('connectedProfiles: Found ${connectedPeers.length} matching peers from ${_nearbyPeers.length} nearby peers');
-    
-    // Convert Peer objects to Profile objects
-    return connectedPeers.map((peer) => Profile(
-      id: peer.id,
-      userName: peer.name,
-      school: peer.school,
-      major: peer.major,
-      interests: peer.interests,
-      background: peer.background,
-      profileImagePath: peer.profileImageUrl,
-    )).toList();
+
+    final fetchedProfiles = await Future.wait(futures);
+
+    final profiles = <Profile>[];
+    final connections = <String, List<String>>{};
+
+    for (int i = 0; i < twoHopConnections.length; i++) {
+      final connection = twoHopConnections[i];
+      final profile = fetchedProfiles[i];
+
+      profiles.add(profile);
+      final profileId = profile.id;
+      connections
+          .putIfAbsent(profileId, () => [])
+          .add(connection.oneHopUserId.toString());
+    }
+
+    return TwoHopConnectionsResult(
+      profiles: profiles,
+      connections: connections,
+    );
   }
 
   /// Initialize services that depend on each other
@@ -410,7 +280,9 @@ print('🔍 getTwoHopConnectionsWithMapping: Fetching 2-hop connections for user
 
   /// Synchronize connections with API
   Future<void> _syncConnections() async {
-    _debugLog('_syncConnections called: _currentProfile=${_currentProfile?.id}, _apiUserId=$_apiUserId');
+    _debugLog(
+      '_syncConnections called: _currentProfile=${_currentProfile?.id}, _apiUserId=$_apiUserId',
+    );
     if (_currentProfile == null || _apiUserId == null) {
       _debugLog('Skipping connection sync - missing profile or user ID');
       return;
@@ -426,7 +298,9 @@ print('🔍 getTwoHopConnectionsWithMapping: Fetching 2-hop connections for user
         return;
       }
 
-      final apiConnections = await _apiService.getOneHopConnections(currentUserId);
+      final apiConnections = await _apiService.getOneHopConnections(
+        currentUserId,
+      );
 
       // Detect changes by comparing with previous state
       final hasChanges =
