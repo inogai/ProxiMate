@@ -775,7 +775,8 @@ class ApiService {
         fromProfileId: connectionRead.user1Id.toString(),
         toProfileId: connectionRead.user2Id.toString(),
         restaurant: '', // Not available in ConnectionRead
-        collectedAt: DateTime.tryParse(connectionRead.createdAt) ?? DateTime.now(),
+        collectedAt:
+            DateTime.tryParse(connectionRead.createdAt) ?? DateTime.now(),
         status: _parseConnectionStatus(connectionRead.status),
         notes: null, // Not available in ConnectionRead
       );

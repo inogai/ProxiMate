@@ -103,284 +103,384 @@ class _NetworkTabState extends State<NetworkTab> {
     final storage = context.watch<StorageService>();
     final currentProfile = storage.currentProfile;
     final connections = storage.connections;
-    final nearbyPeers = storage.nearbyPeers;
 
     if (currentProfile == null) {
       return const Center(child: Text('No profile'));
     }
 
-    final size = MediaQuery.of(context).size;
-
-    print('Building network graph with ${connections.length} connections');
-
     return FutureBuilder<Map<String, dynamic>>(
       future: _fetchNetworkData(storage),
       builder: (context, snapshot) {
-        print(
-          '🏗️ FutureBuilder snapshot state: ${snapshot.hasData ? "has data" : "loading"}',
-        );
-
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final connectedProfiles = snapshot.data!['direct'] as List<Profile>;
-        final twoHopProfiles = snapshot.data!['twoHop'] as List<Profile>;
-        final twoHopConnections = snapshot.data!['twoHopConnections'] as Map<String, String>;
+        final networkData = _parseNetworkData(snapshot.data!);
+        final nodes = _buildNetworkNodes(context, currentProfile!, connections, networkData);
 
-        print('🏗️ Connected profiles: ${connectedProfiles.length}');
-        print('🏗️ 2-hop profiles: ${twoHopProfiles.length}');
-        print('🏗️ 2-hop connections: ${twoHopConnections.length}');
-
-        // Initialize nodes list
-        final List<NetworkNode> nodes = [];
-        
-        print(
-          '🏗️ Building network graph with total nodes: ${nodes.length + 1} (including current user)',
-        );
-
-        // Always add current user as center node
-        nodes.add(
-          NetworkNode(
-            id: currentProfile.id,
-            name: currentProfile.userName,
-            school: currentProfile.school ?? '',
-            major: currentProfile.major,
-            interests: currentProfile.interests,
-            color: Theme.of(context).colorScheme.primary,
-            position: Offset(size.width * 0.5, size.height * 0.5),
-            connections: connections.map((c) => c.toProfileId).toList(),
-            profileImagePath: currentProfile.profileImagePath,
-          ),
-        );
-
-        // If no connections, add a text node above current user
-        if (connectedProfiles.isEmpty) {
-          nodes.add(
-            NetworkNode(
-              id: 'empty_message',
-              name: 'Start by finding new connections at "Find Peers"',
-              school: '',
-              color: Colors.transparent,
-              position: Offset(size.width * 0.5, size.height * 0.5 - 150),
-              connections: [],
-              isDirectConnection: false,
-              isTextNode: true,
-            ),
-          );
-
-          return Stack(
-            children: [
-              NetworkGraphWidget(
-                nodes: nodes,
-                initialSelectedNodeId: currentProfile.id,
-                currentUserId: currentProfile.id,
-                currentUserMajor: currentProfile.major,
-                currentUserInterests: currentProfile.interests,
-                show1HopCircle: _show1HopCircle,
-                onInfoBarTap: (node) => _showCurrentUserProfile(context),
-              ),
-              Positioned(
-                top: 16,
-                left: 16,
-                child: Card(
-                  color: Colors.black.withOpacity(0.7),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'ProxiMate',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'No connections yet',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
+        if (networkData.connectedProfiles.isEmpty) {
+          return _buildEmptyNetworkGraph(context, currentProfile!, nodes);
         }
 
-        // Position connected profiles around current user
-        final List<String> directConnectionIds = [];
-        for (int i = 0; i < connectedProfiles.length; i++) {
-          final profile = connectedProfiles[i];
-          final angle = (i / connectedProfiles.length) * 2 * pi;
-          final radius = min(size.width, size.height) * 0.25;
-
-          // Check if this connected profile is also a nearby peer
-          NetworkNode? nearbyPeerNode;
-          if (nearbyPeers.isNotEmpty) {
-            final matchingPeer = nearbyPeers.firstWhere(
-              (peer) => peer.id == profile.id,
-              orElse: () => nearbyPeers.first, // fallback
-            );
-            nearbyPeerNode = NetworkNode(
-              id: matchingPeer.id,
-              name: matchingPeer.name,
-              school: matchingPeer.school,
-              major: matchingPeer.major,
-              interests: matchingPeer.interests,
-              color: Theme.of(context).colorScheme.secondary,
-              position: Offset(
-                size.width * 0.5 + radius * cos(angle),
-                size.height * 0.5 + radius * sin(angle),
-              ),
-              connections: [currentProfile.id],
-              profileImagePath: matchingPeer.profileImageUrl,
-            );
-          }
-
-          nodes.add(
-            NetworkNode(
-              id: profile.id,
-              name: profile.userName,
-              school: profile.school ?? '',
-              major: profile.major,
-              interests: profile.interests,
-              color: nearbyPeerNode != null
-                  ? Theme.of(context).colorScheme.secondary
-                  : Theme.of(context).colorScheme.tertiary,
-              position:
-                  nearbyPeerNode?.position ??
-                  Offset(
-                    size.width * 0.5 + radius * cos(angle),
-                    size.height * 0.5 + radius * sin(angle),
-                  ),
-              connections: [currentProfile.id],
-              profileImagePath: profile.profileImagePath,
-            ),
-          );
-          directConnectionIds.add(profile.id);
-        }
-
-        // Add 2-hop nodes around the direct connections
-        print('🏗️ Adding ${twoHopProfiles.length} 2-hop nodes...');
-        for (int i = 0; i < twoHopProfiles.length; i++) {
-          final profile = twoHopProfiles[i];
-          final angle = (i / twoHopProfiles.length) * 2 * pi;
-          final radius =
-              min(size.width, size.height) *
-              0.35; // Slightly larger radius for 2-hop
-
-          // Get the 1-hop connection this 2-hop node connects to
-          final oneHopConnectionId = twoHopConnections[profile.id];
-          final List<String> twoHopNodeConnections = oneHopConnectionId != null 
-              ? [oneHopConnectionId] 
-              : [];
-
-          final node = NetworkNode(
-            id: profile.id,
-            name: profile.userName,
-            school: profile.school ?? '',
-            major: profile.major,
-            interests: profile.interests,
-            color: Colors.purple.withOpacity(
-              0.8,
-            ), // Bright purple for 2-hop to make them visible
-            position: Offset(
-              size.width * 0.5 + radius * cos(angle),
-              size.height * 0.5 + radius * sin(angle),
-            ),
-            connections: twoHopNodeConnections, // Connect to the 1-hop node
-            profileImagePath: profile.profileImagePath,
-            isDirectConnection: false, // Mark as 2-hop
-            depth: 2, // Set depth to 2
-          );
-
-          nodes.add(node);
-          print(
-            '🏗️ Added 2-hop node: ${profile.userName} at position ${node.position}, connected to: $oneHopConnectionId',
-          );
-        }
-        print('🏗️ Total nodes after adding 2-hop: ${nodes.length}');
-
-        return Stack(
-          children: [
-            NetworkGraphWidget(
-              nodes: nodes,
-              initialSelectedNodeId: currentProfile.id,
-              currentUserId: currentProfile.id,
-              currentUserMajor: currentProfile.major,
-              currentUserInterests: currentProfile.interests,
-              show1HopCircle: _show1HopCircle,
-              onInfoBarTap: (node) {
-                if (node.id == currentProfile.id) {
-                  _showCurrentUserProfile(context);
-                } else {
-                  final profile = connectedProfiles.firstWhere(
-                    (p) => p.id == node.id,
-                    orElse: () => Profile(
-                      id: node.id,
-                      userName: node.name,
-                      major: node.major,
-                      interests: node.interests,
-                      background: '',
-                    ),
-                  );
-                  final connection = connections.firstWhere(
-                    (c) => c.toProfileId == node.id,
-                    orElse: () => Connection(
-                      id: 'unknown',
-                      fromProfileId: currentProfile.id,
-                      toProfileId: node.id,
-                      restaurant: 'Unknown',
-                      collectedAt: DateTime.now(),
-                    ),
-                  );
-                  _showConnectionDetails(context, profile, connection);
-                }
-              },
-              onInvite: (node) => _sendInvitation(node),
-            ),
-            Positioned(
-              top: 16,
-              left: 16,
-              child: Card(
-                color: Colors.black.withOpacity(0.7),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ProxiMate',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${connections.length} ${connections.length == 1 ? 'Connection' : 'Connections'}',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
+        return _buildPopulatedNetworkGraph(context, currentProfile!, nodes, connections);
       },
     );
   }
+
+  NetworkData _parseNetworkData(Map<String, dynamic> data) {
+    return NetworkData(
+      connectedProfiles: data['direct'] as List<Profile>,
+      twoHopProfiles: data['twoHop'] as List<Profile>,
+      twoHopConnections: data['twoHopConnections'] as Map<String, String>,
+    );
+  }
+
+  List<NetworkNode> _buildNetworkNodes(
+    BuildContext context,
+    Profile currentProfile,
+    List<Connection> connections,
+    NetworkData networkData,
+  ) {
+    final size = MediaQuery.of(context).size;
+    final nodes = <NetworkNode>[];
+
+    // Add current user as center node
+    nodes.add(_createCurrentUserNode(context, currentProfile, size, connections));
+
+    // Add direct connection nodes
+    final directConnectionIds = _addDirectConnectionNodes(
+      context,
+      nodes,
+      networkData.connectedProfiles,
+      currentProfile,
+      size,
+    );
+
+    // Add 2-hop nodes
+    _addTwoHopNodes(
+      context,
+      nodes,
+      networkData.twoHopProfiles,
+      networkData.twoHopConnections,
+      currentProfile,
+      size,
+    );
+
+    return nodes;
+  }
+
+  NetworkNode _createCurrentUserNode(
+    BuildContext context,
+    Profile currentProfile,
+    Size size,
+    List<Connection> connections,
+  ) {
+    return NetworkNode(
+      id: currentProfile.id,
+      name: currentProfile.userName,
+      school: currentProfile.school ?? '',
+      major: currentProfile.major,
+      interests: currentProfile.interests,
+      color: Theme.of(context).colorScheme.primary,
+      position: Offset(size.width * 0.5, size.height * 0.5),
+      connections: connections.map((c) => c.toProfileId).toList(),
+      profileImagePath: currentProfile.profileImagePath,
+    );
+  }
+
+  List<String> _addDirectConnectionNodes(
+    BuildContext context,
+    List<NetworkNode> nodes,
+    List<Profile> connectedProfiles,
+    Profile currentProfile,
+    Size size,
+  ) {
+    final nearbyPeers = context.read<StorageService>().nearbyPeers;
+    final directConnectionIds = <String>[];
+
+    for (int i = 0; i < connectedProfiles.length; i++) {
+      final profile = connectedProfiles[i];
+      final angle = (i / connectedProfiles.length) * 2 * pi;
+      final radius = min(size.width, size.height) * 0.25;
+
+      final nearbyPeerNode = _createNearbyPeerNode(
+        context,
+        profile,
+        nearbyPeers,
+        currentProfile,
+        radius,
+        angle,
+        size,
+      );
+
+      nodes.add(
+        NetworkNode(
+          id: profile.id,
+          name: profile.userName,
+          school: profile.school ?? '',
+          major: profile.major,
+          interests: profile.interests,
+          color: nearbyPeerNode != null
+              ? Theme.of(context).colorScheme.secondary
+              : Theme.of(context).colorScheme.tertiary,
+          position: nearbyPeerNode?.position ??
+              Offset(
+                size.width * 0.5 + radius * cos(angle),
+                size.height * 0.5 + radius * sin(angle),
+              ),
+          connections: [currentProfile.id],
+          profileImagePath: profile.profileImagePath,
+        ),
+      );
+      directConnectionIds.add(profile.id);
+    }
+
+    return directConnectionIds;
+  }
+
+  NetworkNode? _createNearbyPeerNode(
+    BuildContext context,
+    Profile profile,
+    List nearbyPeers,
+    Profile currentProfile,
+    double radius,
+    double angle,
+    Size size,
+  ) {
+    if (nearbyPeers.isEmpty) return null;
+
+    final matchingPeer = nearbyPeers.firstWhere(
+      (peer) => peer.id == profile.id,
+      orElse: () => nearbyPeers.first,
+    );
+
+    return NetworkNode(
+      id: matchingPeer.id,
+      name: matchingPeer.name,
+      school: matchingPeer.school,
+      major: matchingPeer.major,
+      interests: matchingPeer.interests,
+      color: Theme.of(context).colorScheme.secondary,
+      position: Offset(
+        size.width * 0.5 + radius * cos(angle),
+        size.height * 0.5 + radius * sin(angle),
+      ),
+      connections: [currentProfile.id],
+      profileImagePath: matchingPeer.profileImageUrl,
+    );
+  }
+
+  void _addTwoHopNodes(
+    BuildContext context,
+    List<NetworkNode> nodes,
+    List<Profile> twoHopProfiles,
+    Map<String, String> twoHopConnections,
+    Profile currentProfile,
+    Size size,
+  ) {
+    for (int i = 0; i < twoHopProfiles.length; i++) {
+      final profile = twoHopProfiles[i];
+      final angle = (i / twoHopProfiles.length) * 2 * pi;
+      final radius = min(size.width, size.height) * 0.35;
+
+      final oneHopConnectionId = twoHopConnections[profile.id];
+      final List<String> twoHopNodeConnections = oneHopConnectionId != null 
+          ? [oneHopConnectionId] 
+          : [];
+
+      nodes.add(
+        NetworkNode(
+          id: profile.id,
+          name: profile.userName,
+          school: profile.school ?? '',
+          major: profile.major,
+          interests: profile.interests,
+          color: Colors.purple.withOpacity(0.8),
+          position: Offset(
+            size.width * 0.5 + radius * cos(angle),
+            size.height * 0.5 + radius * sin(angle),
+          ),
+          connections: twoHopNodeConnections,
+          profileImagePath: profile.profileImagePath,
+          isDirectConnection: false,
+          depth: 2,
+        ),
+      );
+    }
+  }
+
+  Widget _buildEmptyNetworkGraph(
+    BuildContext context,
+    Profile currentProfile,
+    List<NetworkNode> nodes,
+  ) {
+    nodes.add(
+      NetworkNode(
+        id: 'empty_message',
+        name: 'Start by finding new connections at "Find Peers"',
+        school: '',
+        color: Colors.transparent,
+        position: Offset(MediaQuery.of(context).size.width * 0.5, 
+                     MediaQuery.of(context).size.height * 0.5 - 150),
+        connections: [],
+        isDirectConnection: false,
+        isTextNode: true,
+      ),
+    );
+
+    return Stack(
+      children: [
+        NetworkGraphWidget(
+          nodes: nodes,
+          initialSelectedNodeId: currentProfile.id,
+          currentUserId: currentProfile.id,
+          currentUserMajor: currentProfile.major,
+          currentUserInterests: currentProfile.interests,
+          show1HopCircle: _show1HopCircle,
+          onInfoBarTap: (node) => _showCurrentUserProfile(context),
+        ),
+        _buildEmptyStateCard(context),
+      ],
+    );
+  }
+
+  Widget _buildPopulatedNetworkGraph(
+    BuildContext context,
+    Profile currentProfile,
+    List<NetworkNode> nodes,
+    List<Connection> connections,
+  ) {
+    return Stack(
+      children: [
+        NetworkGraphWidget(
+          nodes: nodes,
+          initialSelectedNodeId: currentProfile.id,
+          currentUserId: currentProfile.id,
+          currentUserMajor: currentProfile.major,
+          currentUserInterests: currentProfile.interests,
+          show1HopCircle: _show1HopCircle,
+          onInfoBarTap: (node) => _handleNodeTap(context, node, currentProfile, connections),
+          onInvite: (node) => _sendInvitation(node, context),
+        ),
+        _buildNetworkStatsCard(context, connections),
+      ],
+    );
+  }
+
+  Widget _buildEmptyStateCard(BuildContext context) {
+    return Positioned(
+      top: 16,
+      left: 16,
+      child: Card(
+        color: Colors.black.withOpacity(0.7),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'ProxiMate',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'No connections yet',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNetworkStatsCard(BuildContext context, List<Connection> connections) {
+    return Positioned(
+      top: 16,
+      left: 16,
+      child: Card(
+        color: Colors.black.withOpacity(0.7),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ProxiMate',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${connections.length} ${connections.length == 1 ? 'Connection' : 'Connections'}',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleNodeTap(
+    BuildContext context,
+    NetworkNode node,
+    Profile currentProfile,
+    List<Connection> connections,
+  ) {
+    if (node.id == currentProfile.id) {
+      _showCurrentUserProfile(context);
+      return;
+    }
+
+    final storage = context.read<StorageService>();
+    final connectedProfiles = storage.connectedProfiles;
+    
+    final profile = connectedProfiles.firstWhere(
+      (p) => p.id == node.id,
+      orElse: () => Profile(
+        id: node.id,
+        userName: node.name,
+        major: node.major,
+        interests: node.interests,
+        background: '',
+      ),
+    );
+    
+    final connection = connections.firstWhere(
+      (c) => c.toProfileId == node.id,
+      orElse: () => Connection(
+        id: 'unknown',
+        fromProfileId: currentProfile.id,
+        toProfileId: node.id,
+        restaurant: 'Unknown',
+        collectedAt: DateTime.now(),
+      ),
+    );
+    
+    _showConnectionDetails(context, profile, connection);
+  }
+}
+
+class NetworkData {
+  final List<Profile> connectedProfiles;
+  final List<Profile> twoHopProfiles;
+  final Map<String, String> twoHopConnections;
+
+  NetworkData({
+    required this.connectedProfiles,
+    required this.twoHopProfiles,
+    required this.twoHopConnections,
+  });
+}
 
   Widget _buildNetworkGrid(BuildContext context) {
     final storage = context.watch<StorageService>();
@@ -891,7 +991,7 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  void _sendInvitation(NetworkNode node) {
+  void _sendInvitation(NetworkNode node, BuildContext context) {
     final storage = context.read<StorageService>();
 
     // TODO: Implement actual invitation sending via API
@@ -905,4 +1005,3 @@ class _NetworkTabState extends State<NetworkTab> {
 
     print('📨 Invitation sent to 2-hop node: ${node.name} (${node.id})');
   }
-}
