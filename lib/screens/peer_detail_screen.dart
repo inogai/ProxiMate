@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/peer.dart';
 import '../models/activity.dart';
-import '../models/meeting.dart';
 import '../services/storage_service.dart';
 import '../utils/toast_utils.dart';
 import 'activity_selection_screen.dart';
 import 'main_screen.dart';
-import 'chat_room_screen.dart';
 
 /// Detailed view of a peer's profile
 class PeerDetailScreen extends StatefulWidget {
@@ -26,192 +24,215 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Peer Profile')),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header with avatar and match score
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Theme.of(context).primaryColor.withOpacity(0.1),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              padding: const EdgeInsets.all(32),
+      // Use a column so the content can scroll while the button stays pinned
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Theme.of(context).primaryColor,
-                    backgroundImage: widget.peer.profileImageUrl != null
-                        ? NetworkImage(widget.peer.profileImageUrl!)
-                        : null,
-                    child: widget.peer.profileImageUrl == null
-                        ? Text(
-                            widget.peer.name[0].toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    widget.peer.name,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  // Header with avatar and match score
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Theme.of(context).primaryColor.withOpacity(0.1),
+                          Colors.transparent,
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildMatchBadge(context, widget.peer.matchScore),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 60,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          backgroundImage: widget.peer.profileImageUrl != null
+                              ? NetworkImage(widget.peer.profileImageUrl!)
+                              : null,
+                          child: widget.peer.profileImageUrl == null
+                              ? Text(
+                                  widget.peer.name[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : null,
                         ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.peer.name,
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.location_on,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${widget.peer.distance.toStringAsFixed(1)} km',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            _buildMatchBadge(context, widget.peer.matchScore),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${widget.peer.distance.toStringAsFixed(1)} km',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                  // Profile details
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Consumer<StorageService>(
+                      builder: (context, storage, _) {
+                        final currentProfile = storage.currentProfile;
+                        final userMajors =
+                            currentProfile?.major
+                                ?.split(',')
+                                .map((e) => e.trim().toLowerCase())
+                                .toSet() ??
+                            {};
+                        final userInterests =
+                            currentProfile?.interests
+                                ?.split(',')
+                                .map((e) => e.trim().toLowerCase())
+                                .toSet() ??
+                            {};
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInfoSection(
+                              context,
+                              icon: Icons.school,
+                              title: 'School',
+                              content: widget.peer.school,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTagSection(
+                              context,
+                              icon: Icons.book,
+                              title: 'Major',
+                              tags: widget.peer.major
+                                  .split(',')
+                                  .map((e) => e.trim())
+                                  .toList(),
+                              color: Colors.grey,
+                              matchingTags: userMajors,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTagSection(
+                              context,
+                              icon: Icons.favorite,
+                              title: 'Interests',
+                              tags: widget.peer.interests
+                                  .split(',')
+                                  .map((e) => e.trim())
+                                  .toList(),
+                              color: Colors.grey,
+                              matchingTags: userInterests,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildInfoSection(
+                              context,
+                              icon: Icons.history_edu,
+                              title: 'Background',
+                              content: widget.peer.background,
+                            ),
+                            const SizedBox(height: 32),
+                            // (button moved to bottomNavigationBar)
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
             ),
-            // Profile details
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Consumer<StorageService>(
-                builder: (context, storage, _) {
-                  final currentProfile = storage.currentProfile;
-                  final userMajors =
-                      currentProfile?.major
-                          ?.split(',')
-                          .map((e) => e.trim().toLowerCase())
-                          .toSet() ??
-                      {};
-                  final userInterests =
-                      currentProfile?.interests
-                          ?.split(',')
-                          .map((e) => e.trim().toLowerCase())
-                          .toSet() ??
-                      {};
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoSection(
-                        context,
-                        icon: Icons.school,
-                        title: 'School',
-                        content: widget.peer.school,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTagSection(
-                        context,
-                        icon: Icons.book,
-                        title: 'Major',
-                        tags: widget.peer.major
-                            .split(',')
-                            .map((e) => e.trim())
-                            .toList(),
-                        color: Colors.grey,
-                        matchingTags: userMajors,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTagSection(
-                        context,
-                        icon: Icons.favorite,
-                        title: 'Interests',
-                        tags: widget.peer.interests
-                            .split(',')
-                            .map((e) => e.trim())
-                            .toList(),
-                        color: Colors.grey,
-                        matchingTags: userInterests,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildInfoSection(
-                        context,
-                        icon: Icons.history_edu,
-                        title: 'Background',
-                        content: widget.peer.background,
-                      ),
-                      const SizedBox(height: 32),
-                      // Action buttons
-                      Row(
-                        children: [
-                          // Send Activity Invitation button
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _isSending ? null : _handleSendInvite,
-                              icon: _isSending
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.event),
-                              label: Text(
-                                _isSending
-                                    ? 'Sending Invite...'
-                                    : 'Send Activity Invitation',
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
+          ),
+        ],
+      ),
+      // Pin the send-invite control to the bottom so it remains visible even
+      // when the main content scrolls. Add a top divider to separate it from
+      // the scrollable content above.
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.6),
+                width: 1,
               ),
             ),
-          ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isSending ? null : _handleSendInvite,
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.event),
+                  label: Text(
+                    _isSending
+                        ? 'Sending Invite...'
+                        : 'Send Activity Invitation',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
