@@ -178,36 +178,6 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                       // Action buttons
                       Row(
                         children: [
-                          // Collect Name Card button
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _isSending
-                                  ? null
-                                  : _handleCollectNameCard,
-                              icon: _isSending
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.contact_page),
-                              label: Text(
-                                _isSending
-                                    ? 'Sending Request...'
-                                    : 'Collect Name Card',
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                backgroundColor: Colors.blue,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
                           // Send Activity Invitation button
                           Expanded(
                             child: ElevatedButton.icon(
@@ -381,85 +351,6 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _handleCollectNameCard() async {
-    // // // print('_handleCollectNameCard called for peer: ${widget.peer.name}');
-
-    setState(() {
-      _isSending = true;
-    });
-
-    try {
-      // Create a chat room first if needed
-      final storage = context.read<StorageService>();
-      final chatRooms = storage.chatRooms;
-
-      // Check if a chat room already exists with this peer
-      ChatRoom? existingChatRoom;
-      try {
-        existingChatRoom = chatRooms.firstWhere(
-          (room) =>
-              room.user1Id == widget.peer.id || room.user2Id == widget.peer.id,
-        );
-      } catch (e) {
-        // No existing chat room found
-      }
-
-      String chatRoomId;
-      if (existingChatRoom != null) {
-        chatRoomId = existingChatRoom.id;
-      } else {
-        // Create a new chat room for the connection request
-        // For now, we'll use a simple approach - in a real implementation,
-        // you might want to create a dedicated chat room for connection requests
-        chatRoomId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-      }
-
-      // // // print('Creating connection request with chat room ID: $chatRoomId');
-
-      // Create the connection request
-      await storage.createConnectionRequest(widget.peer, chatRoomId);
-
-      // // // print('Connection request created successfully');
-
-      if (mounted) {
-        ToastUtils.showSuccess(
-          context,
-          'Name card request sent to ${widget.peer.name}!',
-        );
-
-        // Navigate to chat screen to see the request
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => ChatRoomScreen(
-              chatRoom:
-                  existingChatRoom ??
-                  ChatRoom(
-                    id: chatRoomId,
-                    user1Id: storage.currentProfile?.id ?? '',
-                    user2Id: widget.peer.id,
-                    restaurant: 'Connection Request',
-                    createdAt: DateTime.now(),
-                  ),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ToastUtils.showError(
-          context,
-          'Failed to send name card request: ${e.toString()}',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
-        });
-      }
-    }
   }
 
   Future<void> _handleSendInvite() async {
