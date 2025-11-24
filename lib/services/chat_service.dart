@@ -10,7 +10,8 @@ class ChatService extends ChangeNotifier {
   int userId;
   bool _isDisposed = false;
 
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
+  
   // Optional overrides (used by tests or advanced mocking)
   final Future<List<ChatRoom>> Function()? getChatRoomsOverride;
   final Future<void> Function(String)? refreshChatRoomMessagesOverride;
@@ -32,7 +33,9 @@ class ChatService extends ChangeNotifier {
     this.refreshChatRoomMessagesOverride,
     this.refreshChatRoomsOverride,
     this.debugLog,
-  });
+  }) {
+    _apiService = ApiService();
+  }
 
   /// Update the service to a new user id (used by provider update to reuse
   /// a single ChatService instance across logins). This clears state when

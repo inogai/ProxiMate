@@ -30,8 +30,9 @@ class TwoHopConnectionsResult {
 class StorageService extends ChangeNotifier {
   static const String _keyApiUserId = 'api_user_id';
 
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
   late LocationService _locationService;
+  
   // invitation polling removed — invitations are message-backed now
   Timer? _connectionSyncTimer; // Timer for connection synchronization
   Timer? _nearbyPeersTimer; // Timer for nearby peers polling
@@ -47,7 +48,9 @@ class StorageService extends ChangeNotifier {
   _selectedActivityId; // Currently selected activity for viewing invitations
   String? _apiUserId; // Store API user ID for backend integration
 
-  // Private variables for internal state tracking
+  StorageService() {
+    _apiService = ApiService();
+  }
 
   Profile? get currentProfile => _currentProfile;
   List<Connection> get connections => _connections;
