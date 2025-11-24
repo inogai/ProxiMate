@@ -32,8 +32,7 @@ class StorageService extends ChangeNotifier {
 
   final ApiService _apiService = ApiService();
   late LocationService _locationService;
-  Timer? _invitationFetchTimer;
-  Timer? _messageFetchTimer;
+  // invitation polling removed — invitations are message-backed now
   Timer? _connectionSyncTimer; // Timer for connection synchronization
   Timer? _nearbyPeersTimer; // Timer for nearby peers polling
   Timer? _activitiesTimer; // Timer for activities polling
@@ -198,21 +197,6 @@ class StorageService extends ChangeNotifier {
   /// Initialize services that depend on each other
   void _initializeServices() {
     _locationService = LocationService(_apiService);
-    _startMessagePolling();
-  }
-
-  /// Start periodic message polling for real-time updates
-  void _startMessagePolling() {
-    _messageFetchTimer?.cancel();
-    _messageFetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      await _fetchNewMessages();
-    });
-  }
-
-  /// Stop message polling
-  void _stopMessagePolling() {
-    _messageFetchTimer?.cancel();
-    _messageFetchTimer = null;
   }
 
   /// Start connection synchronization polling
@@ -259,25 +243,9 @@ class StorageService extends ChangeNotifier {
     _activitiesTimer = null;
   }
 
-  /// Refresh messages for a specific chat room
-  Future<void> refreshChatRoomMessages(String chatRoomId) async {
-    await _fetchMessagesForChatRoom(chatRoomId);
-  }
-
   /// Fetch new messages for all chat rooms
-  Future<void> _fetchNewMessages() async {
-    if (_currentProfile == null || _apiUserId == null) return;
-
-    try {
-      for (final chatRoom in _chatRooms) {
-        await _fetchMessagesForChatRoom(chatRoom.id);
-      }
-    } catch (e) {
-      // Propagate errors to UI instead of silently handling them
-      _debugLog('Error fetching messages: $e');
-      rethrow;
-    }
-  }
+  // Message polling is handled by PollService now; refresh individual chat rooms
+  // via the public method refreshChatRoomMessages and refreshChatRooms.
 
   /// Synchronize connections with API
   Future<void> _syncConnections() async {
@@ -452,178 +420,6 @@ class StorageService extends ChangeNotifier {
     await _syncActivities();
   }
 
-  /// Fetch messages for a specific chat room
-  Future<void> _fetchMessagesForChatRoom(String chatRoomId) async {
-    try {
-      _debugLog('=== FETCHING MESSAGES FOR CHAT ROOM $chatRoomId ===');
-      final messages = await _apiService.getChatMessages(chatRoomId);
-      final messageReads = messages.toList();
-
-      _debugLog('Server returned ${messageReads.length} messages');
-      for (int i = 0; i < messageReads.length; i++) {
-        _debugLog(
-          'Server message ${i + 1}: ID=${messageReads[i].id}, sender=${messageReads[i].senderId}, text="${messageReads[i].text}"',
-        );
-      }
-
-      final chatRoomIndex = _chatRooms.indexWhere((cr) => cr.id == chatRoomId);
-      if (chatRoomIndex == -1) {
-        _debugLog('Chat room $chatRoomId not found locally');
-        return;
-      }
-
-      final currentMessages = _chatRooms[chatRoomIndex].messages;
-      _debugLog('Current local messages count: ${currentMessages.length}');
-      for (int i = 0; i < currentMessages.length; i++) {
-        _debugLog(
-          'Local message ${i + 1}: ID=${currentMessages[i].id}, isMine=${currentMessages[i].isMine}, text="${currentMessages[i].text}"',
-        );
-      }
-
-      final newMessages = <ChatMessage>[];
-
-      for (final messageRead in messageReads) {
-        // Check if message already exists by ID or by content+timestamp+sender (for temporary IDs)
-        final existingMessage = currentMessages.firstWhere(
-          (msg) => msg.id == messageRead.id,
-          orElse: () {
-            // Try to find a match by content, timestamp, and sender (for locally sent messages with temp IDs)
-            final currentUserId = _currentProfile?.id ?? '';
-            final isMine = messageRead.senderId.toString() == currentUserId;
-
-            // Get the server timestamp in local format for comparison
-            DateTime serverTimestampLocal;
-            try {
-              final parsedTimestamp = DateTime.parse(messageRead.timestamp);
-              if (parsedTimestamp.isUtc) {
-                // Convert UTC to local time
-                serverTimestampLocal = parsedTimestamp.toLocal();
-              } else {
-                // Server is sending local-time formatted timestamps but they're actually UTC
-                // Convert to UTC first, then to local time to get correct offset
-                final utcTime = DateTime.utc(
-                  parsedTimestamp.year,
-                  parsedTimestamp.month,
-                  parsedTimestamp.day,
-                  parsedTimestamp.hour,
-                  parsedTimestamp.minute,
-                  parsedTimestamp.second,
-                );
-                serverTimestampLocal = utcTime.toLocal();
-              }
-            } catch (e) {
-              // Fallback to current time if parsing fails
-              serverTimestampLocal = DateTime.now();
-            }
-
-            final matchByContent = currentMessages.firstWhere(
-              (msg) =>
-                  msg.text.trim() == messageRead.text.trim() &&
-                  msg.isMine == isMine &&
-                  msg.timestamp
-                          .difference(serverTimestampLocal)
-                          .abs()
-                          .inMinutes <
-                      1, // Within 1 minute
-              orElse: () => ChatMessage(
-                id: 'dummy',
-                text: '',
-                isMine: false,
-                timestamp: DateTime.now(),
-              ),
-            );
-
-            return matchByContent;
-          },
-        );
-
-        if (existingMessage.id == 'dummy') {
-          // New message found
-          final currentUserId = _currentProfile?.id ?? '';
-          final isMine = messageRead.senderId.toString() == currentUserId;
-
-          _debugLog('Adding new message: ID=${messageRead.id}, isMine=$isMine');
-          newMessages.add(
-            _apiService.chatMessageReadToChatMessage(messageRead, isMine),
-          );
-        } else if (existingMessage.id != messageRead.id) {
-          // Found by content match but ID differs - update: local message with server ID and timestamp
-          DateTime serverTimestampLocal;
-          try {
-            final parsedTimestamp = DateTime.parse(messageRead.timestamp);
-            if (parsedTimestamp.isUtc) {
-              // Convert UTC to local time
-              serverTimestampLocal = parsedTimestamp.toLocal();
-            } else {
-              // Server is sending local-time formatted timestamps but they're actually UTC
-              // Convert to UTC first, then to local time to get correct offset
-              final utcTime = DateTime.utc(
-                parsedTimestamp.year,
-                parsedTimestamp.month,
-                parsedTimestamp.day,
-                parsedTimestamp.hour,
-                parsedTimestamp.minute,
-                parsedTimestamp.second,
-              );
-              serverTimestampLocal = utcTime.toLocal();
-            }
-          } catch (e) {
-            // Fallback to current time if parsing fails
-            serverTimestampLocal = DateTime.now();
-          }
-
-          _debugLog(
-            'Updating temporary message ID: localID=${existingMessage.id} -> serverID=${messageRead.id}',
-          );
-          _debugLog(
-            'Updating timestamp: local=${existingMessage.timestamp} -> server=$serverTimestampLocal',
-          );
-          final messageIndex = currentMessages.indexWhere(
-            (msg) => msg.id == existingMessage.id,
-          );
-          if (messageIndex != -1) {
-            currentMessages[messageIndex] = existingMessage.copyWith(
-              id: messageRead.id,
-              timestamp: serverTimestampLocal,
-            );
-          }
-        }
-      }
-
-      // Load connections from API
-      // _debugLog('Attempting to sync connections...');
-      // await _syncConnections();
-
-      // Start location tracking if user is logged in
-      if (_currentProfile != null && _apiUserId != null) {
-        _startLocationTracking();
-      }
-
-      // Load activities from API
-      await _loadActivitiesFromApi();
-
-      // Load chat rooms from API
-      await _fetchChatRooms();
-
-      // Start invitation polling if user is logged in
-      if (_apiUserId != null) {
-        startInvitationPolling();
-      }
-
-      // Start all periodic data fetching
-      if (_apiUserId != null) {
-        _startConnectionSync();
-        _startNearbyPeersPolling();
-        _startActivitiesPolling();
-      }
-
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading profile data: $e');
-      rethrow;
-    }
-  }
-
   /// Load activities from API
   Future<void> _loadActivitiesFromApi() async {
     try {
@@ -705,8 +501,8 @@ class StorageService extends ChangeNotifier {
       // Start location tracking for new user
       _startLocationTracking();
 
-      // Start invitation polling for new user
-      startInvitationPolling();
+      // Invitations are message-backed; do one-time sync from messages
+      await fetchInvitations();
 
       // Start all periodic data fetching
       _startConnectionSync();
@@ -758,12 +554,9 @@ class StorageService extends ChangeNotifier {
       // Load activities from API
       await _loadActivitiesFromApi();
 
-      // Load chat rooms from API
-      await _fetchChatRooms();
-
-      // Start invitation polling if user is logged in
+      // Invitations are message-backed; perform a one-time sync from messages
       if (_apiUserId != null) {
-        startInvitationPolling();
+        await fetchInvitations();
       }
 
       // Start all periodic data fetching
@@ -888,14 +681,31 @@ class StorageService extends ChangeNotifier {
 
     // Stop all periodic timers when user logs out
     _stopLocationTracking();
-    stopInvitationPolling();
-    _stopMessagePolling();
+    _pollService?.dispose();
     _stopConnectionSync();
     _stopNearbyPeersPolling();
     _stopActivitiesPolling();
 
     await _clearPersistedProfile();
     notifyListeners();
+  }
+
+  /// Start background polling for chatroom updates.
+  /// This should be called when the app shows a chat-related screen
+  /// (e.g. ChatRoomScreen or InvitationsTab) so we only poll while the
+  /// user is actively viewing chat-related UI.
+  void startChatRoomPolling({Duration? interval}) {
+    if (_pollService == null) return;
+    if (interval != null) {
+      _pollService!.startChatRoomPolling(interval: interval);
+    } else {
+      _pollService!.startChatRoomPolling();
+    }
+  }
+
+  /// Stop the chatroom polling loop.
+  void stopChatRoomPolling() {
+    _pollService?.stopChatRoomPolling();
   }
 
   /// Logout user and clear all data
@@ -1080,123 +890,73 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  /// Start periodic invitation fetching
-  void startInvitationPolling() {
-    if (_apiUserId == null) {
-      _debugLog('Cannot start invitation polling: API user ID not set');
-      return;
-    }
-
-    // Stop existing timer if any
-    stopInvitationPolling();
-
-    _debugLog('Starting invitation polling every 30 seconds');
-
-    // Fetch immediately
-    fetchInvitations();
-
-    // Then fetch every 30 seconds
-    _invitationFetchTimer = Timer.periodic(const Duration(seconds: 30), (
-      timer,
-    ) {
-      _debugLog('Periodic invitation fetch...');
-      fetchInvitations();
-    });
-  }
-
-  /// Stop periodic invitation fetching
-  void stopInvitationPolling() {
-    _invitationFetchTimer?.cancel();
-    _invitationFetchTimer = null;
-    _debugLog('Stopped invitation polling');
-  }
+  // invitation polling methods removed — invitations are derived from
+  // chat messages. The public API is fetchInvitations(), which performs
+  // a one-time synchronization.
 
   /// Fetch invitations from server
   Future<void> fetchInvitations() async {
-    if (_apiUserId == null) {
-      _debugLog('Cannot fetch invitations: API user ID not set');
-      return;
-    }
+    // Invitations are represented as chat messages - perform a one-time
+    // synchronization that derives the list of invitations from chat
+    // messages. This avoids having a separate polling loop.
+    await _syncInvitationsFromMessages();
+  }
 
+  /// Build/refresh the local invitations list from invitation messages
+  /// found in chat rooms. This is executed on-demand (when messages are
+  /// refreshed) rather than on a periodic timer.
+  Future<void> _syncInvitationsFromMessages() async {
     try {
-      _debugLog('Fetching invitations for user $_apiUserId...');
+      final Map<String, Invitation> byId = {};
 
-      // TODO: Implement message-based invitation fetching
-      // final invitationReads = await _apiService.getInvitations(int.parse(_apiUserId!));
-      final invitationReads = <dynamic>[];
-      _debugLog('Fetched ${invitationReads.length} invitations from server');
+      for (final chatRoom in _chatRooms) {
+        // Determine the peer ID for this chat room relative to current user
+        final currentUserId = _currentProfile?.id ?? '';
+        final peerId = chatRoom.user1Id == currentUserId
+            ? chatRoom.user2Id
+            : chatRoom.user1Id;
 
-      // Convert API invitations to local Invitation objects
-      final fetchedInvitations = <Invitation>[];
+        for (final msg in chatRoom.messages) {
+          if (!msg.isInvitation) continue;
 
-      for (final invitationRead in invitationReads) {
-        try {
-          // Get peer name from sender/receiver info
-          String peerName = 'Unknown User';
-          bool sentByMe = invitationRead.senderId.toString() == _apiUserId;
-
-          // If we sent it, peer is the receiver, otherwise peer is the sender
-          final peerId = sentByMe
-              ? invitationRead.receiverId.toString()
-              : invitationRead.senderId.toString();
-
-          // Try to get peer name from profiles or nearby peers
-          final profile = await getProfileById(peerId);
-          if (profile != null) {
-            peerName = profile.userName;
-          } else {
-            final peer = getPeerById(peerId);
-            if (peer != null) {
-              peerName = peer.name;
-            } else {
-              // Fallback to generic name if we can't find the user
-              peerName = 'User $peerId';
-            }
-          }
-
-          // Create invitation from message data (since we removed old invitation API)
-          DateTime parsedCreatedAt;
-          try {
-            parsedCreatedAt = DateTime.parse(invitationRead.createdAt);
-            if (parsedCreatedAt.isUtc) {
-              parsedCreatedAt = parsedCreatedAt.toLocal();
-            }
-          } catch (e) {
-            parsedCreatedAt = DateTime.now();
-            _debugLog(
-              'Failed to parse createdAt: ${invitationRead.createdAt}, using current time',
-            );
-          }
+          final id = msg.invitationId ?? msg.id;
+          final status = (msg.invitationStatus ?? 'pending').toLowerCase();
 
           final invitation = Invitation(
-            id: invitationRead.id,
-            peerId: peerId.toString(),
-            peerName: peerName,
-            restaurant: invitationRead.restaurant,
-            activityId: invitationRead.activityId,
-            createdAt: parsedCreatedAt,
-            sentByMe: sentByMe,
-            status: _parseInvitationStatus(invitationRead.status),
-            iceBreakers: [], // Not available in new API
-            nameCardCollected: false, // Not available in new API
-            chatOpened: false, // Not available in new API
+            id: id,
+            peerId: peerId,
+            peerName: '', // keep empty; UI resolves names from profiles
+            restaurant:
+                msg.invitationData?['restaurant']?.toString() ?? msg.text,
+            activityId: msg.invitationData?['activityId']?.toString() ?? '',
+            createdAt: msg.timestamp,
+            sentByMe: msg.isMine,
+            status: _parseInvitationStatus(status),
+            iceBreakers: msg.iceBreakers ?? [],
+            nameCardCollected: msg.isNameCardCollected ?? false,
+            chatOpened: true,
           );
 
-          fetchedInvitations.add(invitation);
-        } catch (e) {
-          _debugLog('Error processing invitation ${invitationRead.id}: $e');
+          // Merge - prefer later messages if duplicate IDs
+          byId[id] = invitation;
         }
       }
 
-      // Update local invitations list
-      _invitations = fetchedInvitations;
-      _debugLog(
-        'Updated local invitations list with ${_invitations.length} invitations',
-      );
+      // Merge with existing local invitations sent by client (keep any that
+      // aren't represented in messages yet), preserving ordering.
+      final existingMap = {for (var i in _invitations) i.id: i};
+      for (final e in existingMap.entries) {
+        byId.putIfAbsent(e.key, () => e.value);
+      }
+
+      _invitations = byId.values.toList();
       notifyListeners();
+      _debugLog(
+        'Synchronized ${_invitations.length} invitations from messages',
+      );
     } catch (e) {
-      _debugLog('Failed to fetch invitations: $e');
-      rethrow; // Propagate errors instead of continuing with local data
+      _debugLog('Failed to sync invitations from messages: $e');
+      rethrow;
     }
   }
 
@@ -1471,33 +1231,7 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  /// Simulate peer sending a message
-  Future<void> _simulatePeerMessage(String chatRoomId) async {
-    await Future.delayed(const Duration(seconds: 2));
-
-    final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
-    if (index != -1) {
-      final responses = [
-        'Sounds great! What time works for you?',
-        'Perfect! Looking forward to it!',
-        'That works for me! See you there!',
-        'Great idea! Let\'s meet around noon?',
-        'Awesome! Can\'t wait to meet you!',
-      ];
-
-      final message = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        text: responses[DateTime.now().millisecond % responses.length],
-        isMine: false,
-        timestamp: DateTime.now(),
-        messageType: MessageType.text,
-      );
-
-      final updatedMessages = [..._chatRooms[index].messages, message];
-      _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
-      notifyListeners();
-    }
-  }
+  // _simulatePeerMessage removed — test helper no longer required
 
   /// Get chat room between two users
   ChatRoom? getChatRoomBetweenUsers(String user1Id, String user2Id) {
@@ -1507,68 +1241,6 @@ class StorageService extends ChangeNotifier {
       );
     } catch (e) {
       return null;
-    }
-  }
-
-  /// Fetch chat rooms from API
-  Future<void> _fetchChatRooms() async {
-    if (_apiUserId == null) return;
-
-    try {
-      // Convert string API user ID to int for API call
-      final apiUserIdInt = int.tryParse(_apiUserId!);
-      if (apiUserIdInt == null) {
-        print('Invalid API user ID format: $_apiUserId');
-        return;
-      }
-
-      final response = await _apiService.getChatRooms(apiUserIdInt);
-
-      // Convert ChatRoomRead objects to local ChatRoom objects
-      _chatRooms = response.map((chatRoomRead) {
-        return ChatRoom(
-          id: chatRoomRead.id,
-          user1Id: chatRoomRead.user1Id.toString(),
-          user2Id: chatRoomRead.user2Id.toString(),
-          restaurant: chatRoomRead.restaurant,
-          createdAt: _parseTimestamp(chatRoomRead.createdAt),
-          messages: [],
-        );
-      }).toList();
-
-      // Fetch messages for each chat room
-      for (final chatRoom in _chatRooms) {
-        await _fetchMessagesForChatRoom(chatRoom.id);
-      }
-
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching chat rooms: $e');
-      rethrow; // Propagate error instead of using local fallback
-    }
-  }
-
-  /// Refresh all chat rooms and messages
-  Future<void> refreshChatRooms() async {
-    if (_currentProfile == null || _apiUserId == null) return;
-
-    try {
-      await _fetchChatRooms();
-    } catch (e) {
-      print('Error refreshing chat rooms: $e');
-      rethrow; // Propagate error
-    }
-  }
-
-  /// Refresh invitations from server
-  Future<void> refreshInvitations() async {
-    if (_currentProfile == null || _apiUserId == null) return;
-
-    try {
-      await fetchInvitations();
-    } catch (e) {
-      print('Error refreshing invitations: $e');
-      rethrow; // Propagate error
     }
   }
 
@@ -1584,7 +1256,6 @@ class StorageService extends ChangeNotifier {
         _syncConnections(),
         _syncNearbyPeers(),
         _syncActivities(),
-        _fetchChatRooms(),
         fetchInvitations(),
       ]);
 
@@ -1842,8 +1513,8 @@ class StorageService extends ChangeNotifier {
   /// Dispose resources
   @override
   void dispose() {
-    stopInvitationPolling();
-    _stopMessagePolling();
+    // invitation polling removed — nothing to stop here
+    _pollService?.stopMessagePolling();
     _stopConnectionSync();
     _stopNearbyPeersPolling();
     _stopActivitiesPolling();

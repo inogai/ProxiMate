@@ -41,12 +41,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     super.initState();
     // Auto-refresh when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Start chatroom polling while this screen is visible
+      final storage = context.read<StorageService>();
+      storage.startChatRoomPolling();
+
       _refreshMessages();
     });
   }
 
   @override
   void dispose() {
+    // Stop chatroom polling when leaving screen
+    try {
+      final storage = context.read<StorageService>();
+      storage.stopChatRoomPolling();
+    } catch (e) {
+      // ignore: avoid_print
+      debugPrint('Error stopping chatroom polling: $e');
+    }
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -63,7 +75,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     try {
       final storage = context.read<StorageService>();
-      await storage.refreshChatRoomMessages(chatRoom.id);
+      // TODO: use chatservice to refresh messages
+      // await storage.refreshChatRoomMessages(chatRoom.id);
     } catch (e) {
       // NEW: Handle 404 gracefully
       if (e.toString().contains('404') || e.toString().contains('not found')) {
@@ -1007,7 +1020,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final chatRoom = updatedChatRoom;
     final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
-    // Check if there are any pending invitations between these users
+    // First, check the current chat room messages for any pending invitation
+    // messages — invitations are delivered via messages now.
+    if (chatRoom != null) {
+      return chatRoom.messages.any((m) => m.isInvitation && m.isPending);
+    }
+
+    // Fallback: check the stored invitations list if no chat room exists yet
     return storage.invitations.any(
       (inv) =>
           inv.isPending &&

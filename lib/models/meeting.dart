@@ -125,6 +125,13 @@ class ChatRoom {
     final otherUserId = getOtherUserId(currentUserId);
     return userIdToName[otherUserId] ?? 'Unknown User';
   }
+
+  DateTime get lastMessageTime {
+    if (messages.isNotEmpty) {
+      return messages.last.timestamp;
+    }
+    return createdAt;
+  }
 }
 
 /// Message types for chat system

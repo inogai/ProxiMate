@@ -14,17 +14,18 @@ class ChatsTab extends StatefulWidget {
 }
 
 class _ChatsTabState extends State<ChatsTab> {
-  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
   bool _isRefreshing = false;
 
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    
+
     // Get chat rooms
     final chatRooms = storage.chatRooms;
     final currentUserId = storage.currentProfile?.id ?? '';
-    
+
     // Sort by most recent first
     final sortedChatRooms = List<ChatRoom>.from(chatRooms)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -71,7 +72,12 @@ class _ChatsTabState extends State<ChatsTab> {
                 itemCount: sortedChatRooms.length,
                 itemBuilder: (context, index) {
                   final chatRoom = sortedChatRooms[index];
-                  return _buildChatRoomContact(context, chatRoom, storage, currentUserId);
+                  return _buildChatRoomContact(
+                    context,
+                    chatRoom,
+                    storage,
+                    currentUserId,
+                  );
                 },
               ),
       ),
@@ -86,7 +92,7 @@ class _ChatsTabState extends State<ChatsTab> {
 
     try {
       final storage = context.read<StorageService>();
-      await storage.refreshChatRooms();
+      // await storage.refreshChatRooms();
     } catch (e) {
       print('Error refreshing chats: $e');
     } finally {
@@ -127,9 +133,9 @@ class _ChatsTabState extends State<ChatsTab> {
             Text(
               'Accept invitations to start chatting here',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             Text(
@@ -154,14 +160,15 @@ class _ChatsTabState extends State<ChatsTab> {
   ) {
     // Get the other user's information
     final otherUserId = chatRoom.getOtherUserId(currentUserId);
-    
+
     // Use FutureBuilder to handle async profile fetching
     return FutureBuilder<Profile?>(
       future: storage.getProfileById(otherUserId),
       builder: (context, snapshot) {
         String peerName = 'Unknown User';
-        
-        if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
           peerName = snapshot.data!.userName;
         } else {
           // Fallback to nearby peers if profile not found
@@ -170,7 +177,7 @@ class _ChatsTabState extends State<ChatsTab> {
             peerName = peer.name;
           }
         }
-        
+
         // Get last message for preview
         String lastMessage = 'Start chatting!';
         DateTime lastMessageTime = chatRoom.createdAt;
@@ -181,13 +188,16 @@ class _ChatsTabState extends State<ChatsTab> {
             lastMessageTime = lastMsg.timestamp;
           }
         }
-        
+
         return Column(
           children: [
             InkWell(
               onTap: () => _handleChatRoomTap(context, chatRoom),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -205,7 +215,7 @@ class _ChatsTabState extends State<ChatsTab> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    
+
                     // Content
                     Expanded(
                       child: Column(
@@ -233,7 +243,7 @@ class _ChatsTabState extends State<ChatsTab> {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          
+
                           // Last message preview
                           Text(
                             lastMessage,
@@ -245,7 +255,7 @@ class _ChatsTabState extends State<ChatsTab> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          
+
                           // Restaurant info (if available)
                           if (chatRoom.restaurant.isNotEmpty) ...[
                             const SizedBox(height: 2),
@@ -283,10 +293,6 @@ class _ChatsTabState extends State<ChatsTab> {
     );
   }
 
-  
-
-  
-
   String _getInitials(String name) {
     final parts = name.trim().split(' ');
     if (parts.length >= 2) {
@@ -294,8 +300,6 @@ class _ChatsTabState extends State<ChatsTab> {
     }
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
-
-
 
   String _formatTime(DateTime date) {
     final now = DateTime.now();

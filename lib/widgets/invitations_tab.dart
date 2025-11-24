@@ -29,10 +29,26 @@ class _InvitationsTabState extends State<InvitationsTab>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Start chatroom polling when the invitations tab is created (visible)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final storage = context.read<StorageService>();
+        storage.startChatRoomPolling();
+      } catch (e) {
+        debugPrint('Failed to start chatroom polling for InvitationsTab: $e');
+      }
+    });
   }
 
   @override
   void dispose() {
+    // Ensure we stop chatroom polling when the tab is disposed
+    try {
+      final storage = context.read<StorageService>();
+      storage.stopChatRoomPolling();
+    } catch (e) {
+      debugPrint('Failed to stop chatroom polling for InvitationsTab: $e');
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -46,7 +62,8 @@ class _InvitationsTabState extends State<InvitationsTab>
 
   // The invitations tab no longer starts its own periodic timer.
   // Polling for invitations/chatrooms/messages is centralized in
-  // StorageService (see startInvitationPolling/_startMessagePolling).
+  // StorageService/PollService (message polling); invitation polling
+  // as a separate timer has been removed.
   // We keep the retry/backoff logic for offline state UI only.
 
   void _increaseRetryInterval() {
@@ -209,7 +226,7 @@ class _InvitationsTabState extends State<InvitationsTab>
 
     try {
       final storage = context.read<StorageService>();
-      await storage.refreshChatRooms();
+      // await storage.refreshChatRooms();
 
       // If we were offline and now succeeded, hide offline banner
       if (_isOffline) {
