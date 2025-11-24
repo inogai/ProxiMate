@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
+import '../services/chat_service.dart';
 import '../models/meeting.dart';
 import '../models/profile.dart';
 import '../screens/chat_room_screen.dart';
@@ -32,8 +33,8 @@ class _InvitationsTabState extends State<InvitationsTab>
     // Start chatroom polling when the invitations tab is created (visible)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
-        final storage = context.read<StorageService>();
-        storage.startChatRoomPolling();
+        final chatService = context.read<ChatService?>();
+        chatService?.startChatRoomPolling();
       } catch (e) {
         debugPrint('Failed to start chatroom polling for InvitationsTab: $e');
       }
@@ -44,8 +45,8 @@ class _InvitationsTabState extends State<InvitationsTab>
   void dispose() {
     // Ensure we stop chatroom polling when the tab is disposed
     try {
-      final storage = context.read<StorageService>();
-      storage.stopChatRoomPolling();
+      final chatService = context.read<ChatService?>();
+      chatService?.stopChatRoomPolling();
     } catch (e) {
       debugPrint('Failed to stop chatroom polling for InvitationsTab: $e');
     }
@@ -225,8 +226,8 @@ class _InvitationsTabState extends State<InvitationsTab>
     }
 
     try {
-      final storage = context.read<StorageService>();
-      // await storage.refreshChatRooms();
+      final chatService = context.read<ChatService?>();
+      if (chatService != null) await chatService.refreshChatRooms();
 
       // If we were offline and now succeeded, hide offline banner
       if (_isOffline) {

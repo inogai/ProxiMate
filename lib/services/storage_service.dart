@@ -681,7 +681,6 @@ class StorageService extends ChangeNotifier {
 
     // Stop all periodic timers when user logs out
     _stopLocationTracking();
-    _pollService?.dispose();
     _stopConnectionSync();
     _stopNearbyPeersPolling();
     _stopActivitiesPolling();
@@ -695,17 +694,16 @@ class StorageService extends ChangeNotifier {
   /// (e.g. ChatRoomScreen or InvitationsTab) so we only poll while the
   /// user is actively viewing chat-related UI.
   void startChatRoomPolling({Duration? interval}) {
-    if (_pollService == null) return;
-    if (interval != null) {
-      _pollService!.startChatRoomPolling(interval: interval);
-    } else {
-      _pollService!.startChatRoomPolling();
-    }
+    // Polling moved to ChatService. StorageService no longer starts a
+    // centralized PollService. Call ChatService.startChatRoomPolling from
+    // UI code instead.
+    _debugLog('startChatRoomPolling: noop (moved to ChatService)');
   }
 
   /// Stop the chatroom polling loop.
   void stopChatRoomPolling() {
-    _pollService?.stopChatRoomPolling();
+    // No-op; polling is handled by ChatService
+    _debugLog('stopChatRoomPolling: noop (moved to ChatService)');
   }
 
   /// Logout user and clear all data
@@ -1513,8 +1511,8 @@ class StorageService extends ChangeNotifier {
   /// Dispose resources
   @override
   void dispose() {
-    // invitation polling removed — nothing to stop here
-    _pollService?.stopMessagePolling();
+    // invitation/message polling moved to ChatService — nothing to stop here
+    _debugLog('stopMessagePolling: noop (moved to ChatService)');
     _stopConnectionSync();
     _stopNearbyPeersPolling();
     _stopActivitiesPolling();

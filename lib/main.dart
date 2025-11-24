@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'services/storage_service.dart';
+import 'services/chat_service.dart';
 import 'services/peer_discovery_service.dart';
 import 'screens/register_screen.dart';
 import 'screens/main_screen.dart';
@@ -62,6 +63,17 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: storage),
+        // ChatService depends on authenticated userId from StorageService.
+        ChangeNotifierProxyProvider<StorageService, ChatService>(
+          create: (_) => ChatService(userId: 0),
+          update: (_, storage, previous) {
+            final userId = int.tryParse(storage.apiUserId ?? '') ?? 0;
+            // Reuse the existing ChatService instance and update its user.
+            if (previous == null) return ChatService(userId: userId);
+            previous.updateUser(userId);
+            return previous;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => PeerDiscoveryService()),
       ],
       child: MaterialApp(

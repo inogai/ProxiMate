@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
+import '../services/chat_service.dart';
 import '../models/meeting.dart';
 import '../models/profile.dart';
 import '../screens/chat_room_screen.dart';
@@ -21,9 +22,10 @@ class _ChatsTabState extends State<ChatsTab> {
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
+    final chatService = context.watch<ChatService?>();
 
     // Get chat rooms
-    final chatRooms = storage.chatRooms;
+    final chatRooms = chatService?.chatRooms ?? storage.chatRooms;
     final currentUserId = storage.currentProfile?.id ?? '';
 
     // Sort by most recent first
@@ -91,8 +93,12 @@ class _ChatsTabState extends State<ChatsTab> {
     });
 
     try {
-      final storage = context.read<StorageService>();
-      // await storage.refreshChatRooms();
+      final chatService = context.read<ChatService?>();
+      if (chatService != null) {
+        await chatService.refreshChatRooms();
+      } else {
+        // ChatService not available; nothing we can refresh here.
+      }
     } catch (e) {
       print('Error refreshing chats: $e');
     } finally {

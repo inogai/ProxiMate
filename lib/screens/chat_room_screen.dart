@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/meeting.dart';
 import '../models/profile.dart';
 import '../services/storage_service.dart';
+import '../services/chat_service.dart';
 import '../widgets/custom_buttons.dart';
 import '../widgets/invitation_message_card.dart';
 
@@ -41,9 +42,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     super.initState();
     // Auto-refresh when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Start chatroom polling while this screen is visible
-      final storage = context.read<StorageService>();
-      storage.startChatRoomPolling();
+      // Start message & room polling while this screen is visible
+      final chatService = context.read<ChatService?>();
+      if (chatService != null) {
+        chatService.startMessagePolling();
+        chatService.startChatRoomPolling();
+      }
 
       _refreshMessages();
     });
@@ -53,8 +57,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void dispose() {
     // Stop chatroom polling when leaving screen
     try {
-      final storage = context.read<StorageService>();
-      storage.stopChatRoomPolling();
+      final chatService = context.read<ChatService?>();
+      chatService?.stopMessagePolling();
+      chatService?.stopChatRoomPolling();
     } catch (e) {
       // ignore: avoid_print
       debugPrint('Error stopping chatroom polling: $e');
@@ -74,9 +79,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
 
     try {
-      final storage = context.read<StorageService>();
-      // TODO: use chatservice to refresh messages
-      // await storage.refreshChatRoomMessages(chatRoom.id);
+      final chatService = context.read<ChatService?>();
+      if (chatService != null) {
+        await chatService.refreshChatRoomMessages(chatRoom.id);
+      }
     } catch (e) {
       // NEW: Handle 404 gracefully
       if (e.toString().contains('404') || e.toString().contains('not found')) {
@@ -105,13 +111,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService?>();
     ChatRoom? currentChatRoom = updatedChatRoom;
 
     if (currentChatRoom == null && widget.invitation != null) {
+      final storage = context.read<StorageService>();
       // Find chat room by user pair
       final currentUserId = storage.currentProfile?.id ?? '';
       currentChatRoom = storage.chatRooms
@@ -124,19 +131,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
 
     if (currentChatRoom != null) {
-      storage
-          .sendMessage(currentChatRoom.id, _messageController.text.trim())
-          .catchError((e) {
-            // NEW: Handle send errors gracefully
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to send message: ${e.toString()}'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          });
+      try {
+        await (chatService?.sendMessage(
+              currentChatRoom.id,
+              _messageController.text.trim(),
+            ) ??
+            Future.value());
+      } catch (e) {
+        // NEW: Handle send errors gracefully
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to send message: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     } else {
       // NEW: Handle case where chat room doesn't exist
       if (context.mounted) {
