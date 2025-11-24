@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/connection.dart';
 import '../models/profile.dart';
 import '../services/storage_service.dart';
+import '../services/chat_service.dart';
 import 'chat_room_screen.dart';
 
 class ConnectionsScreen extends StatefulWidget {
@@ -23,17 +24,13 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
       body: Consumer<StorageService>(
         builder: (context, storage, child) {
           final connections = storage.connections;
-          
+
           if (connections.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.people_outline, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     'No connections yet',
@@ -47,10 +44,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                   Text(
                     'Accept invitations and collect name cards\nto build your network',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -70,14 +64,18 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
     );
   }
 
-  Widget _buildConnectionCard(BuildContext context, Connection connection, StorageService storage) {
+  Widget _buildConnectionCard(
+    BuildContext context,
+    Connection connection,
+    StorageService storage,
+  ) {
     final otherProfileId = connection.toProfileId;
-    
+
     return FutureBuilder<Profile?>(
       future: storage.getProfileById(otherProfileId),
       builder: (context, snapshot) {
         final profile = snapshot.data;
-        
+
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
           elevation: 2,
@@ -94,7 +92,9 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     // Profile avatar
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.1),
                       backgroundImage: profile?.profileImagePath != null
                           ? NetworkImage(profile!.profileImagePath!)
                           : null,
@@ -147,7 +147,10 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     ),
                     // Connection status
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -174,7 +177,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     ),
                   ],
                 ),
-                
+
                 // Connection details
                 const SizedBox(height: 12),
                 Container(
@@ -188,7 +191,11 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.restaurant, size: 16, color: Colors.grey[600]),
+                          Icon(
+                            Icons.restaurant,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Met at: ${connection.restaurant}',
@@ -202,7 +209,11 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                          Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Connected: ${_formatDate(connection.collectedAt)}',
@@ -216,9 +227,10 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     ],
                   ),
                 ),
-                
+
                 // Interests section
-                if (profile?.interests != null && profile!.interests!.isNotEmpty) ...[
+                if (profile?.interests != null &&
+                    profile!.interests!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Interests:',
@@ -234,9 +246,14 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     runSpacing: 4,
                     children: profile.interests!.split(',').map((interest) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -251,14 +268,15 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     }).toList(),
                   ),
                 ],
-                
+
                 // Action buttons
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _openChat(context, connection, storage),
+                        onPressed: () =>
+                            _openChat(context, connection, storage),
                         icon: const Icon(Icons.chat),
                         label: const Text('Message'),
                         style: ElevatedButton.styleFrom(
@@ -297,13 +315,21 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
     );
   }
 
-  void _openChat(BuildContext context, Connection connection, StorageService storage) {
+  void _openChat(
+    BuildContext context,
+    Connection connection,
+    StorageService storage,
+  ) {
     final currentUserId = storage.currentProfile?.id ?? '';
     final otherUserId = connection.toProfileId;
-    
+    final chatService = context.read<ChatService>();
+
     // Find existing chat room
-    final chatRoom = storage.getChatRoomBetweenUsers(currentUserId, otherUserId);
-    
+    final chatRoom = chatService.getChatRoomBetweenUsers(
+      currentUserId,
+      otherUserId,
+    );
+
     if (chatRoom != null) {
       Navigator.push(
         context,
@@ -323,7 +349,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
 
   void _viewProfile(BuildContext context, Profile? profile) {
     if (profile == null) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -376,16 +402,10 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 14),
-        ),
+        Text(value, style: const TextStyle(fontSize: 14)),
       ],
     );
   }
@@ -401,7 +421,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) {
       return 'Today';
     } else if (difference.inDays == 1) {

@@ -25,21 +25,71 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final _scrollController = ScrollController();
   bool _isLoading = false;
   bool _isChatRoomClosed = false;
+  Invitation? _pendingInvitation;
 
-  /// Get the updated chat room from storage to ensure we have the latest data
+  /// Get the updated chat room from chat service to ensure we have the latest data
   ChatRoom? get updatedChatRoom {
     if (widget.chatRoom == null) return null;
 
-    final storage = context.read<StorageService>();
-    return storage.chatRooms.firstWhere(
+    final chatService = context.read<ChatService>();
+    return chatService.chatRooms.firstWhere(
       (c) => c.id == widget.chatRoom!.id,
       orElse: () => widget.chatRoom!,
     );
   }
 
+  /// Check for pending invitation in chat room messages
+  void _checkForPendingInvitation() {
+    if (widget.invitation != null) {
+      _pendingInvitation = widget.invitation;
+      print('Using widget invitation: ${_pendingInvitation?.status}');
+      return;
+    }
+
+    final chatRoom = updatedChatRoom;
+    if (chatRoom == null) return;
+
+    // Look for pending invitation in messages
+    for (final message in chatRoom.messages) {
+      if (message.isInvitation) {
+        final status = message.invitationStatus?.toLowerCase() ?? 'pending';
+        print('Found invitation message: status=$status, text=${message.text}');
+
+        if (status == 'pending' || status.isEmpty) {
+          final currentUserId =
+              context.read<StorageService>().currentProfile?.id ?? '';
+          final otherUserId = chatRoom.getOtherUserId(currentUserId);
+
+          _pendingInvitation = Invitation(
+            id: message.invitationId ?? message.id,
+            peerId: otherUserId,
+            peerName: '', // Will be filled in when needed
+            restaurant:
+                message.invitationData?['restaurant']?.toString() ??
+                message.text,
+            activityId: message.invitationData?['activityId']?.toString() ?? '',
+            createdAt: message.timestamp,
+            sentByMe: message.isMine,
+            status: InvitationStatus.pending,
+            iceBreakers: message.iceBreakers ?? [],
+            nameCardCollected: message.isNameCardCollected ?? false,
+            chatOpened: true,
+          );
+          print(
+            'Created pending invitation: ${_pendingInvitation?.restaurant}',
+          );
+          break;
+        }
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    // Check for pending invitation
+    _checkForPendingInvitation();
+
     // Auto-refresh when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Start message & room polling while this screen is visible
@@ -83,6 +133,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       if (chatService != null) {
         await chatService.refreshChatRoomMessages(chatRoom.id);
       }
+
+      // Check for pending invitation after refreshing messages
+      _checkForPendingInvitation();
+
+      // Debug print to help diagnose issues
+      print(
+        'After refresh: pendingInvitation=${_pendingInvitation?.status}, messages=${chatRoom.messages.length}',
+      );
     } catch (e) {
       // NEW: Handle 404 gracefully
       if (e.toString().contains('404') || e.toString().contains('not found')) {
@@ -119,9 +177,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     if (currentChatRoom == null && widget.invitation != null) {
       final storage = context.read<StorageService>();
+      final chatService = context.read<ChatService>();
       // Find chat room by user pair
       final currentUserId = storage.currentProfile?.id ?? '';
-      currentChatRoom = storage.chatRooms
+      currentChatRoom = chatService.chatRooms
           .where(
             (cr) =>
                 cr.containsUser(currentUserId) &&
@@ -182,7 +241,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (chatRoom == null && widget.invitation != null) {
       // Try to find existing chat room for this invitation by user pair
       final currentUserId = storage.currentProfile?.id ?? '';
-      chatRoom = storage.chatRooms
+      final chatService = context.read<ChatService>();
+      chatRoom = chatService.chatRooms
           .where(
             (cr) =>
                 cr.containsUser(currentUserId) &&
@@ -378,9 +438,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 ],
               ),
             ),
-          // Invitation card (if pending invitation)
-          if (widget.invitation != null && widget.invitation!.isPending)
-            _buildInvitationCard(context, widget.invitation!, storage),
           // Info banner (for accepted invitations)
           if (chatRoom != null && !_isChatRoomClosed)
             Container(
@@ -504,228 +561,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
-  Widget _buildInvitationCard(
-    BuildContext context,
-    Invitation invitation,
-    StorageService storage,
-  ) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with avatar and name
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: invitation.sentByMe
-                    ? Colors.blue
-                    : Colors.orange,
-                child: Text(
-                  _getInitials(invitation.peerName),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      invitation.peerName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      invitation.sentByMe
-                          ? 'Invitation Sent'
-                          : 'Wants to connect',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: invitation.sentByMe
-                            ? Colors.blue
-                            : Colors.orange,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (invitation.sentByMe ? Colors.blue : Colors.orange)
-                      .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Pending',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: invitation.sentByMe ? Colors.blue : Colors.orange,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Restaurant info
-          if (invitation.restaurant.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(
-                  invitation.restaurant,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                ),
-              ],
-            ),
-          ],
-
-          // Action buttons for received invitations
-          if (!invitation.sentByMe && invitation.isPending) ...[
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      try {
-                        await storage.declineInvitation(invitation.id);
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Invitation declined'),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to decline: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.grey),
-                      foregroundColor: Colors.grey[700],
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Decline'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await storage.acceptInvitation(invitation.id);
-                        if (context.mounted) {
-                          // Refresh the screen to show chat room
-                          Navigator.pop(context);
-                          // Find the new chat room and navigate back
-                          final currentUserId =
-                              storage.currentProfile?.id ?? '';
-                          final newChatRoom = storage.chatRooms
-                              .where(
-                                (cr) =>
-                                    cr.containsUser(currentUserId) &&
-                                    cr.containsUser(invitation.peerId),
-                              )
-                              .firstOrNull;
-                          if (newChatRoom != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ChatRoomScreen(chatRoom: newChatRoom),
-                              ),
-                            );
-                          }
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to accept: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Accept'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-
-          // Options for sent invitations
-          if (invitation.sentByMe && invitation.isPending) ...[
-            const SizedBox(height: 16),
-            Text(
-              'Waiting for response...',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
-  }
-
   /// Handle connection response (accept/decline)
   Future<void> _handleConnectionResponse(String messageId, bool accept) async {
     try {
@@ -777,17 +612,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     String messageId,
     String newStatus,
   ) {
-    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
     final chatRoom = updatedChatRoom;
 
     if (chatRoom == null) return;
-
-    // Find the chat room index in storage
-    int chatRoomIndex = storage.chatRooms.indexWhere(
-      (cr) => cr.id == chatRoom.id,
-    );
-
-    if (chatRoomIndex == -1) return;
 
     final messageIndex = chatRoom.messages.indexWhere(
       (msg) => msg.id == messageId,
@@ -807,10 +635,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       final updatedMessages = [...chatRoom.messages];
       updatedMessages[messageIndex] = updatedMessage;
 
-      // Update chat room in storage
-      storage.chatRooms[chatRoomIndex] = chatRoom.copyWith(
-        messages: updatedMessages,
+      // Update chat room in chat service
+      int chatRoomIndex = chatService.chatRooms.indexWhere(
+        (cr) => cr.id == chatRoom.id,
       );
+
+      if (chatRoomIndex != -1) {
+        chatService.chatRooms[chatRoomIndex] = chatRoom.copyWith(
+          messages: updatedMessages,
+        );
+        // ChatService will notify listeners automatically when needed
+      }
 
       // Trigger UI update by refreshing messages
       _refreshMessages();
@@ -872,17 +707,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   /// Update local message status immediately after successful API call
   void _updateLocalMessageStatus(String messageId, String newStatus) {
-    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
     final chatRoom = updatedChatRoom;
 
     if (chatRoom == null) return;
-
-    // Find the chat room index in storage
-    int chatRoomIndex = storage.chatRooms.indexWhere(
-      (cr) => cr.id == chatRoom.id,
-    );
-
-    if (chatRoomIndex == -1) return;
 
     final messageIndex = chatRoom.messages.indexWhere(
       (msg) => msg.id == messageId,
@@ -902,10 +730,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       final updatedMessages = [...chatRoom.messages];
       updatedMessages[messageIndex] = updatedMessage;
 
-      // Update chat room in storage
-      storage.chatRooms[chatRoomIndex] = chatRoom.copyWith(
-        messages: updatedMessages,
+      // Update chat room in chat service
+      int chatRoomIndex = chatService.chatRooms.indexWhere(
+        (cr) => cr.id == chatRoom.id,
       );
+
+      if (chatRoomIndex != -1) {
+        chatService.chatRooms[chatRoomIndex] = chatRoom.copyWith(
+          messages: updatedMessages,
+        );
+        // ChatService will notify listeners automatically when needed
+      }
 
       // Trigger UI update by refreshing messages
       _refreshMessages();
@@ -920,7 +755,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
 
-    final result = await storage.collectNameCard(otherUserId);
+    final result = chatRoom == null
+        ? bail('Chat room not found for collecting name card')
+        : await storage.collectNameCard(otherUserId, chatRoom.id);
 
     switch (result) {
       case Err(v: final error):
@@ -939,14 +776,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   /// Update local message name card collection status immediately after successful API call
   void _updateLocalMessageNameCardCollected(String messageId) {
-    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
 
     // Find the chat room containing this message
     ChatRoom? targetChatRoom;
     int chatRoomIndex = -1;
 
-    for (int i = 0; i < storage.chatRooms.length; i++) {
-      final chatRoom = storage.chatRooms[i];
+    for (int i = 0; i < chatService.chatRooms.length; i++) {
+      final chatRoom = chatService.chatRooms[i];
       if (chatRoom.messages.any((msg) => msg.id == messageId)) {
         targetChatRoom = chatRoom;
         chatRoomIndex = i;
@@ -973,10 +810,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         final updatedMessages = [...targetChatRoom.messages];
         updatedMessages[messageIndex] = updatedMessage;
 
-        // Update chat room in storage
-        storage.chatRooms[chatRoomIndex] = targetChatRoom.copyWith(
+        // Update chat room in chat service
+        chatService.chatRooms[chatRoomIndex] = targetChatRoom.copyWith(
           messages: updatedMessages,
         );
+        // ChatService will notify listeners automatically when needed
 
         // Trigger UI update by refreshing messages
         _refreshMessages();
@@ -1441,6 +1279,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // Handle invitation messages with enhanced card
     if (message.isInvitation) {
       final isFromMe = message.isMine;
+      final status = message.invitationStatus?.toLowerCase() ?? 'pending';
+
+      // Debug print to help diagnose issues
+      print(
+        'Invitation message: status=$status, isFromMe=$isFromMe, isPending=${message.isPending}, isAccepted=${message.isAccepted}',
+      );
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -1449,20 +1293,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           senderName: isFromMe
               ? 'You'
               : otherUserId.isNotEmpty
-              ? storage.getPeerById(otherUserId)?.name
+              ? storage.getPeerById(otherUserId)?.name ?? 'Unknown'
               : 'Unknown',
           isFromMe: isFromMe,
-          onAccept: !isFromMe && message.isPending
+          onAccept: !isFromMe && status == 'pending'
               ? () => _handleInvitationResponse(message.id, true)
               : null,
-          onDecline: !isFromMe && message.isPending
+          onDecline: !isFromMe && status == 'pending'
               ? () => _handleInvitationResponse(message.id, false)
               : null,
           onCollectCard:
-              message.isAccepted && !(message.isNameCardCollected ?? false)
+              status == 'accepted' && !(message.isNameCardCollected ?? false)
               ? () => _handleCollectNameCard(message.id)
               : null,
-          onNotGoodMatch: message.isAccepted
+          onNotGoodMatch: status == 'accepted'
               ? () => _handleNotGoodMatch(message.id)
               : null,
         ),

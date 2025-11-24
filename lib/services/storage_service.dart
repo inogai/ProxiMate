@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:anyhow/rust.dart';
-import 'dart:convert';
+
 import 'dart:math';
 import 'dart:async';
 
@@ -40,18 +40,12 @@ class StorageService extends ChangeNotifier {
   List<Connection> _connections = [];
   List<Peer> _nearbyPeers = [];
   List<Invitation> _invitations = [];
-  List<ChatRoom> _chatRooms = [];
   List<Activity> _activities = [];
   final List<UserRating> _userRatings = [];
   Peer? _selectedPeer;
   String?
   _selectedActivityId; // Currently selected activity for viewing invitations
   String? _apiUserId; // Store API user ID for backend integration
-  final Map<String, DateTime> _lastMessageFetch =
-      {}; // Track last fetch time per chat room
-  DateTime? _lastConnectionSync; // Track last connection sync time
-  DateTime? _lastNearbyPeersSync; // Track last activities sync time
-  DateTime? _lastActivitiesSync; // Track last activities sync time
 
   // Private variables for internal state tracking
 
@@ -59,7 +53,6 @@ class StorageService extends ChangeNotifier {
   List<Connection> get connections => _connections;
   List<Peer> get nearbyPeers => _nearbyPeers;
   List<Invitation> get invitations => _invitations;
-  List<ChatRoom> get chatRooms => _chatRooms;
   List<Activity> get activities => _activities;
   List<UserRating> get userRatings => _userRatings;
   Peer? get selectedPeer => _selectedPeer;
@@ -288,7 +281,7 @@ class StorageService extends ChangeNotifier {
         );
       }
 
-      _lastConnectionSync = DateTime.now();
+      // Connection sync timestamp tracking removed
     } catch (e) {
       _debugLog('Failed to sync connections: $e');
       rethrow; // Propagate errors instead of continuing with existing data
@@ -356,7 +349,7 @@ class StorageService extends ChangeNotifier {
         _debugLog('Nearby peers updated: ${_nearbyPeers.length} total peers');
       }
 
-      _lastNearbyPeersSync = DateTime.now();
+      // Nearby peers sync timestamp tracking removed
     } catch (e) {
       _debugLog('Failed to sync nearby peers: $e');
       rethrow; // Propagate errors instead of continuing with existing data
@@ -400,7 +393,7 @@ class StorageService extends ChangeNotifier {
         _debugLog('Activities updated: ${_activities.length} total activities');
       }
 
-      _lastActivitiesSync = DateTime.now();
+      // Activities sync timestamp tracking removed
     } catch (e) {
       _debugLog('Failed to sync activities: $e');
       rethrow; // Propagate errors instead of continuing with existing data
@@ -672,7 +665,6 @@ class StorageService extends ChangeNotifier {
     _connections = [];
     _nearbyPeers = [];
     _invitations = [];
-    _chatRooms = [];
     _activities = [];
     _selectedPeer = null;
     _selectedActivityId = null;
@@ -837,8 +829,8 @@ class StorageService extends ChangeNotifier {
       }
 
       final chatRoom = _apiService.chatRoomReadToChatRoom(chatRoomRead);
-      _chatRooms.add(chatRoom);
       _debugLog('Chat room created/fetched: ${chatRoom.id}');
+      // Note: ChatService will handle adding the chat room to its list
 
       // Step 2: Create invitation message in the chat room
       _debugLog('Creating invitation message...');
@@ -900,91 +892,11 @@ class StorageService extends ChangeNotifier {
   }
 
   /// Build/refresh the local invitations list from invitation messages
-  /// found in chat rooms. This is executed on-demand (when messages are
-  /// refreshed) rather than on a periodic timer.
+  /// found in chat rooms. This is now handled by ChatService.
   Future<void> _syncInvitationsFromMessages() async {
-    try {
-      final Map<String, Invitation> byId = {};
-
-      for (final chatRoom in _chatRooms) {
-        // Determine the peer ID for this chat room relative to current user
-        final currentUserId = _currentProfile?.id ?? '';
-        final peerId = chatRoom.user1Id == currentUserId
-            ? chatRoom.user2Id
-            : chatRoom.user1Id;
-
-        for (final msg in chatRoom.messages) {
-          if (!msg.isInvitation) continue;
-
-          final id = msg.invitationId ?? msg.id;
-          final status = (msg.invitationStatus ?? 'pending').toLowerCase();
-
-          final invitation = Invitation(
-            id: id,
-            peerId: peerId,
-            peerName: '', // keep empty; UI resolves names from profiles
-            restaurant:
-                msg.invitationData?['restaurant']?.toString() ?? msg.text,
-            activityId: msg.invitationData?['activityId']?.toString() ?? '',
-            createdAt: msg.timestamp,
-            sentByMe: msg.isMine,
-            status: _parseInvitationStatus(status),
-            iceBreakers: msg.iceBreakers ?? [],
-            nameCardCollected: msg.isNameCardCollected ?? false,
-            chatOpened: true,
-          );
-
-          // Merge - prefer later messages if duplicate IDs
-          byId[id] = invitation;
-        }
-      }
-
-      // Merge with existing local invitations sent by client (keep any that
-      // aren't represented in messages yet), preserving ordering.
-      final existingMap = {for (var i in _invitations) i.id: i};
-      for (final e in existingMap.entries) {
-        byId.putIfAbsent(e.key, () => e.value);
-      }
-
-      _invitations = byId.values.toList();
-      notifyListeners();
-      _debugLog(
-        'Synchronized ${_invitations.length} invitations from messages',
-      );
-    } catch (e) {
-      _debugLog('Failed to sync invitations from messages: $e');
-      rethrow;
-    }
-  }
-
-  // Helper method to parse timestamp strings to DateTime
-  DateTime _parseTimestamp(String timestampString) {
-    try {
-      final parsedTimestamp = DateTime.parse(timestampString);
-      // Convert to local time if it's UTC
-      return parsedTimestamp.isUtc
-          ? parsedTimestamp.toLocal()
-          : parsedTimestamp;
-    } catch (e) {
-      _debugLog(
-        'Failed to parse timestamp: $timestampString, using current time',
-      );
-      return DateTime.now();
-    }
-  }
-
-  /// Parse invitation status from API string
-  InvitationStatus _parseInvitationStatus(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return InvitationStatus.pending;
-      case 'accepted':
-        return InvitationStatus.accepted;
-      case 'declined':
-        return InvitationStatus.declined;
-      default:
-        return InvitationStatus.pending;
-    }
+    // This method is now handled by ChatService
+    // Keeping the method signature for compatibility
+    return;
   }
 
   /// Generate ice-breaking questions based on peer's profile
@@ -1186,59 +1098,24 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  /// Send message in chat room
+  /// Send message in chat room - now handled by ChatService
   Future<void> sendMessage(String chatRoomId, String text) async {
-    final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
-    if (index != -1) {
-      final localTimestamp = DateTime.now();
-      final message = ChatMessage(
-        id: localTimestamp.millisecondsSinceEpoch.toString(),
-        text: text,
-        isMine: true,
-        timestamp: localTimestamp,
-        messageType: MessageType.text,
-      );
-
-      // Add message locally immediately for instant UI feedback
-      final updatedMessages = [..._chatRooms[index].messages, message];
-      _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
-      notifyListeners();
-
-      _debugLog('=== SENDING MESSAGE ===');
-      _debugLog('Chat Room ID: $chatRoomId');
-      _debugLog('Local Message ID: ${message.id}');
-      _debugLog('Message Text: ${message.text}');
-      _debugLog(
-        'Current messages count before send: ${_chatRooms[index].messages.length}',
-      );
-
-      try {
-        // Send to backend
-        final currentUserId = int.tryParse(_currentProfile?.id ?? '0') ?? 0;
-        await _apiService.sendChatMessage(chatRoomId, currentUserId, text);
-
-        // Don't refresh messages immediately to avoid duplication
-        // The message is already added locally, and periodic polling will sync server-assigned ID
-        _debugLog('Message sent successfully to chat room $chatRoomId');
-      } catch (e) {
-        // Handle send error - could remove message or mark as failed
-        print('Error sending message: $e');
-        // For now, we'll keep message locally and let polling sync it
-      }
-    }
+    // This method is now handled by ChatService
+    // Keeping the method signature for compatibility
+    throw Exception(
+      'sendMessage is now handled by ChatService. Please use ChatService.sendMessage instead.',
+    );
   }
 
   // _simulatePeerMessage removed — test helper no longer required
 
-  /// Get chat room between two users
+  /// Get chat room between two users - now handled by ChatService
   ChatRoom? getChatRoomBetweenUsers(String user1Id, String user2Id) {
-    try {
-      return _chatRooms.firstWhere(
-        (c) => c.containsUser(user1Id) && c.containsUser(user2Id),
-      );
-    } catch (e) {
-      return null;
-    }
+    // This method is now handled by ChatService
+    // Keeping the method signature for compatibility
+    throw Exception(
+      'getChatRoomBetweenUsers is now handled by ChatService. Please use ChatService.getChatRoomBetweenUsers instead.',
+    );
   }
 
   /// Refresh all data (comprehensive refresh)
@@ -1369,7 +1246,7 @@ class StorageService extends ChangeNotifier {
   }
 
   /// Create connection from peer
-  Future<Result<void>> collectNameCard(String peerId) async {
+  Future<Result<void>> collectNameCard(String peerId, String chatRoomId) async {
     if (_currentProfile == null) {
       return bail('No current profile available');
     }
@@ -1388,11 +1265,9 @@ class StorageService extends ChangeNotifier {
       );
     }
 
-    final currentUserId = _currentProfile!.id;
-    final chatRoom = getChatRoomBetweenUsers(currentUserId, peerId);
-    if (chatRoom == null) {
-      return bail('No chat room found between users for connection');
-    }
+    // Note: This method should be moved to ChatService in future refactoring
+    // For now, we'll skip the chat room check since getChatRoomBetweenUsers is handled by ChatService
+    // The API call will handle validation if there's no existing chat room
 
     try {
       final apiUserIdInt = int.tryParse(_apiUserId ?? '0') ?? 0;
@@ -1402,8 +1277,9 @@ class StorageService extends ChangeNotifier {
         return bail('Invalid user IDs for connection request');
       }
 
+      // Create connection request with the proper chat room ID
       await _apiService.createConnectionRequest(
-        chatRoom.id,
+        chatRoomId,
         apiUserIdInt,
         targetUserIdInt,
       );
@@ -1477,11 +1353,8 @@ class StorageService extends ChangeNotifier {
       await declineInvitation(invitation.id);
     }
 
-    // Remove from chat rooms
-    final currentUserId = _currentProfile?.id ?? '';
-    _chatRooms.removeWhere(
-      (c) => c.containsUser(currentUserId) && c.containsUser(peerId),
-    );
+    // Remove from chat rooms - now handled by ChatService
+    // ChatService will handle removing chat rooms when needed
 
     notifyListeners();
   }

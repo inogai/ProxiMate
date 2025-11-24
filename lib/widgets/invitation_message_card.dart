@@ -33,11 +33,16 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
 
   @override
   Widget build(BuildContext context) {
-    final status = widget.message.invitationStatus ?? "pending";
+    final status = widget.message.invitationStatus?.toLowerCase() ?? "pending";
     final restaurant =
         widget.message.invitationData?["restaurant"] as String? ?? '';
     final iceBreakers = widget.message.iceBreakers ?? [];
     final responseDeadline = widget.message.responseDeadline;
+
+    // Debug print to help diagnose issues
+    print(
+      'InvitationMessageCard: status=$status, restaurant=$restaurant, isFromMe=${widget.isFromMe}',
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
