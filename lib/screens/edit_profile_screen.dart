@@ -146,11 +146,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: ProfileImagePicker(
                     currentImagePath: _profileImagePath,
                     onImageSelected: (path) {
-                      debugPrint('EditProfileScreen - Image selected: $path');
+                      // // // debugPrint('EditProfileScreen - Image selected: $path');
                       setState(() {
                         _profileImagePath = path;
                       });
-                      debugPrint('EditProfileScreen - State updated with path: $_profileImagePath');
+                      // // // debugPrint('EditProfileScreen - State updated with path: $_profileImagePath');
                     },
                     radius: 60,
                   ),

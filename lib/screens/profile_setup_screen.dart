@@ -109,11 +109,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   child: ProfileImagePicker(
                     currentImagePath: _profileImagePath,
                     onImageSelected: (path) {
-                      debugPrint('ProfileSetupScreen - Image selected: $path');
+                      // // // debugPrint('ProfileSetupScreen - Image selected: $path');
                       setState(() {
                         _profileImagePath = path;
                       });
-                      debugPrint('ProfileSetupScreen - State updated with path: $_profileImagePath');
+                      // // // debugPrint('ProfileSetupScreen - State updated with path: $_profileImagePath');
                     },
                     radius: 60,
                   ),

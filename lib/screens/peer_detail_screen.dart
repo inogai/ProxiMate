@@ -384,7 +384,7 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
   }
 
   Future<void> _handleCollectNameCard() async {
-    print('_handleCollectNameCard called for peer: ${widget.peer.name}');
+    // // // print('_handleCollectNameCard called for peer: ${widget.peer.name}');
 
     setState(() {
       _isSending = true;
@@ -416,12 +416,12 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
         chatRoomId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
       }
 
-      print('Creating connection request with chat room ID: $chatRoomId');
+      // // // print('Creating connection request with chat room ID: $chatRoomId');
 
       // Create the connection request
       await storage.createConnectionRequest(widget.peer, chatRoomId);
 
-      print('Connection request created successfully');
+      // // // print('Connection request created successfully');
 
       if (mounted) {
         ToastUtils.showSuccess(
@@ -447,13 +447,6 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
         );
       }
     } catch (e) {
-      print('Error sending connection request: $e');
-
-      // Log the error
-      debugPrint(
-        'Failed to send connection request to ${widget.peer.name}: $e',
-      );
-
       if (mounted) {
         ToastUtils.showError(
           context,
@@ -470,19 +463,17 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
   }
 
   Future<void> _handleSendInvite() async {
-    print('_handleSendInvite called for peer: ${widget.peer.name}');
-
     // First, show activity selection screen
     final selectedActivity = await Navigator.push<Activity>(
       context,
       MaterialPageRoute(builder: (context) => const ActivitySelectionScreen()),
     );
 
-    print('Activity selected: ${selectedActivity?.name}');
+    // // // print('Activity selected: ${selectedActivity?.name}');
 
     // If user cancelled activity selection, don't send invitation
     if (selectedActivity == null || !mounted) {
-      print('Activity selection cancelled or widget not mounted');
+      // // // print('Activity selection cancelled or widget not mounted');
       return;
     }
 
@@ -491,12 +482,12 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
     });
 
     try {
-      print('Calling sendInvitation...');
+      // // // print('Calling sendInvitation...');
       await context.read<StorageService>().sendInvitation(
         widget.peer,
         selectedActivity.name, // Use activity name as restaurant for now
       );
-      print('sendInvitation completed successfully');
+      // // // print('sendInvitation completed successfully');
 
       if (mounted) {
         // Pop all routes and push MainScreen with invitations tab selected
@@ -514,10 +505,10 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
         );
       }
     } catch (e) {
-      print('Error sending invitation: $e');
+      // // // print('Error sending invitation: $e');
 
       // Log the error
-      debugPrint('Failed to send invitation to ${widget.peer.name}: $e');
+      // // // debugPrint('Failed to send invitation to ${widget.peer.name}: $e');
 
       if (mounted) {
         ToastUtils.showError(
