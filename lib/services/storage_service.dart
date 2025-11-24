@@ -365,10 +365,12 @@ class StorageService extends ChangeNotifier {
 
   /// Synchronize activities with API
   Future<void> _syncActivities() async {
-    if (_currentProfile == null || _apiUserId == null) return;
+    // Activities are global and can be fetched even when the user isn't
+    // authenticated. Remove the prior early return so activities can be
+    // updated regardless of authentication state.
 
     try {
-      _debugLog('Syncing activities with API...');
+      _debugLog('Syncing activities with API... (auth=${_apiUserId != null})');
       final apiActivities = await _apiService.getActivities();
 
       // Convert API activities to local Activity objects
@@ -423,12 +425,9 @@ class StorageService extends ChangeNotifier {
   /// Load activities from API
   Future<void> _loadActivitiesFromApi() async {
     try {
-      if (_apiUserId == null) {
-        _debugLog('Cannot load activities from API: no API user ID');
-        throw Exception('User not authenticated');
-      }
-
-      _debugLog('Loading activities from API...');
+      // It's okay to load activities even when the user is not authenticated
+      // — activities are intended to be retrievable without a logged-in user.
+      _debugLog('Loading activities from API... (auth=${_apiUserId != null})');
       final apiActivities = await _apiService.getActivities();
 
       _activities.clear();
