@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'services/storage_service.dart';
+import 'services/peer_discovery_service.dart';
 import 'screens/register_screen.dart';
 import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Request location permissions at app startup using geolocator
   await _requestLocationPermissions();
-  
+
   // Create storage service and load persisted data
   final storage = StorageService();
   await storage.loadUserProfile();
-  
+
   runApp(MyApp(storage: storage));
 }
 
@@ -26,17 +27,17 @@ Future<void> _requestLocationPermissions() async {
       debugPrint('Location services are disabled');
       return;
     }
-    
+
     // Check location permissions
     LocationPermission permission = await Geolocator.checkPermission();
     debugPrint('Initial permission check: $permission');
-    
+
     if (permission == LocationPermission.denied) {
       debugPrint('Permission denied, requesting...');
       permission = await Geolocator.requestPermission();
       debugPrint('Permission after request: $permission');
     }
-    
+
     if (permission == LocationPermission.deniedForever) {
       debugPrint('Location permission permanently denied');
     }
@@ -48,7 +49,7 @@ Future<void> _requestLocationPermissions() async {
 
 class MyApp extends StatelessWidget {
   final StorageService storage;
-  
+
   const MyApp({super.key, required this.storage});
 
   @override
@@ -58,8 +59,11 @@ class MyApp extends StatelessWidget {
       brightness: Brightness.light,
     );
 
-    return ChangeNotifierProvider.value(
-      value: storage,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: storage),
+        ChangeNotifierProvider(create: (_) => PeerDiscoveryService()),
+      ],
       child: MaterialApp(
         title: 'Profile App',
         debugShowCheckedModeBanner: false,
@@ -89,9 +93,7 @@ class MyApp extends StatelessWidget {
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
             fillColor: Colors.grey[50],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
           cardTheme: CardThemeData(
             elevation: 2,

@@ -13,6 +13,7 @@ import '../models/user_rating.dart';
 import 'api_service.dart';
 import 'location_service.dart';
 import 'package:openapi/openapi.dart';
+import 'peer_discovery_service.dart';
 import 'package:dio/dio.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -999,7 +1000,11 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  /// Search for nearby peers using real API and location services
+  /// Search for nearby peers using real API and location services.
+  ///
+  /// This method now delegates to [PeerDiscoveryService] so the discovery
+  /// algorithm is centralized. StorageService keeps a copy of the discovered
+  /// peers for backward compatibility with existing consumers.
   Future<List<Peer>> searchNearbyPeers() async {
     if (_currentProfile == null || _apiUserId == null) {
       _debugLog('Cannot search for peers: no current profile or API user ID');
@@ -1007,54 +1012,28 @@ class StorageService extends ChangeNotifier {
     }
 
     try {
-      // Get current user location
-      final currentPosition = await _locationService.getCurrentLocation();
-      if (currentPosition == null) {
-        _debugLog('Cannot search for peers: unable to get current location');
-        throw Exception('Location services unavailable');
-      }
+      final userId = int.tryParse(_apiUserId!);
 
-      // Update current user's location
-      final userId = int.parse(_apiUserId!);
-      await _locationService.updateLocation(userId);
-
-      // Search for nearby users using: new API endpoint
-      final nearbyUsersWithDistance = await _apiService.getNearbyUsers(
-        currentPosition.latitude,
-        currentPosition.longitude,
-        radiusKm: 5.0,
-        limit: 20,
+      final discovery = PeerDiscoveryService(
+        apiService: _apiService,
+        locationService: _locationService,
+      );
+      final peers = await discovery.searchNearbyPeers(
+        _currentProfile!,
+        userId: userId,
       );
 
-      // Convert UserReadWithDistance objects to Peer objects
-      final peers = nearbyUsersWithDistance
-          .where(
-            (userWithDistance) => userWithDistance.id != userId,
-          ) // Exclude self
-          .map(
-            (userWithDistance) =>
-                _apiService.userReadWithDistanceToPeer(userWithDistance),
-          )
-          .map((peer) => _applyMatchScore(peer))
-          .toList();
-
-      // Sort by distance and match score
-      peers.sort((a, b) {
-        // Primary sort by distance
-        final distanceCompare = a.distance.compareTo(b.distance);
-        if (distanceCompare != 0) return distanceCompare;
-
-        // Secondary sort by match score (descending)
-        return b.matchScore.compareTo(a.matchScore);
-      });
-
+      // Keep nearby peers in StorageService for compatibility
       _nearbyPeers = peers;
       notifyListeners();
-      _debugLog('Found ${peers.length} nearby peers');
+
+      _debugLog(
+        'Found ${peers.length} nearby peers (via PeerDiscoveryService)',
+      );
       return peers;
     } catch (e) {
       _debugLog('Error searching for nearby peers: $e');
-      rethrow; // Propagate error instead of falling back to mock data
+      rethrow;
     }
   }
 

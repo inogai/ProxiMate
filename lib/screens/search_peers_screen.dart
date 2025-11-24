@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../models/peer.dart';
 import '../services/storage_service.dart';
+import '../services/peer_discovery_service.dart';
+import '../models/connection.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/peer_card.dart';
 import './peer_detail_screen.dart';
@@ -39,7 +41,14 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
   Future<void> _initializeAndSearch() async {
     // Create or get the search activity (removes any duplicate search activities)
     await context.read<StorageService>().createOrGetSearchActivity();
-    await _searchPeers();
+
+    // Kick off a discovery search using the dedicated discovery service.
+    final storage = context.read<StorageService>();
+    final discovery = context.read<PeerDiscoveryService>();
+    final userId = storage.apiUserId != null
+        ? int.tryParse(storage.apiUserId!)
+        : null;
+    await discovery.searchNearbyPeers(storage.currentProfile, userId: userId);
   }
 
   Future<void> _searchPeers() async {
@@ -48,7 +57,13 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
     });
 
     try {
-      await context.read<StorageService>().searchNearbyPeers();
+      print('Searching for nearby peers (peer discovery) ...');
+      final storage = context.read<StorageService>();
+      final discovery = context.read<PeerDiscoveryService>();
+      final userId = storage.apiUserId != null
+          ? int.tryParse(storage.apiUserId!)
+          : null;
+      await discovery.searchNearbyPeers(storage.currentProfile, userId: userId);
     } finally {
       if (mounted) {
         setState(() {
@@ -61,8 +76,34 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    final newFriends = storage.newFriends;
-    final yourConnections = storage.yourConnections;
+    final discovery = context.watch<PeerDiscoveryService>();
+    final peers = discovery.nearbyPeers;
+
+    // Derive the lists from the live discovery results and storage connections
+    final currentProfile = storage.currentProfile;
+    final connectedIds = storage.connections
+        .where(
+          (c) =>
+              (c.fromProfileId == currentProfile?.id ||
+                  c.toProfileId == currentProfile?.id) &&
+              c.status == ConnectionStatus.accepted,
+        )
+        .map(
+          (c) => c.fromProfileId == currentProfile?.id
+              ? c.toProfileId
+              : c.fromProfileId,
+        )
+        .toSet();
+
+    // There were a major bug here - AI though ``newFriends`` was existing connections!
+    // It indeed is confusing, so renamed to ``potentialPeers``.
+    final potentialPeers = peers
+        .where((p) => !connectedIds.contains(p.id))
+        .toList();
+
+    final yourConnections = peers
+        .where((p) => connectedIds.contains(p.id))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -79,7 +120,7 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
           tabs: [
             Tab(
               icon: const Icon(Icons.person_add),
-              text: 'New Friends (${newFriends.length})',
+              text: 'Potential Peers (${potentialPeers.length})',
             ),
             Tab(
               icon: const Icon(Icons.group),
@@ -102,7 +143,7 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildPeerList(newFriends, 'No new friends nearby'),
+                _buildPeerList(potentialPeers, 'No potential peers nearby'),
                 _buildPeerList(yourConnections, 'No connections found nearby'),
               ],
             ),

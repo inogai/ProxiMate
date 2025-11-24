@@ -14,11 +14,11 @@ void main() {
   testWidgets('App loads correctly', (WidgetTester tester) async {
     // Create a storage service for testing
     final storage = StorageService();
-    
+
     // Build our app and trigger a frame.
     await tester.pumpWidget(MyApp(storage: storage));
 
     // Verify that the register screen loads
-    expect(find.text('Welcome'), findsOneWidget);
+    expect(find.text('Welcome!'), findsOneWidget);
   });
 }
