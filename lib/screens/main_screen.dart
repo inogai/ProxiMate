@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:playground/widgets/chats_tab.dart';
 import 'package:provider/provider.dart';
-import '../services/storage_service.dart';
+
 import '../models/connection.dart';
-import '../widgets/profile_tab.dart';
+import '../services/storage_service.dart';
 import '../widgets/find_peers_tab.dart';
-import '../widgets/invitations_tab.dart';
 import '../widgets/network_tab.dart';
+import '../widgets/profile_tab.dart';
 
 /// Main screen with tab navigation
 class MainScreen extends StatefulWidget {
   final int initialIndex;
-  
+
   const MainScreen({super.key, this.initialIndex = 0});
 
   @override
@@ -29,7 +30,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _tabs = [
     const NetworkTab(),
     const FindPeersTab(),
-    const InvitationsTab(),
+    const ChatsTab(),
     const ProfileTab(),
   ];
 
@@ -38,16 +39,17 @@ class _MainScreenState extends State<MainScreen> {
     final storage = context.watch<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
     final userConnections = storage.connections
-        .where((c) => (c.fromProfileId == currentUserId || c.toProfileId == currentUserId) && 
-                      c.status == ConnectionStatus.accepted)
+        .where(
+          (c) =>
+              (c.fromProfileId == currentUserId ||
+                  c.toProfileId == currentUserId) &&
+              c.status == ConnectionStatus.accepted,
+        )
         .toList();
     final connectionCount = userConnections.length;
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _tabs,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _tabs),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
