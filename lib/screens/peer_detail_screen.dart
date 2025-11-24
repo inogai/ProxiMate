@@ -6,6 +6,9 @@ import '../services/storage_service.dart';
 import '../utils/toast_utils.dart';
 import 'activity_selection_screen.dart';
 import 'main_screen.dart';
+import '../widgets/match_badge.dart';
+import '../widgets/tag_section.dart';
+import '../widgets/info_section.dart';
 
 /// Detailed view of a peer's profile
 class PeerDetailScreen extends StatefulWidget {
@@ -74,7 +77,7 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildMatchBadge(context, widget.peer.matchScore),
+                            MatchBadge(matchScore: widget.peer.matchScore),
                             const SizedBox(width: 12),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -142,39 +145,33 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildInfoSection(
-                              context,
+                            InfoSection(
                               icon: Icons.school,
                               title: 'School',
                               content: widget.peer.school,
                             ),
                             const SizedBox(height: 16),
-                            _buildTagSection(
-                              context,
+                            TagSection(
                               icon: Icons.book,
                               title: 'Major',
                               tags: widget.peer.major
                                   .split(',')
                                   .map((e) => e.trim())
                                   .toList(),
-                              color: Colors.grey,
                               matchingTags: userMajors,
                             ),
                             const SizedBox(height: 16),
-                            _buildTagSection(
-                              context,
+                            TagSection(
                               icon: Icons.favorite,
                               title: 'Interests',
                               tags: widget.peer.interests
                                   .split(',')
                                   .map((e) => e.trim())
                                   .toList(),
-                              color: Colors.grey,
                               matchingTags: userInterests,
                             ),
                             const SizedBox(height: 16),
-                            _buildInfoSection(
-                              context,
+                            InfoSection(
                               icon: Icons.history_edu,
                               title: 'Background',
                               content: widget.peer.background,
@@ -238,141 +235,7 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
     );
   }
 
-  Widget _buildTagSection(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required List<String> tags,
-    required Color color,
-    Set<String>? matchingTags,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Theme.of(context).primaryColor),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: tags.map((tag) {
-                final isMatch =
-                    matchingTags?.contains(tag.toLowerCase()) ?? false;
-                return _buildTag(context, tag, isMatch ? Colors.orange : color);
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTag(BuildContext context, String label, Color color) {
-    final isHighlighted = color == Colors.orange;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isHighlighted ? Colors.orange.shade50 : Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isHighlighted ? Colors.orange.shade300 : Colors.grey.shade400,
-          width: 1,
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isHighlighted ? Colors.orange.shade900 : Colors.grey.shade700,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoSection(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String content,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Theme.of(context).primaryColor),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(content, style: Theme.of(context).textTheme.bodyLarge),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMatchBadge(BuildContext context, double matchScore) {
-    final percentage = (matchScore * 100).round();
-    Color badgeColor;
-
-    if (percentage >= 70) {
-      badgeColor = Theme.of(context).colorScheme.primary;
-    } else if (percentage >= 40) {
-      badgeColor = Colors.orange;
-    } else {
-      badgeColor = Colors.grey;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: badgeColor, width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.star, color: badgeColor, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            '$percentage% Match',
-            style: TextStyle(
-              color: badgeColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Tag, info and match UI are now reusable widgets in lib/widgets/
 
   Future<void> _handleSendInvite() async {
     // First, show activity selection screen
