@@ -784,17 +784,78 @@ class ApiService {
   }
 
   /// Get 2-hop connections for a user
-  Future<Map<String, dynamic>> getTwoHopConnections(int userId) async {
-    final response = await _executeWithRetry(
-      () => _connectionsApi.get2hopConnectionsApiV1Connections2hopUserIdGet(
-        userId: userId,
-      ),
-      'Get Two Hop Connections',
-    );
+  Future<BuiltList<TwoHopConnection>> getTwoHopConnections(int userId) async {
+    if (userId <= 0) {
+      print('Invalid user ID for 2-hop connections: $userId');
+      return BuiltList<TwoHopConnection>();
+    }
 
-    // For now, return a simple response
-    // TODO: Parse JsonObject response properly when needed
-    return {'connections': <dynamic>[]};
+    try {
+      final response = await _executeWithRetry(
+        () => _connectionsApi.get2hopConnectionsApiV1Connections2hopUserIdGet(
+          userId: userId,
+        ),
+        'Get Two Hop Connections',
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('Timeout getting 2-hop connections', const Duration(seconds: 15));
+        },
+      );
+
+      // Parse actual API response
+      if (response.data == null) {
+        print('Null response data for 2-hop connections');
+        return BuiltList<TwoHopConnection>();
+      }
+
+      BuiltList<TwoHopConnection>? twoHopConnections;
+      
+      try {
+        // Handle different response formats
+        if (response.data is BuiltList<TwoHopConnection>) {
+          twoHopConnections = response.data as BuiltList<TwoHopConnection>;
+        } else if (response.data is List) {
+          // Handle case where API returns a regular List instead of BuiltList
+          final dynamicList = response.data as List;
+          twoHopConnections = BuiltList<TwoHopConnection>.from(
+            dynamicList.map((item) {
+              if (item is TwoHopConnection) {
+                return item as TwoHopConnection;
+              } else if (item is Map<String, dynamic>) {
+                // Handle case where API returns Map objects
+                return TwoHopConnection((b) => b
+                  ..twoHopUserId = item['two_hop_user_id'] ?? 0
+                  ..oneHopUserId = item['one_hop_user_id'] ?? 0);
+              }
+              // Skip invalid items
+              return TwoHopConnection((b) => b..twoHopUserId = 0..oneHopUserId = 0);
+            }).where((conn) => conn.twoHopUserId > 0 && conn.oneHopUserId > 0),
+          );
+        } else {
+          print('Unexpected response format for 2-hop connections: ${response.data.runtimeType}');
+          return BuiltList<TwoHopConnection>();
+        }
+      } catch (e) {
+        print('Error parsing 2-hop connections response: $e');
+        print('Response data type: ${response.data.runtimeType}');
+        return BuiltList<TwoHopConnection>();
+      }
+
+      if (twoHopConnections == null || twoHopConnections.isEmpty) {
+        print('No valid 2-hop connections found');
+        return BuiltList<TwoHopConnection>();
+      }
+
+      print('Successfully fetched ${twoHopConnections.length} 2-hop connections for user $userId');
+      return twoHopConnections;
+    } on TimeoutException catch (e) {
+      print('Timeout getting 2-hop connections for user $userId: $e');
+      return BuiltList<TwoHopConnection>();
+    } catch (e) {
+      print('Error getting 2-hop connections for user $userId: $e');
+      return BuiltList<TwoHopConnection>();
+    }
   }
 
   /// Get pending connections for a user

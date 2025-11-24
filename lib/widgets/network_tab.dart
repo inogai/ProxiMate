@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -213,7 +214,7 @@ class _NetworkTabState extends State<NetworkTab> {
 
       // Check if this profile is in nearby peers to determine color
       final isNearby = nearbyPeers.any((peer) => peer.id == profile.id);
-      
+
       nodes.add(
         NetworkNode(
           id: profile.id,
@@ -234,8 +235,6 @@ class _NetworkTabState extends State<NetworkTab> {
       );
     }
   }
-
-  
 
   void _addTwoHopNodes(
     BuildContext context,

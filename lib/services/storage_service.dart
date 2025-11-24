@@ -169,48 +169,110 @@ class StorageService extends ChangeNotifier {
         );
       }
 
-      print('🔍 getTwoHopConnectionsWithMapping: Fetching 2-hop connections for user $userId');
+print('🔍 getTwoHopConnectionsWithMapping: Fetching 2-hop connections for user $userId');
       
-      // Get current direct connections to use for mapping
-      final directConnections = await getConnectedProfiles();
-      
-      // For now, create mock 2-hop connections with relationship mapping
-      // TODO: Replace with actual API response when available
-      final mockTwoHopProfiles = <Profile>[];
-      final mockConnections = <String, String>{};
-      
-      // Create some mock 2-hop connections, each connected to a random 1-hop connection
-      for (int i = 0; i < 5; i++) {
-        final twoHopId = '2hop_${i + 1}';
-        final oneHopConnection = directConnections.isNotEmpty 
-            ? directConnections[i % directConnections.length]
-            : null;
-            
-        mockTwoHopProfiles.add(Profile(
-          id: twoHopId,
-          userName: 'Friend of Friend ${i + 1}',
-          major: ['Computer Science', 'Business', 'Engineering', 'Design', 'Marketing'][i % 5],
-          interests: 'Technology, Innovation, Networking, Design, Business',
-          background: 'Connected through your network',
-          school: 'University',
-        ));
+      try {
+        // Fetch 2-hop connections from API
+        final twoHopConnections = await _apiService.getTwoHopConnections(userId);
+        print('🔍 getTwoHopConnectionsWithMapping: Received ${twoHopConnections.length} 2-hop connections from API');
         
-        // Map 2-hop node to its 1-hop connection
-        if (oneHopConnection != null) {
-          mockConnections[twoHopId] = oneHopConnection.id;
-          print('🔍 Mapping 2-hop $twoHopId to 1-hop ${oneHopConnection.id}');
+        // Debug: Print each connection to understand the data
+        for (int i = 0; i < twoHopConnections.length; i++) {
+          final conn = twoHopConnections[i];
+          print('🔍 2-hop connection $i: twoHopUserId=${conn.twoHopUserId}, oneHopUserId=${conn.oneHopUserId}');
         }
+        
+        if (twoHopConnections.isEmpty) {
+          print('🔍 getTwoHopConnectionsWithMapping: No 2-hop connections found');
+          return TwoHopConnectionsResult(
+            profiles: [],
+            connections: {},
+          );
+        }
+        
+        // Convert TwoHopConnection objects to Profile objects with mapping
+        final profiles = <Profile>[];
+        final connections = <String, String>{};
+        
+        // Batch fetch user profiles for all two-hop users
+        final futures = <Future<Profile>>[];
+        final validConnections = <TwoHopConnection>[];
+        
+        // Validate connections before processing
+        for (final connection in twoHopConnections) {
+          if (connection.twoHopUserId > 0 && connection.oneHopUserId > 0) {
+            futures.add(_apiService.getUser(connection.twoHopUserId).then((userRead) => _apiService.userReadToProfile(userRead)));
+            validConnections.add(connection);
+          } else {
+            print('Invalid TwoHopConnection: twoHopUserId=${connection.twoHopUserId}, oneHopUserId=${connection.oneHopUserId}');
+          }
+        }
+        
+        if (futures.isEmpty) {
+          print('No valid 2-hop connections to process');
+          return TwoHopConnectionsResult(
+            profiles: [],
+            connections: {},
+          );
+        }
+        
+        try {
+          final fetchedProfiles = await Future.wait(
+            futures,
+            eagerError: false,
+          ).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              print('Timeout fetching 2-hop user profiles');
+              throw TimeoutException('Timeout fetching 2-hop user profiles', const Duration(seconds: 30));
+            },
+          );
+          
+          // Build results, filtering out failed profile fetches
+          for (int i = 0; i < validConnections.length; i++) {
+            final connection = validConnections[i];
+            final profile = fetchedProfiles[i];
+            
+            // Only add if profile was successfully fetched
+            if (profile.id.isNotEmpty && profile.userName.isNotEmpty) {
+              profiles.add(profile);
+              connections[profile.id] = connection.oneHopUserId.toString();
+            } else {
+              print('Failed to fetch valid profile for user ${connection.twoHopUserId}');
+            }
+          }
+          
+          print('Successfully processed ${profiles.length} out of ${validConnections.length} 2-hop connections');
+          
+          // Debug: Print final mapping
+          for (final entry in connections.entries) {
+            print('🔍 Final mapping: ${entry.key} -> ${entry.value}');
+          }
+          
+          return TwoHopConnectionsResult(
+            profiles: profiles,
+            connections: connections,
+          );
+        } on TimeoutException catch (e) {
+          print('Timeout fetching 2-hop user profiles: $e');
+          return TwoHopConnectionsResult(
+            profiles: [],
+            connections: {},
+          );
+        } catch (e) {
+          print('Error fetching 2-hop user profiles: $e');
+          return TwoHopConnectionsResult(
+            profiles: [],
+            connections: {},
+          );
+        }
+      } catch (e) {
+        print('🔍 getTwoHopConnectionsWithMapping: Error fetching 2-hop connections: $e');
+        return TwoHopConnectionsResult(
+          profiles: [],
+          connections: {},
+        );
       }
-
-      print('🔍 getTwoHopConnectionsWithMapping: Created ${mockTwoHopProfiles.length} mock 2-hop connections');
-      for (final profile in mockTwoHopProfiles) {
-        print('🔍 2-hop profile: ${profile.userName} (${profile.id}) -> ${mockConnections[profile.id] ?? 'no connection'}');
-      }
-      
-      return TwoHopConnectionsResult(
-        profiles: mockTwoHopProfiles,
-        connections: mockConnections,
-      );
     } catch (e) {
       print('🔍 getTwoHopConnectionsWithMapping: Error fetching 2-hop connections: $e');
       return TwoHopConnectionsResult(
