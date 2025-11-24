@@ -71,10 +71,12 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   void didUpdateWidget(NetworkGraphWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Only update nodes if the widget's nodes changed significantly
-    if (widget.nodes.length != oldWidget.nodes.length || 
-        !widget.nodes.every((node) => oldWidget.nodes.any((oldNode) => oldNode.id == node.id))) {
+    if (widget.nodes.length != oldWidget.nodes.length ||
+        !widget.nodes.every(
+          (node) => oldWidget.nodes.any((oldNode) => oldNode.id == node.id),
+        )) {
       _nodes = List.from(widget.nodes);
-      
+
       // Update selected node reference if it exists
       if (_selectedNode != null) {
         _selectedNode = _nodes.firstWhere(
@@ -137,15 +139,25 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             children: [
               Text(
                 'Highlight extended connections with common interests',
-                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.6),
+                ),
               ),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Highlight Common Tags'),
-                 subtitle: Text(
-                   'Show full opacity for connections with shared major or interests',
-                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                 ),
+                subtitle: Text(
+                  'Show full opacity for connections with shared major or interests',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
                 value: _highlightCommonInterests,
                 onChanged: (bool value) {
                   setState(() {
@@ -157,10 +169,13 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             ],
           ),
           actions: [
-             TextButton(
-               onPressed: () => Navigator.pop(context),
-               child: Text('Close', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
-             ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Close',
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              ),
+            ),
           ],
         );
       },
@@ -176,11 +191,40 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
     setState(() {
       // Find the node in our local state and update it
       final nodeInState = _nodes.firstWhere((n) => n.id == node.id);
-      // Use delta for smooth incremental updates
+
+      // Apply repulsion forces from other nodes
+      final repulsionForce = _calculateRepulsionForce(nodeInState);
+
+      // Use delta for smooth incremental updates with repulsion
       // Don't divide by scale since gesture detector is already inside Transform.scale
-      nodeInState.position += details.delta;
+      nodeInState.position += details.delta + repulsionForce;
       nodeInState.velocity = Offset.zero;
     });
+  }
+
+  /// Calculate repulsion force to push nodes away from each other
+  Offset _calculateRepulsionForce(NetworkNode draggedNode) {
+    const repulsionStrength = 8.0; // Increased for stronger repulsion
+    const minDistance = 120.0; // Increased minimum distance between nodes
+    var totalForce = Offset.zero;
+
+    for (final otherNode in _nodes) {
+      if (otherNode.id == draggedNode.id || otherNode.isTextNode) continue;
+
+      final direction = draggedNode.position - otherNode.position;
+      final distance = direction.distance;
+
+      // Apply repulsion only if nodes are too close
+      if (distance < minDistance && distance > 0) {
+        // Calculate repulsion force (stronger when closer)
+        final forceMagnitude =
+            repulsionStrength * (1.0 - distance / minDistance);
+        final forceDirection = direction / distance; // Normalize direction
+        totalForce += forceDirection * forceMagnitude;
+      }
+    }
+
+    return totalForce;
   }
 
   void _onNodePanEnd(NetworkNode node, DragEndDetails details) {
@@ -191,7 +235,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
 
   void _showInviteDialog(BuildContext context, NetworkNode node) {
     final theme = Theme.of(context);
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -224,7 +268,10 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -293,7 +340,11 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             // Background grid
             CustomPaint(
               size: Size.infinite,
-              painter: GridPainter(scale: _scale, offset: _panOffset, theme: theme),
+              painter: GridPainter(
+                scale: _scale,
+                offset: _panOffset,
+                theme: theme,
+              ),
             ),
             // Network graph
             Transform.translate(
@@ -303,13 +354,13 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                 alignment: Alignment.center,
                 child: SizedBox.expand(
                   child: CustomPaint(
-                     painter: NetworkGraphPainter(
-                        nodes: _nodes,
-                        selectedNode: _selectedNode,
-                        theme: theme,
-                        show1HopCircle: widget.show1HopCircle,
-                        custom1HopRadius: widget.custom1HopRadius,
-                      ),
+                    painter: NetworkGraphPainter(
+                      nodes: _nodes,
+                      selectedNode: _selectedNode,
+                      theme: theme,
+                      show1HopCircle: widget.show1HopCircle,
+                      custom1HopRadius: widget.custom1HopRadius,
+                    ),
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: _nodes.map((node) {
@@ -355,29 +406,30 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                           );
                         }
 
-                         return Positioned(
-                           left: node.position.dx - offset,
-                           top: node.position.dy - offset,
-                           child: GestureDetector(
-                             behavior: HitTestBehavior.opaque, // Ensure gesture detection works
-                             onPanStart: (details) =>
-                                 _onNodePanStart(node, details, offset),
-                             onPanUpdate: (details) =>
-                                 _onNodePanUpdate(node, details, offset),
-                             onPanEnd: (details) => _onNodePanEnd(node, details),
-                              onTap: () {
-                                setState(() {
-                                  _selectedNode = node;
-                                });
-                                
-                                // Check if this is a 2-hop node and handle invite
-                                if (node.depth == 2) {
-                                  _showInviteDialog(context, node);
-                                } else {
-                                  widget.onNodeTap?.call(node);
-                                }
-                              },
-                             child: NetworkNodeWidget(
+                        return Positioned(
+                          left: node.position.dx - offset,
+                          top: node.position.dy - offset,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior
+                                .opaque, // Ensure gesture detection works
+                            onPanStart: (details) =>
+                                _onNodePanStart(node, details, offset),
+                            onPanUpdate: (details) =>
+                                _onNodePanUpdate(node, details, offset),
+                            onPanEnd: (details) => _onNodePanEnd(node, details),
+                            onTap: () {
+                              setState(() {
+                                _selectedNode = node;
+                              });
+
+                              // Check if this is a 2-hop node and handle invite
+                              if (node.depth == 2) {
+                                _showInviteDialog(context, node);
+                              } else {
+                                widget.onNodeTap?.call(node);
+                              }
+                            },
+                            child: NetworkNodeWidget(
                               node: node,
                               selectedNode: _selectedNode,
                               currentUserId: widget.currentUserId,
@@ -424,12 +476,17 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                 _highlightCommonInterests
                     ? Icons.filter_alt
                     : Icons.filter_alt_outlined,
-                color: _highlightCommonInterests ? theme.colorScheme.secondary : theme.colorScheme.onSurface,
+                color: _highlightCommonInterests
+                    ? theme.colorScheme.secondary
+                    : theme.colorScheme.onSurface,
               ),
               onPressed: _showFilterDialog,
               tooltip: 'Filter Network',
             ),
-            Divider(color: theme.colorScheme.onSurface.withOpacity(0.24), height: 1),
+            Divider(
+              color: theme.colorScheme.onSurface.withOpacity(0.24),
+              height: 1,
+            ),
             IconButton(
               icon: Icon(Icons.add, color: theme.colorScheme.onSurface),
               onPressed: () {
@@ -449,7 +506,10 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
               tooltip: 'Zoom Out',
             ),
             IconButton(
-              icon: Icon(Icons.center_focus_strong, color: theme.colorScheme.onSurface),
+              icon: Icon(
+                Icons.center_focus_strong,
+                color: theme.colorScheme.onSurface,
+              ),
               onPressed: () {
                 setState(() {
                   _scale = 1.0;
@@ -573,7 +633,10 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                       const SizedBox(height: 4),
                       Text(
                         _selectedNode!.school!,
-                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 14),
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 8),
@@ -595,13 +658,19 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: matches
-                                      ? theme.colorScheme.secondary.withOpacity(0.3)
-                                      : theme.colorScheme.onSurface.withOpacity(0.3),
+                                      ? theme.colorScheme.secondary.withOpacity(
+                                          0.3,
+                                        )
+                                      : theme.colorScheme.onSurface.withOpacity(
+                                          0.3,
+                                        ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: matches
-                                        ? theme.colorScheme.secondary.withOpacity(0.5)
-                                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                                        ? theme.colorScheme.secondary
+                                              .withOpacity(0.5)
+                                        : theme.colorScheme.onSurface
+                                              .withOpacity(0.5),
                                   ),
                                 ),
                                 child: Text(
@@ -635,13 +704,21 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                               ),
                               decoration: BoxDecoration(
                                 color: matches
-                                    ? theme.colorScheme.secondary.withOpacity(0.3)
-                                    : theme.colorScheme.onSurface.withOpacity(0.3),
+                                    ? theme.colorScheme.secondary.withOpacity(
+                                        0.3,
+                                      )
+                                    : theme.colorScheme.onSurface.withOpacity(
+                                        0.3,
+                                      ),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: matches
-                                      ? theme.colorScheme.secondary.withOpacity(0.5)
-                                      : theme.colorScheme.onSurface.withOpacity(0.5),
+                                      ? theme.colorScheme.secondary.withOpacity(
+                                          0.5,
+                                        )
+                                      : theme.colorScheme.onSurface.withOpacity(
+                                          0.5,
+                                        ),
                                 ),
                               ),
                               child: Text(
@@ -703,8 +780,8 @@ class NetworkGraphPainter extends CustomPainter {
   final double? custom1HopRadius;
 
   NetworkGraphPainter({
-    required this.nodes, 
-    this.selectedNode, 
+    required this.nodes,
+    this.selectedNode,
     required this.theme,
     this.show1HopCircle = false,
     this.custom1HopRadius,
@@ -755,7 +832,9 @@ class NetworkGraphPainter extends CustomPainter {
     NetworkNode? currentUserNode;
     try {
       currentUserNode = nodes.firstWhere(
-        (node) => node.id == 'you' || (!node.isTextNode && node.connections.isNotEmpty),
+        (node) =>
+            node.id == 'you' ||
+            (!node.isTextNode && node.connections.isNotEmpty),
       );
     } catch (e) {
       // If no 'you' node found, try first node with connections
@@ -778,12 +857,12 @@ class NetworkGraphPainter extends CustomPainter {
       // Calculate based on distance to furthest direct connection, then add extra padding
       final directConnections = nodes.where((n) => n.isDirectConnection);
       double maxDistance = 0;
-      
+
       for (final node in directConnections) {
         final distance = (node.position - currentUserNode!.position).distance;
         maxDistance = math.max(maxDistance, distance);
       }
-      
+
       // Make it significantly bigger to capture all nodes with good margin
       radius = maxDistance > 0 ? maxDistance + 80 : 200; // Add generous padding
     }
@@ -792,16 +871,16 @@ class NetworkGraphPainter extends CustomPainter {
     final circlePaint = Paint()
       ..color = Colors.red.withOpacity(0.15)
       ..style = PaintingStyle.fill;
-    
+
     canvas.drawCircle(currentUserNode!.position, radius, circlePaint);
-    
+
     // Draw red border
     final borderPaint = Paint()
       ..color = Colors.red.withOpacity(0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0
       ..isAntiAlias = true;
-    
+
     canvas.drawCircle(currentUserNode!.position, radius, borderPaint);
 
     // Add "Your connections" text above the circle
@@ -817,38 +896,38 @@ class NetworkGraphPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     );
-    
+
     textPainter.layout();
-    
+
     // Position text above the circle
     final textPosition = Offset(
       currentUserNode!.position.dx - textPainter.width / 2,
       currentUserNode!.position.dy - radius - 25,
     );
-    
+
     // Draw text background
     final textBgPaint = Paint()
       ..color = Colors.white.withOpacity(0.9)
       ..style = PaintingStyle.fill;
-    
+
     final textBgRect = Rect.fromLTWH(
       textPosition.dx - 4,
       textPosition.dy - 2,
       textPainter.width + 8,
       textPainter.height + 4,
     );
-    
+
     canvas.drawRRect(
       RRect.fromRectAndRadius(textBgRect, const Radius.circular(4)),
       textBgPaint,
     );
-    
+
     // Draw text
     textPainter.paint(canvas, textPosition);
   }
 
   @override
-  bool shouldRepaint(NetworkGraphPainter oldDelegate) => 
+  bool shouldRepaint(NetworkGraphPainter oldDelegate) =>
       show1HopCircle != oldDelegate.show1HopCircle ||
       custom1HopRadius != oldDelegate.custom1HopRadius;
 }

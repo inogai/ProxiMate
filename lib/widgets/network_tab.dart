@@ -255,10 +255,16 @@ class _NetworkTabState extends State<NetworkTab> {
     Profile currentProfile,
     Size size,
   ) {
+    // Calculate the 1-hop circle radius based on existing direct connections
+    final oneHopRadius = min(size.width, size.height) * 0.25;
+    // Position 2-hop nodes outside the 1-hop circle with larger margin
+    final twoHopRadius =
+        oneHopRadius +
+        200; // Increase margin to ensure clearly outside 1-hop circle
+
     for (int i = 0; i < twoHopProfiles.length; i++) {
       final profile = twoHopProfiles[i];
       final angle = (i / twoHopProfiles.length) * 2 * pi;
-      final radius = min(size.width, size.height) * 0.35;
 
       // Find all edges that end at this profile
       final profileEdges = twoHopEdges
@@ -277,8 +283,8 @@ class _NetworkTabState extends State<NetworkTab> {
           interests: profile.interests,
           color: Colors.purple.withOpacity(0.8),
           position: Offset(
-            size.width * 0.5 + radius * cos(angle),
-            size.height * 0.5 + radius * sin(angle),
+            size.width * 0.5 + twoHopRadius * cos(angle),
+            size.height * 0.5 + twoHopRadius * sin(angle),
           ),
           connections: twoHopNodeConnections,
           profileImagePath: profile.profileImagePath,
