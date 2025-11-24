@@ -39,9 +39,6 @@ class _SearchPeersScreenState extends State<SearchPeersScreen>
   }
 
   Future<void> _initializeAndSearch() async {
-    // Create or get the search activity (removes any duplicate search activities)
-    await context.read<StorageService>().createOrGetSearchActivity();
-
     // Kick off a discovery search using the dedicated discovery service.
     final storage = context.read<StorageService>();
     final discovery = context.read<PeerDiscoveryService>();

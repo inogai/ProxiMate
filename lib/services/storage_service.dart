@@ -591,8 +591,8 @@ class StorageService extends ChangeNotifier {
       }
 
       // Load connections from API
-      _debugLog('Attempting to sync connections...');
-      await _syncConnections();
+      // _debugLog('Attempting to sync connections...');
+      // await _syncConnections();
 
       // Start location tracking if user is logged in
       if (_currentProfile != null && _apiUserId != null) {
@@ -903,103 +903,6 @@ class StorageService extends ChangeNotifier {
     await clearProfile();
   }
 
-  /// Create a new activity via API
-  Future<Activity> createActivity(String name, String description) async {
-    final activityCreate = ActivityCreate(
-      (b) => b
-        ..name = name
-        ..description = description,
-    );
-
-    final apiActivity = await _apiService.createActivity(activityCreate);
-    final activity = _apiService.activityReadToActivity(apiActivity);
-
-    _activities.add(activity);
-    _selectedActivityId = activity.id.toString();
-    _debugLog(
-      'Created activity via API: ${activity.id} (type: ${activity.id.runtimeType})',
-    );
-    notifyListeners();
-
-    return activity;
-  }
-
-  /// Delete an activity
-  Future<void> deleteActivity(String activityId) async {
-    try {
-      await _apiService.deleteActivity(activityId);
-      _activities.removeWhere((a) => a.id == activityId);
-      if (_selectedActivityId == activityId) {
-        _selectedActivityId = null;
-      }
-      notifyListeners();
-    } catch (e) {
-      _debugLog('Error deleting activity: $e');
-      rethrow;
-    }
-  }
-
-  /// Select an activity to view its invitations
-  void selectActivity(String activityId) {
-    _selectedActivityId = activityId.toString();
-    _debugLog(
-      'Selected activity ID: $activityId (type: ${activityId.runtimeType})',
-    );
-    notifyListeners();
-  }
-
-  /// Clear selected activity
-  void clearSelectedActivity() {
-    _selectedActivityId = null;
-    notifyListeners();
-  }
-
-  /// Create or get: search activity (removes duplicates)
-  Future<Activity> createOrGetSearchActivity() async {
-    const searchActivityName = 'Searching for peers to eat';
-
-    // Check if we already have a search activity from server
-    final existingSearchActivity = _activities
-        .where((a) => a.name == searchActivityName)
-        .firstOrNull;
-
-    if (existingSearchActivity != null) {
-      _selectedActivityId = existingSearchActivity.id.toString();
-      _debugLog('Using existing search activity: ${existingSearchActivity.id}');
-      notifyListeners();
-      return existingSearchActivity;
-    }
-
-    // Create a new search activity via API
-    final activityCreate = ActivityCreate(
-      (b) => b
-        ..name = searchActivityName
-        ..description =
-            'Looking for people nearby who want to grab food together',
-    );
-
-    final apiActivity = await _apiService.createActivity(activityCreate);
-    final activity = _apiService.activityReadToActivity(apiActivity);
-
-    _activities.add(activity);
-    _selectedActivityId = activity.id.toString();
-    _debugLog(
-      'Created search activity via API: ${activity.id} (type: ${activity.id.runtimeType})',
-    );
-    notifyListeners();
-
-    return activity;
-  }
-
-  /// Get activity by ID
-  Activity? getActivityById(String activityId) {
-    try {
-      return _activities.firstWhere((a) => a.id == activityId);
-    } catch (e) {
-      return null;
-    }
-  }
-
   /// Search for nearby peers using real API and location services.
   ///
   /// This method now delegates to [PeerDiscoveryService] so the discovery
@@ -1113,7 +1016,6 @@ class StorageService extends ChangeNotifier {
       _debugLog('Creating invitation using new message-based system...');
 
       final currentUserId = int.parse(_apiUserId!);
-      final activityId = _selectedActivityId!.toString();
 
       // Step 1: Get or create chat room between users
       _debugLog('Getting/creating chat room for invitation...');
@@ -1296,14 +1198,6 @@ class StorageService extends ChangeNotifier {
       _debugLog('Failed to fetch invitations: $e');
       rethrow; // Propagate errors instead of continuing with local data
     }
-  }
-
-  /// Serialize iceBreakers to JSON string for API
-  String _serializeIceBreakers(List<IceBreaker> iceBreakers) {
-    final iceBreakerMap = iceBreakers
-        .map((ib) => {'question': ib.question, 'answer': ib.answer})
-        .toList();
-    return jsonEncode(iceBreakerMap);
   }
 
   // Helper method to parse timestamp strings to DateTime
