@@ -17,6 +17,17 @@ import 'package:dio/dio.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Result class for 2-hop connections with relationship mapping
+class TwoHopConnectionsResult {
+  final List<Profile> profiles;
+  final Map<String, String> connections;
+
+  TwoHopConnectionsResult({
+    required this.profiles,
+    required this.connections,
+  });
+}
+
 /// Storage service with API-only integration (no local fallbacks)
 class StorageService extends ChangeNotifier {
   static const String _keyApiUserId = 'api_user_id';
@@ -117,7 +128,7 @@ class StorageService extends ChangeNotifier {
   }
 
   /// Get 2-hop connections (friends of friends) with relationship mapping
-  Future<Map<String, dynamic>> getTwoHopConnectionsWithMapping() async {
+  Future<TwoHopConnectionsResult> getTwoHopConnectionsWithMapping() async {
     print('🔍 getTwoHopConnectionsWithMapping: Starting...');
     
     if (_currentProfile == null) {
@@ -142,17 +153,20 @@ class StorageService extends ChangeNotifier {
         mockConnections[twoHopId] = 'mock_1hop_${i + 1}';
       }
       
-      return {
-        'profiles': mockTwoHopProfiles,
-        'connections': mockConnections,
-      };
+      return TwoHopConnectionsResult(
+        profiles: mockTwoHopProfiles,
+        connections: mockConnections,
+      );
     }
 
     try {
       final userId = int.tryParse(_currentProfile!.id);
       if (userId == null) {
         print('🔍 getTwoHopConnectionsWithMapping: Invalid user ID format');
-        return {'profiles': <Profile>[], 'connections': <String, String>{}};
+        return TwoHopConnectionsResult(
+          profiles: <Profile>[],
+          connections: <String, String>{},
+        );
       }
 
       print('🔍 getTwoHopConnectionsWithMapping: Fetching 2-hop connections for user $userId');
@@ -193,20 +207,23 @@ class StorageService extends ChangeNotifier {
         print('🔍 2-hop profile: ${profile.userName} (${profile.id}) -> ${mockConnections[profile.id] ?? 'no connection'}');
       }
       
-      return {
-        'profiles': mockTwoHopProfiles,
-        'connections': mockConnections,
-      };
+      return TwoHopConnectionsResult(
+        profiles: mockTwoHopProfiles,
+        connections: mockConnections,
+      );
     } catch (e) {
       print('🔍 getTwoHopConnectionsWithMapping: Error fetching 2-hop connections: $e');
-      return {'profiles': <Profile>[], 'connections': <String, String>{}};
+      return TwoHopConnectionsResult(
+        profiles: <Profile>[],
+        connections: <String, String>{},
+      );
     }
   }
 
   /// Get 2-hop connections (friends of friends) - legacy method for backward compatibility
   Future<List<Profile>> getTwoHopConnections() async {
     final result = await getTwoHopConnectionsWithMapping();
-    return result['profiles'] as List<Profile>;
+    return result.profiles;
   }
 
   /// Get profiles that current user is connected to (sync version using nearby peers)
