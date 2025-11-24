@@ -18,14 +18,37 @@ class _ChatsTabState extends State<ChatsTab> {
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
       GlobalKey<RefreshIndicatorState>();
   bool _isRefreshing = false;
+  bool _hasInitialized = false;
+
+  /// Expose refresh method for external calls
+  void refreshChats() {
+    if (!_isRefreshing) {
+      _refreshChats();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-refresh when the tab is first opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Add a small delay to ensure providers are fully initialized
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && !_hasInitialized) {
+          _hasInitialized = true;
+          _refreshChats();
+        }
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    final chatService = context.watch<ChatService?>();
+    final chatService = context.watch<ChatService>();
 
     // Get chat rooms
-    final chatRooms = chatService?.chatRooms ?? storage.chatRooms;
+    final chatRooms = chatService.chatRooms;
     final currentUserId = storage.currentProfile?.id ?? '';
 
     // Sort by most recent first
@@ -88,6 +111,8 @@ class _ChatsTabState extends State<ChatsTab> {
 
   /// Refresh chats from server
   Future<void> _refreshChats() async {
+    if (!mounted) return;
+
     setState(() {
       _isRefreshing = true;
     });
@@ -95,16 +120,28 @@ class _ChatsTabState extends State<ChatsTab> {
     try {
       final chatService = context.read<ChatService?>();
       if (chatService != null) {
+        print('Refreshing chat rooms...');
         await chatService.refreshChatRooms();
+        print('Chat rooms refreshed successfully');
       } else {
-        // ChatService not available; nothing we can refresh here.
+        print('ChatService not available');
       }
     } catch (e) {
       print('Error refreshing chats: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh chats: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isRefreshing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
     }
   }
 

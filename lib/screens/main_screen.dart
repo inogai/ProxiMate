@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/connection.dart';
 import '../services/storage_service.dart';
+import '../services/chat_service.dart';
 import '../widgets/find_peers_tab.dart';
 import '../widgets/network_tab.dart';
 import '../widgets/profile_tab.dart';
@@ -20,19 +21,23 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   late int _currentIndex;
+  int _previousIndex = 0;
+
+  final GlobalKey _chatsTabKey = GlobalKey();
+
+  List<Widget> get _tabs => [
+    const NetworkTab(),
+    const FindPeersTab(),
+    ChatsTab(key: _chatsTabKey),
+    const ProfileTab(),
+  ];
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _previousIndex = widget.initialIndex;
   }
-
-  final List<Widget> _tabs = [
-    const NetworkTab(),
-    const FindPeersTab(),
-    const ChatsTab(),
-    const ProfileTab(),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -54,8 +59,25 @@ class _MainScreenState extends State<MainScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
+            _previousIndex = _currentIndex;
             _currentIndex = index;
           });
+
+          // Trigger refresh when switching to chats tab (index 2)
+          if (index == 2 && _previousIndex != 2) {
+            // Use a delayed callback to ensure tab is fully visible
+            Future.delayed(const Duration(milliseconds: 300), () {
+              // Just trigger ChatService refresh directly
+              try {
+                final chatService = context.read<ChatService?>();
+                if (chatService != null) {
+                  chatService.refreshChatRooms();
+                }
+              } catch (e) {
+                print('Error refreshing chats: $e');
+              }
+            });
+          }
         },
         destinations: [
           NavigationDestination(
