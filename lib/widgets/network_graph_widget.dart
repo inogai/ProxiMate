@@ -14,6 +14,7 @@ class NetworkGraphWidget extends StatefulWidget {
   final List<NetworkNode> nodes;
   final Function(NetworkNode)? onNodeTap;
   final Function(NetworkNode)? onInfoBarTap;
+  final Function(NetworkNode)? onInvite; // New callback for 2-hop invites
   final String? initialSelectedNodeId;
   final String? currentUserId;
   final String? currentUserMajor;
@@ -26,6 +27,7 @@ class NetworkGraphWidget extends StatefulWidget {
     required this.nodes,
     this.onNodeTap,
     this.onInfoBarTap,
+    this.onInvite,
     this.initialSelectedNodeId,
     this.currentUserId,
     this.currentUserMajor,
@@ -187,6 +189,66 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
     });
   }
 
+  void _showInviteDialog(BuildContext context, NetworkNode node) {
+    final theme = Theme.of(context);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Invite ${node.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (node.major != null) ...[
+                Text(
+                  'Major: ${node.major}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Text(
+                'This person is a friend of your connection. Would you like to send them an invitation to connect?',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                widget.onInvite?.call(node);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Invitation sent to ${node.name}!'),
+                    backgroundColor: theme.colorScheme.primary,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
+              child: const Text('Send Invite'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _onScaleStart(ScaleStartDetails details) {
     _lastFocalPoint = details.focalPoint;
   }
@@ -303,12 +365,18 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                              onPanUpdate: (details) =>
                                  _onNodePanUpdate(node, details, offset),
                              onPanEnd: (details) => _onNodePanEnd(node, details),
-                             onTap: () {
-                               setState(() {
-                                 _selectedNode = node;
-                               });
-                               widget.onNodeTap?.call(node);
-                             },
+                              onTap: () {
+                                setState(() {
+                                  _selectedNode = node;
+                                });
+                                
+                                // Check if this is a 2-hop node and handle invite
+                                if (node.depth == 2) {
+                                  _showInviteDialog(context, node);
+                                } else {
+                                  widget.onNodeTap?.call(node);
+                                }
+                              },
                              child: NetworkNodeWidget(
                               node: node,
                               selectedNode: _selectedNode,

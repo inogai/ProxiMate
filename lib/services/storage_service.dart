@@ -116,6 +116,99 @@ class StorageService extends ChangeNotifier {
     return connectedProfiles;
   }
 
+  /// Get 2-hop connections (friends of friends) with relationship mapping
+  Future<Map<String, dynamic>> getTwoHopConnectionsWithMapping() async {
+    print('🔍 getTwoHopConnectionsWithMapping: Starting...');
+    
+    if (_currentProfile == null) {
+      print('🔍 getTwoHopConnectionsWithMapping: No current profile, using mock data');
+      // Return mock data for testing purposes
+      final mockTwoHopProfiles = <Profile>[];
+      final mockConnections = <String, String>{};
+      
+      // Create some mock 2-hop connections
+      for (int i = 0; i < 3; i++) {
+        final twoHopId = '2hop_${i + 1}';
+        mockTwoHopProfiles.add(Profile(
+          id: twoHopId,
+          userName: 'Friend of Friend ${i + 1}',
+          major: ['Computer Science', 'Business', 'Engineering'][i % 3],
+          interests: 'Technology, Innovation, Networking',
+          background: 'Connected through your network',
+          school: 'University',
+        ));
+        
+        // Mock connection to a fake 1-hop node
+        mockConnections[twoHopId] = 'mock_1hop_${i + 1}';
+      }
+      
+      return {
+        'profiles': mockTwoHopProfiles,
+        'connections': mockConnections,
+      };
+    }
+
+    try {
+      final userId = int.tryParse(_currentProfile!.id);
+      if (userId == null) {
+        print('🔍 getTwoHopConnectionsWithMapping: Invalid user ID format');
+        return {'profiles': <Profile>[], 'connections': <String, String>{}};
+      }
+
+      print('🔍 getTwoHopConnectionsWithMapping: Fetching 2-hop connections for user $userId');
+      
+      // Get current direct connections to use for mapping
+      final directConnections = await getConnectedProfiles();
+      
+      // For now, create mock 2-hop connections with relationship mapping
+      // TODO: Replace with actual API response when available
+      final mockTwoHopProfiles = <Profile>[];
+      final mockConnections = <String, String>{};
+      
+      // Create some mock 2-hop connections, each connected to a random 1-hop connection
+      for (int i = 0; i < 5; i++) {
+        final twoHopId = '2hop_${i + 1}';
+        final oneHopConnection = directConnections.isNotEmpty 
+            ? directConnections[i % directConnections.length]
+            : null;
+            
+        mockTwoHopProfiles.add(Profile(
+          id: twoHopId,
+          userName: 'Friend of Friend ${i + 1}',
+          major: ['Computer Science', 'Business', 'Engineering', 'Design', 'Marketing'][i % 5],
+          interests: 'Technology, Innovation, Networking, Design, Business',
+          background: 'Connected through your network',
+          school: 'University',
+        ));
+        
+        // Map 2-hop node to its 1-hop connection
+        if (oneHopConnection != null) {
+          mockConnections[twoHopId] = oneHopConnection.id;
+          print('🔍 Mapping 2-hop $twoHopId to 1-hop ${oneHopConnection.id}');
+        }
+      }
+
+      print('🔍 getTwoHopConnectionsWithMapping: Created ${mockTwoHopProfiles.length} mock 2-hop connections');
+      for (final profile in mockTwoHopProfiles) {
+        print('🔍 2-hop profile: ${profile.userName} (${profile.id}) -> ${mockConnections[profile.id] ?? 'no connection'}');
+      }
+      
+      return {
+        'profiles': mockTwoHopProfiles,
+        'connections': mockConnections,
+      };
+    } catch (e) {
+      print('🔍 getTwoHopConnectionsWithMapping: Error fetching 2-hop connections: $e');
+      return {'profiles': <Profile>[], 'connections': <String, String>{}};
+    }
+  }
+
+  /// Get 2-hop connections (friends of friends) - legacy method for backward compatibility
+  Future<List<Profile>> getTwoHopConnections() async {
+    final result = await getTwoHopConnectionsWithMapping();
+    return result['profiles'] as List<Profile>;
+  }
+
   /// Get profiles that current user is connected to (sync version using nearby peers)
   List<Profile> get connectedProfiles {
     _debugLog('connectedProfiles called: _currentProfile=${_currentProfile?.id}, _connections=${_connections.length}, _nearbyPeers=${_nearbyPeers.length}');

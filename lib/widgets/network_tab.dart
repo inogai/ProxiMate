@@ -1,16 +1,13 @@
 import 'dart:math';
-import 'dart:io';
-import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/storage_service.dart';
+
 import '../models/connection.dart';
 import '../models/profile.dart';
-import '../models/meeting.dart';
-import '../screens/chat_room_screen.dart';
-import 'network_graph_widget.dart';
+import '../services/storage_service.dart';
 import 'network_graph_node.dart';
+import 'network_graph_widget.dart';
 
 /// Network tab widget showing connections
 class NetworkTab extends StatefulWidget {
@@ -23,6 +20,34 @@ class NetworkTab extends StatefulWidget {
 class _NetworkTabState extends State<NetworkTab> {
   bool _showGraph = true;
   bool _show1HopCircle = true; // Default to on
+
+  Future<Map<String, dynamic>> _fetchNetworkData(StorageService storage) async {
+    print('🏗️ _fetchNetworkData: Starting...');
+
+    try {
+      final results = await Future.wait([
+        storage.getConnectedProfiles(),
+        storage.getTwoHopConnectionsWithMapping(),
+      ]);
+
+      final twoHopResult = results[1] as Map<String, dynamic>;
+      final result = {
+        'direct': results[0] as List<Profile>,
+        'twoHop': twoHopResult['profiles'] as List<Profile>,
+        'twoHopConnections': twoHopResult['connections'] as Map<String, String>,
+      };
+
+      final directProfiles = result['direct'] as List<Profile>;
+      final twoHopProfiles = result['twoHop'] as List<Profile>;
+      print(
+        '🏗️ _fetchNetworkData: Complete - Direct: ${directProfiles.length}, 2-hop: ${twoHopProfiles.length}',
+      );
+      return result;
+    } catch (e) {
+      print('🏗️ _fetchNetworkData: Error: $e');
+      return {'direct': <Profile>[], 'twoHop': <Profile>[], 'twoHopConnections': <String, String>{}};
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,12 +70,16 @@ class _NetworkTabState extends State<NetworkTab> {
                       _show1HopCircle = !_show1HopCircle;
                     });
                   },
-                  backgroundColor: _show1HopCircle ? Colors.red : Theme.of(context).colorScheme.primary,
+                  backgroundColor: _show1HopCircle
+                      ? Colors.red
+                      : Theme.of(context).colorScheme.primary,
                   child: Icon(
                     _show1HopCircle ? Icons.visibility_off : Icons.visibility,
                     color: Colors.white,
                   ),
-                  tooltip: _show1HopCircle ? 'Hide 1-Hop Circle' : 'Show 1-Hop Circle',
+                  tooltip: _show1HopCircle
+                      ? 'Hide 1-Hop Circle'
+                      : 'Show 1-Hop Circle',
                 ),
                 const SizedBox(height: 10),
                 // View toggle
@@ -84,13 +113,31 @@ class _NetworkTabState extends State<NetworkTab> {
 
     print('Building network graph with ${connections.length} connections');
 
-    return FutureBuilder<List<Profile>>(
-      future: storage.getConnectedProfiles(),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _fetchNetworkData(storage),
       builder: (context, snapshot) {
-        final connectedProfiles = snapshot.data ?? [];
+        print(
+          '🏗️ FutureBuilder snapshot state: ${snapshot.hasData ? "has data" : "loading"}',
+        );
+
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final connectedProfiles = snapshot.data!['direct'] as List<Profile>;
+        final twoHopProfiles = snapshot.data!['twoHop'] as List<Profile>;
+        final twoHopConnections = snapshot.data!['twoHopConnections'] as Map<String, String>;
+
+        print('🏗️ Connected profiles: ${connectedProfiles.length}');
+        print('🏗️ 2-hop profiles: ${twoHopProfiles.length}');
+        print('🏗️ 2-hop connections: ${twoHopConnections.length}');
 
         // Initialize nodes list
         final List<NetworkNode> nodes = [];
+        
+        print(
+          '🏗️ Building network graph with total nodes: ${nodes.length + 1} (including current user)',
+        );
 
         // Always add current user as center node
         nodes.add(
@@ -206,7 +253,8 @@ class _NetworkTabState extends State<NetworkTab> {
               color: nearbyPeerNode != null
                   ? Theme.of(context).colorScheme.secondary
                   : Theme.of(context).colorScheme.tertiary,
-              position: nearbyPeerNode?.position ??
+              position:
+                  nearbyPeerNode?.position ??
                   Offset(
                     size.width * 0.5 + radius * cos(angle),
                     size.height * 0.5 + radius * sin(angle),
@@ -217,6 +265,47 @@ class _NetworkTabState extends State<NetworkTab> {
           );
           directConnectionIds.add(profile.id);
         }
+
+        // Add 2-hop nodes around the direct connections
+        print('🏗️ Adding ${twoHopProfiles.length} 2-hop nodes...');
+        for (int i = 0; i < twoHopProfiles.length; i++) {
+          final profile = twoHopProfiles[i];
+          final angle = (i / twoHopProfiles.length) * 2 * pi;
+          final radius =
+              min(size.width, size.height) *
+              0.35; // Slightly larger radius for 2-hop
+
+          // Get the 1-hop connection this 2-hop node connects to
+          final oneHopConnectionId = twoHopConnections[profile.id];
+          final List<String> twoHopNodeConnections = oneHopConnectionId != null 
+              ? [oneHopConnectionId] 
+              : [];
+
+          final node = NetworkNode(
+            id: profile.id,
+            name: profile.userName,
+            school: profile.school ?? '',
+            major: profile.major,
+            interests: profile.interests,
+            color: Colors.purple.withOpacity(
+              0.8,
+            ), // Bright purple for 2-hop to make them visible
+            position: Offset(
+              size.width * 0.5 + radius * cos(angle),
+              size.height * 0.5 + radius * sin(angle),
+            ),
+            connections: twoHopNodeConnections, // Connect to the 1-hop node
+            profileImagePath: profile.profileImagePath,
+            isDirectConnection: false, // Mark as 2-hop
+            depth: 2, // Set depth to 2
+          );
+
+          nodes.add(node);
+          print(
+            '🏗️ Added 2-hop node: ${profile.userName} at position ${node.position}, connected to: $oneHopConnectionId',
+          );
+        }
+        print('🏗️ Total nodes after adding 2-hop: ${nodes.length}');
 
         return Stack(
           children: [
@@ -254,6 +343,7 @@ class _NetworkTabState extends State<NetworkTab> {
                   _showConnectionDetails(context, profile, connection);
                 }
               },
+              onInvite: (node) => _sendInvitation(node),
             ),
             Positioned(
               top: 16,
@@ -261,7 +351,10 @@ class _NetworkTabState extends State<NetworkTab> {
               child: Card(
                 color: Colors.black.withOpacity(0.7),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -298,42 +391,44 @@ class _NetworkTabState extends State<NetworkTab> {
       itemCount: connections.length,
       itemBuilder: (context, index) {
         final connection = connections[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Builder(
-            builder: (context) {
-              // Get the profile name from storage or use a default
-              final storage = context.read<StorageService>();
-              final profiles = storage.connectedProfiles;
-              final profile = profiles.cast<Profile?>().firstWhere(
-                (p) => p?.id == connection.toProfileId,
-                orElse: () => null,
-              );
-              
-              final displayName = profile?.userName ?? 'Unknown';
-              
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  child: Text(
-                    displayName.isNotEmpty
-                        ? displayName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        return Builder(
+          builder: (context) {
+            // Get the profile name from storage or use a default
+            final storage = context.read<StorageService>();
+            final profiles = storage.connectedProfiles;
+            final profile = profiles.cast<Profile?>().firstWhere(
+              (p) => p?.id == connection.toProfileId,
+              orElse: () => null,
+            );
+
+            final displayName = profile?.userName ?? 'Unknown';
+
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: Text(
+                  displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                title: Text(displayName),
-            subtitle: Text('Met at: ${connection.restaurant}'),
-            trailing: Text(
-              '${connection.collectedAt.day}/${connection.collectedAt.month}/${connection.collectedAt.year}',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
-            ),
-                onTap: () {
-                  // TODO: Navigate to connection details
-                },
-              );
-            },
-          ),
+              ),
+              title: Text(displayName),
+              subtitle: Text('Met at: ${connection.restaurant}'),
+              trailing: Text(
+                '${connection.collectedAt.day}/${connection.collectedAt.month}/${connection.collectedAt.year}',
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              onTap: () {
+                // TODO: Navigate to connection details
+              },
+            );
+          },
         );
       },
     );
@@ -350,7 +445,9 @@ class _NetworkTabState extends State<NetworkTab> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Container(
             padding: const EdgeInsets.all(20),
             constraints: const BoxConstraints(maxWidth: 400),
@@ -365,9 +462,13 @@ class _NetworkTabState extends State<NetworkTab> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Theme.of(context).colorScheme.primary,
-                    border: Border.all(color: Theme.of(context).colorScheme.outline, width: 2),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline,
+                      width: 2,
+                    ),
                   ),
-                  child: currentProfile.profileImagePath != null &&
+                  child:
+                      currentProfile.profileImagePath != null &&
                           currentProfile.profileImagePath!.isNotEmpty
                       ? ClipOval(
                           child: Image.network(
@@ -395,24 +496,28 @@ class _NetworkTabState extends State<NetworkTab> {
                 Text(
                   currentProfile.userName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 // School
-                if (currentProfile.school != null && currentProfile.school!.isNotEmpty) ...[
+                if (currentProfile.school != null &&
+                    currentProfile.school!.isNotEmpty) ...[
                   Text(
                     currentProfile.school!,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                        ),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.7),
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                 ],
                 // Major and Interests Tags
-                if (currentProfile.major != null || currentProfile.interests != null) ...[
+                if (currentProfile.major != null ||
+                    currentProfile.interests != null) ...[
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -420,15 +525,22 @@ class _NetworkTabState extends State<NetworkTab> {
                     children: [
                       if (currentProfile.major != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
                             currentProfile.major!,
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -436,17 +548,25 @@ class _NetworkTabState extends State<NetworkTab> {
                       if (currentProfile.interests != null)
                         ...currentProfile.interests!.split(',').map((interest) {
                           final trimmedInterest = interest.trim();
-                          if (trimmedInterest.isEmpty) return const SizedBox.shrink();
+                          if (trimmedInterest.isEmpty)
+                            return const SizedBox.shrink();
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.secondaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.secondaryContainer,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
                               trimmedInterest,
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSecondaryContainer,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -470,15 +590,19 @@ class _NetworkTabState extends State<NetworkTab> {
                         children: [
                           Text(
                             connections.length.toString(),
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).colorScheme.primary,
                                 ),
                           ),
                           Text(
                             'Connections',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                         ],
@@ -492,15 +616,21 @@ class _NetworkTabState extends State<NetworkTab> {
                         children: [
                           Text(
                             storage.nearbyPeers.length.toString(),
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.secondary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.secondary,
                                 ),
                           ),
                           Text(
                             'Nearby Peers',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                         ],
@@ -531,12 +661,18 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  void _showConnectionDetails(BuildContext context, Profile profile, Connection connection) {
+  void _showConnectionDetails(
+    BuildContext context,
+    Profile profile,
+    Connection connection,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Container(
             padding: const EdgeInsets.all(20),
             constraints: const BoxConstraints(maxWidth: 400),
@@ -551,9 +687,14 @@ class _NetworkTabState extends State<NetworkTab> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Theme.of(context).colorScheme.primary,
-                    border: Border.all(color: Theme.of(context).colorScheme.outline, width: 2),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline,
+                      width: 2,
+                    ),
                   ),
-                  child: profile.profileImagePath != null && profile.profileImagePath!.isNotEmpty
+                  child:
+                      profile.profileImagePath != null &&
+                          profile.profileImagePath!.isNotEmpty
                       ? ClipOval(
                           child: Image.network(
                             profile.profileImagePath!,
@@ -580,8 +721,8 @@ class _NetworkTabState extends State<NetworkTab> {
                 Text(
                   profile.userName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -590,8 +731,10 @@ class _NetworkTabState extends State<NetworkTab> {
                   Text(
                     profile.school!,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                        ),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.7),
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -605,15 +748,22 @@ class _NetworkTabState extends State<NetworkTab> {
                     children: [
                       if (profile.major != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
                             profile.major!,
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -621,17 +771,25 @@ class _NetworkTabState extends State<NetworkTab> {
                       if (profile.interests != null)
                         ...profile.interests!.split(',').map((interest) {
                           final trimmedInterest = interest.trim();
-                          if (trimmedInterest.isEmpty) return const SizedBox.shrink();
+                          if (trimmedInterest.isEmpty)
+                            return const SizedBox.shrink();
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.secondaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.secondaryContainer,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
                               trimmedInterest,
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSecondaryContainer,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -696,7 +854,9 @@ class _NetworkTabState extends State<NetworkTab> {
                           Navigator.of(context).pop();
                           // TODO: Navigate to chat
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Chat feature coming soon!')),
+                            const SnackBar(
+                              content: Text('Chat feature coming soon!'),
+                            ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -729,5 +889,20 @@ class _NetworkTabState extends State<NetworkTab> {
         );
       },
     );
+  }
+
+  void _sendInvitation(NetworkNode node) {
+    final storage = context.read<StorageService>();
+
+    // TODO: Implement actual invitation sending via API
+    // For now, just show a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Invitation sent to ${node.name}!'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    print('📨 Invitation sent to 2-hop node: ${node.name} (${node.id})');
   }
 }
