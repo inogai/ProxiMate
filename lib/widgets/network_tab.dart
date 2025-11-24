@@ -157,7 +157,7 @@ class _NetworkTabState extends State<NetworkTab> {
     );
 
     // Add direct connection nodes
-    final directConnectionIds = _addDirectConnectionNodes(
+    _addDirectConnectionNodes(
       context,
       nodes,
       networkData.connectedProfiles,
@@ -197,7 +197,7 @@ class _NetworkTabState extends State<NetworkTab> {
     );
   }
 
-  List<String> _addDirectConnectionNodes(
+  void _addDirectConnectionNodes(
     BuildContext context,
     List<NetworkNode> nodes,
     List<Profile> connectedProfiles,
@@ -205,23 +205,15 @@ class _NetworkTabState extends State<NetworkTab> {
     Size size,
   ) {
     final nearbyPeers = context.read<StorageService>().nearbyPeers;
-    final directConnectionIds = <String>[];
 
     for (int i = 0; i < connectedProfiles.length; i++) {
       final profile = connectedProfiles[i];
       final angle = (i / connectedProfiles.length) * 2 * pi;
       final radius = min(size.width, size.height) * 0.25;
 
-      final nearbyPeerNode = _createNearbyPeerNode(
-        context,
-        profile,
-        nearbyPeers,
-        currentProfile,
-        radius,
-        angle,
-        size,
-      );
-
+      // Check if this profile is in nearby peers to determine color
+      final isNearby = nearbyPeers.any((peer) => peer.id == profile.id);
+      
       nodes.add(
         NetworkNode(
           id: profile.id,
@@ -229,56 +221,21 @@ class _NetworkTabState extends State<NetworkTab> {
           school: profile.school ?? '',
           major: profile.major,
           interests: profile.interests,
-          color: nearbyPeerNode != null
+          color: isNearby
               ? Theme.of(context).colorScheme.secondary
               : Theme.of(context).colorScheme.tertiary,
-          position:
-              nearbyPeerNode?.position ??
-              Offset(
-                size.width * 0.5 + radius * cos(angle),
-                size.height * 0.5 + radius * sin(angle),
-              ),
+          position: Offset(
+            size.width * 0.5 + radius * cos(angle),
+            size.height * 0.5 + radius * sin(angle),
+          ),
           connections: [currentProfile.id],
           profileImagePath: profile.profileImagePath,
         ),
       );
-      directConnectionIds.add(profile.id);
     }
-
-    return directConnectionIds;
   }
 
-  NetworkNode? _createNearbyPeerNode(
-    BuildContext context,
-    Profile profile,
-    List nearbyPeers,
-    Profile currentProfile,
-    double radius,
-    double angle,
-    Size size,
-  ) {
-    if (nearbyPeers.isEmpty) return null;
-
-    final matchingPeer = nearbyPeers.firstWhere(
-      (peer) => peer.id == profile.id,
-      orElse: () => nearbyPeers.first,
-    );
-
-    return NetworkNode(
-      id: matchingPeer.id,
-      name: matchingPeer.name,
-      school: matchingPeer.school,
-      major: matchingPeer.major,
-      interests: matchingPeer.interests,
-      color: Theme.of(context).colorScheme.secondary,
-      position: Offset(
-        size.width * 0.5 + radius * cos(angle),
-        size.height * 0.5 + radius * sin(angle),
-      ),
-      connections: [currentProfile.id],
-      profileImagePath: matchingPeer.profileImageUrl,
-    );
-  }
+  
 
   void _addTwoHopNodes(
     BuildContext context,
@@ -514,7 +471,7 @@ Widget _buildNetworkGrid(BuildContext context) {
           final profiles = storage.connectedProfiles;
           final profile = profiles.cast<Profile?>().firstWhere(
             (p) => p?.id == connection.toProfileId,
-            orElse: () => null,
+            orElse: () => null as Profile?,
           );
 
           final displayName = profile?.userName ?? 'Unknown';
@@ -996,8 +953,6 @@ void _showConnectionDetails(
 }
 
 void _sendInvitation(NetworkNode node, BuildContext context) {
-  final storage = context.read<StorageService>();
-
   // TODO: Implement actual invitation sending via API
   // For now, just show a success message
   ScaffoldMessenger.of(context).showSnackBar(
