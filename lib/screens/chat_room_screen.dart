@@ -8,6 +8,7 @@ import '../services/storage_service.dart';
 import '../services/chat_service.dart';
 import '../widgets/custom_buttons.dart';
 import '../widgets/invitation_message_card.dart';
+import '../widgets/connection_request_card.dart';
 
 /// Chat room screen for communicating about meetup
 class ChatRoomScreen extends StatefulWidget {
@@ -1138,141 +1139,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // Handle connection request messages
     if (message.isConnectionRequest) {
       final isFromMe = message.isMine;
+      final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
+      final senderName = storage.getPeerById(otherUserId)?.name;
 
-      // TODO: improve handling
-      final status = message.invitationData?['status'] as String? ?? 'pending';
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.blue.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.contact_page, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isFromMe
-                          ? 'You sent a name card request'
-                          : '${storage.getPeerById(otherUserId)?.name ?? 'Someone'} wants to collect your name card',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.blue[700],
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (!isFromMe && status == 'pending') ...[
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          _handleConnectionResponse(message.id, true),
-                      icon: const Icon(Icons.check),
-                      label: const Text('Accept'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          _handleConnectionResponse(message.id, false),
-                      icon: const Icon(Icons.close),
-                      label: const Text('Decline'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              if (status == 'accepted') ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade300),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.green[700],
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Connection request accepted',
-                        style: TextStyle(
-                          color: Colors.green[700],
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (status == 'declined') ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.cancel, color: Colors.red[700], size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Connection request declined',
-                        style: TextStyle(
-                          color: Colors.red[700],
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.blue[700]?.withValues(alpha: 0.8),
-                ),
-              ),
-            ],
-          ),
-        ),
+      return ConnectionRequestCard(
+        message: message,
+        senderName: senderName,
+        isFromMe: isFromMe,
+        onAccept: isFromMe
+            ? null
+            : () => _handleConnectionResponse(message.id, true),
+        onDecline: isFromMe
+            ? null
+            : () => _handleConnectionResponse(message.id, false),
       );
     }
 
