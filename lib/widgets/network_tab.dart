@@ -21,6 +21,9 @@ class NetworkTab extends StatefulWidget {
 class _NetworkTabState extends State<NetworkTab> {
   bool _showGraph = true;
   bool _show1HopCircle = true; // Default to on
+  Future<NetworkData>? _networkDataFuture;
+  String? _lastProfileId;
+  int _lastConnectionsLength = 0;
 
   Future<NetworkData> _fetchNetworkData(StorageService storage) async {
     print('🏗️ _fetchNetworkData: Starting...');
@@ -70,6 +73,20 @@ class _NetworkTabState extends State<NetworkTab> {
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
     final connections = storage.connections;
+
+    // Avoid re-creating the network fetch future on every build. Recreate
+    // only when the current profile changes or the number of connections
+    // changes (simple heuristic). This prevents frequent rebuilds from
+    // triggering repeated API requests through FutureBuilder.
+    final currentProfileId = storage.currentProfile?.id;
+    final connectionsLength = connections.length;
+    if (_networkDataFuture == null ||
+        currentProfileId != _lastProfileId ||
+        connectionsLength != _lastConnectionsLength) {
+      _lastProfileId = currentProfileId;
+      _lastConnectionsLength = connectionsLength;
+      _networkDataFuture = _fetchNetworkData(storage);
+    }
 
     return Scaffold(
       body: _showGraph
@@ -126,7 +143,7 @@ class _NetworkTabState extends State<NetworkTab> {
     }
 
     return FutureBuilder<NetworkData>(
-      future: _fetchNetworkData(storage),
+      future: _networkDataFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -135,18 +152,18 @@ class _NetworkTabState extends State<NetworkTab> {
         final networkData = snapshot.data!;
         final nodes = _buildNetworkNodes(
           context,
-          currentProfile!,
+          currentProfile,
           connections,
           networkData,
         );
 
         if (networkData.connectedProfiles.isEmpty) {
-          return _buildEmptyNetworkGraph(context, currentProfile!, nodes);
+          return _buildEmptyNetworkGraph(context, currentProfile, nodes);
         }
 
         return _buildPopulatedNetworkGraph(
           context,
-          currentProfile!,
+          currentProfile,
           nodes,
           connections,
         );
@@ -487,8 +504,16 @@ Widget _buildNetworkGrid(BuildContext context) {
   final storage = context.watch<StorageService>();
   final connections = storage.connections;
 
+  // Prefer using the cached network future from the parent state if present to
+  // avoid re-triggering API calls during rebuilds. If not available, fall
+  // back to calling getConnectedProfiles directly.
+  final parentState = context.findAncestorStateOfType<_NetworkTabState>();
+  final connectedFuture = parentState?._networkDataFuture == null
+      ? storage.getConnectedProfiles()
+      : parentState!._networkDataFuture!.then((d) => d.connectedProfiles);
+
   return FutureBuilder<List<Profile>>(
-    future: storage.getConnectedProfiles(),
+    future: connectedFuture,
     builder: (context, profilesSnapshot) {
       if (!profilesSnapshot.hasData) {
         return const Center(child: CircularProgressIndicator());

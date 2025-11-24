@@ -21,64 +21,47 @@ class _InvitationsTabState extends State<InvitationsTab>
       GlobalKey<RefreshIndicatorState>();
   bool _isRefreshing = false;
   bool _isOffline = false;
-  int _currentRetryInterval = 5;
-  Timer? _autoRefreshTimer;
+  // _autoRefreshTimer removed: invitations will rely on StorageService's
+  // centralized polling instead of starting an independent timer here.
+  int _currentRetryInterval = 5; // kept for offline/backoff UI only
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _startAutoRefresh();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _stopAutoRefresh();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      _startAutoRefresh();
-    } else if (state == AppLifecycleState.paused) {
-      _stopAutoRefresh();
-    }
+    // Invitations_tab no longer manages periodic timers — we keep lifecycle
+    // hook here for future use but do not start/stop any timers.
   }
 
-  void _startAutoRefresh() {
-    _stopAutoRefresh(); // Ensure no duplicate timers
-    _autoRefreshTimer = Timer.periodic(
-      Duration(seconds: _currentRetryInterval),
-      (timer) {
-        _refreshChats(isAutoRefresh: true);
-      },
-    );
-  }
-
-  void _stopAutoRefresh() {
-    _autoRefreshTimer?.cancel();
-    _autoRefreshTimer = null;
-  }
+  // The invitations tab no longer starts its own periodic timer.
+  // Polling for invitations/chatrooms/messages is centralized in
+  // StorageService (see startInvitationPolling/_startMessagePolling).
+  // We keep the retry/backoff logic for offline state UI only.
 
   void _increaseRetryInterval() {
     if (_currentRetryInterval < 30) {
       _currentRetryInterval = (_currentRetryInterval * 2).clamp(5, 30);
     }
-    _restartAutoRefresh();
+    // No timer to restart - the UI uses this value for offline banner only
   }
 
   void _resetRetryIntervals() {
     _currentRetryInterval = 5;
-    _restartAutoRefresh();
+    // No timer to restart
   }
 
-  void _restartAutoRefresh() {
-    _stopAutoRefresh();
-    _startAutoRefresh();
-  }
+  // _restartAutoRefresh removed - no local timer to restart
 
   bool _isNetworkError(dynamic error) {
     if (error is DioException) {
