@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import '../models/profile.dart';
@@ -26,7 +27,32 @@ class StorageServiceWrapper {
       return true;
     } catch (e) {
       if (context.mounted) {
-        ToastUtils.showError(context, 'Failed to create profile: ${e.toString()}');
+        ToastUtils.showError(
+          context,
+          'Failed to create profile: ${e.toString()}',
+        );
+      }
+      return false;
+    }
+  }
+
+  /// Save user ID directly for debugging
+  Future<bool> saveUserId(int userId) async {
+    try {
+      // Set the API user ID directly in storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('api_user_id', userId.toString());
+
+      // Reload the user profile to update the in-memory value
+      await _storage.loadUserProfile();
+
+      if (context.mounted) {
+        ToastUtils.showSuccess(context, 'Debug user ID set successfully!');
+      }
+      return true;
+    } catch (e) {
+      if (context.mounted) {
+        ToastUtils.showError(context, 'Failed to set user ID: ${e.toString()}');
       }
       return false;
     }
@@ -54,7 +80,10 @@ class StorageServiceWrapper {
       return true;
     } catch (e) {
       if (context.mounted) {
-        ToastUtils.showError(context, 'Failed to update profile: ${e.toString()}');
+        ToastUtils.showError(
+          context,
+          'Failed to update profile: ${e.toString()}',
+        );
       }
       return false;
     }
@@ -82,7 +111,7 @@ class StorageServiceWrapper {
 
   /// Get current profile
   Profile? get currentProfile => _storage.currentProfile;
-  
+
   /// Check if user exists
   bool get hasUser => _storage.hasUser;
 
@@ -96,7 +125,10 @@ class StorageServiceWrapper {
       return true;
     } catch (e) {
       if (context.mounted) {
-        ToastUtils.showError(context, 'Failed to clear profile: ${e.toString()}');
+        ToastUtils.showError(
+          context,
+          'Failed to clear profile: ${e.toString()}',
+        );
       }
       return false;
     }
