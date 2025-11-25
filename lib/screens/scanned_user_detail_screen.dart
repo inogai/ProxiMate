@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/chat_service.dart';
 import '../widgets/profile_avatar.dart';
+import 'chat_room_screen.dart';
 
 /// Screen showing scanned user details after QR code scanning with option to add connection
 class ScannedUserDetailScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class ScannedUserDetailScreen extends StatefulWidget {
 class _ScannedUserDetailScreenState extends State<ScannedUserDetailScreen> {
   bool _isLoading = true;
   bool _isAddingConnection = false;
+  bool _hasExistingConnection = false;
   Profile? _peerProfile;
   String? _errorMessage;
 
@@ -62,11 +64,47 @@ class _ScannedUserDetailScreenState extends State<ScannedUserDetailScreen> {
         _peerProfile = profile;
         _isLoading = false;
       });
+
+      // Check if connection already exists (after setting _peerProfile)
+      final storage = context.read<StorageService>();
+      final chatService = context.read<ChatService>();
+      final currentUserId = storage.apiUserId ?? '';
+
+      if (currentUserId.isNotEmpty) {
+        final existingChatRoom = chatService.getChatRoomBetweenUsers(
+          currentUserId,
+          _peerProfile!.id,
+        );
+        _hasExistingConnection = existingChatRoom != null;
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load user details: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  void _navigateToExistingChat() async {
+    if (_peerProfile == null) return;
+
+    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
+    final currentUserId = storage.apiUserId ?? '';
+
+    if (currentUserId.isNotEmpty) {
+      final existingChatRoom = chatService.getChatRoomBetweenUsers(
+        currentUserId,
+        _peerProfile!.id,
+      );
+
+      if (existingChatRoom != null && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ChatRoomScreen(chatRoom: existingChatRoom),
+          ),
+        );
+      }
     }
   }
 
@@ -109,19 +147,21 @@ class _ScannedUserDetailScreenState extends State<ScannedUserDetailScreen> {
         targetId,
       );
 
-      // Show success message
+      // Show success message and navigate to chat room
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Connection request sent to ${_peerProfile!.userName}!',
-            ),
+            content: Text('Connected with ${_peerProfile!.userName}!'),
             backgroundColor: Colors.green,
           ),
         );
 
-        // Navigate back to the previous screen
-        Navigator.of(context).pop();
+        // Navigate to chat room
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ChatRoomScreen(chatRoom: chatRoom),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -271,7 +311,11 @@ class _ScannedUserDetailScreenState extends State<ScannedUserDetailScreen> {
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _isAddingConnection ? null : _addConnection,
+              onPressed: _isAddingConnection
+                  ? null
+                  : _hasExistingConnection
+                  ? _navigateToExistingChat
+                  : _addConnection,
               icon: _isAddingConnection
                   ? const SizedBox(
                       width: 20,
@@ -281,13 +325,21 @@ class _ScannedUserDetailScreenState extends State<ScannedUserDetailScreen> {
                         color: Colors.white,
                       ),
                     )
+                  : _hasExistingConnection
+                  ? const Icon(Icons.check)
                   : const Icon(Icons.person_add),
               label: Text(
-                _isAddingConnection ? 'Adding Connection...' : 'Add Connection',
+                _isAddingConnection
+                    ? 'Adding Connection...'
+                    : _hasExistingConnection
+                    ? 'Already Connected'
+                    : 'Add Connection',
               ),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Theme.of(context).colorScheme.primary,
+                backgroundColor: _hasExistingConnection
+                    ? Colors.grey
+                    : Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
               ),
             ),
