@@ -169,11 +169,6 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
         // 2. Calculate attraction forces along edges
         totalForce += _calculateAttractionForces(node);
 
-        // 3. Apply boundary forces for 2-hop nodes
-        if (node.depth == 2) {
-          totalForce += _calculateBoundaryForces(node);
-        }
-
         // Update velocity with force and damping
         node.velocity = (node.velocity + totalForce * deltaTime) * damping;
 
@@ -190,7 +185,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
       // Handle collisions between nodes
       _handleCollisions();
 
-      // Ensure 2-hop nodes stay outside 1-hop boundary
+      // Enforce 2-hop boundaries
       _enforce2HopBoundaries();
 
       // Ensure nodes stay in viewport
@@ -249,8 +244,8 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
     return totalForce;
   }
 
-  /// Calculate boundary forces to keep 2-hop nodes outside 1-hop circle
-  Offset _calculateBoundaryForces(NetworkNode node) {
+  /// Enforce hard boundary for 2-hop nodes to stay outside 1-hop circle
+  void _enforce2HopBoundaries() {
     // Find current user node (center)
     NetworkNode? currentUserNode;
     try {
@@ -258,7 +253,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
         (n) => n.id == 'you' || (!n.isTextNode && n.connections.isNotEmpty),
       );
     } catch (e) {
-      return Offset.zero; // No current user found
+      return; // No current user found
     }
 
     // Calculate 1-hop radius
@@ -270,22 +265,38 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
       maxDistance = math.max(maxDistance, distance);
     }
 
-    final oneHopRadius = maxDistance > 0 ? maxDistance + 40 : 200;
-    final distanceFromCenter =
-        (node.position - currentUserNode.position).distance;
+    // Use consistent radius calculation with the visual circle
+    final oneHopRadius = maxDistance > 0 ? maxDistance + 50 : 200;
+    final minDistance = oneHopRadius + 10; // Minimum distance from center
 
-    // Strong force to push 2-hop nodes outside red border
-    if (distanceFromCenter < oneHopRadius + 30) {
-      final direction = (node.position - currentUserNode.position);
-      if (direction.distance > 0) {
-        // Much stronger force for 2-hop nodes to keep them outside red border
-        final forceMagnitude =
-            15.0 * (1.0 - distanceFromCenter / (oneHopRadius + 30));
-        return (direction / direction.distance) * forceMagnitude;
+    // Check each 2-hop node
+    for (final node in _nodes) {
+      if (node.depth != 2 || node.isDragging || node.isTextNode) continue;
+
+      final distanceFromCenter =
+          (node.position - currentUserNode.position).distance;
+
+      // Hard boundary: if node is inside the boundary, move it to the boundary
+      if (distanceFromCenter < minDistance) {
+        final directionFromCenter = (node.position - currentUserNode.position);
+        if (directionFromCenter.distance > 0) {
+          // Normalize the direction to get the unit vector from center to node
+          final unitDirection =
+              directionFromCenter / directionFromCenter.distance;
+
+          // Place node exactly at the boundary
+          node.position =
+              currentUserNode.position +
+              Offset(
+                unitDirection.dx * minDistance,
+                unitDirection.dy * minDistance,
+              );
+
+          // Reduce velocity significantly to prevent oscillation
+          node.velocity = node.velocity * 0.1;
+        }
       }
     }
-
-    return Offset.zero;
   }
 
   /// Handle collisions between nodes
@@ -315,51 +326,6 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             nodeB.position += separation;
             nodeB.velocity *= 0.5; // Reduce velocity on collision
           }
-        }
-      }
-    }
-  }
-
-  /// Ensure 2-hop nodes stay outside 1-hop boundary
-  void _enforce2HopBoundaries() {
-    // Find current user node (center)
-    NetworkNode? currentUserNode;
-    try {
-      currentUserNode = _nodes.firstWhere(
-        (n) => n.id == 'you' || (!n.isTextNode && n.connections.isNotEmpty),
-      );
-    } catch (e) {
-      return; // No current user found
-    }
-
-    // Calculate 1-hop radius
-    final directConnections = _nodes.where((n) => n.isDirectConnection);
-    double maxDistance = 0;
-
-    for (final conn in directConnections) {
-      final distance = (conn.position - currentUserNode.position).distance;
-      maxDistance = math.max(maxDistance, distance);
-    }
-
-    final oneHopRadius = maxDistance > 0 ? maxDistance + 100 : 200;
-
-    // Check each 2-hop node
-    for (final node in _nodes) {
-      if (node.depth != 2 || node.isDragging || node.isTextNode) continue;
-
-      final distanceFromCenter =
-          (node.position - currentUserNode.position).distance;
-
-      // Strong force to push 2-hop nodes outside red border
-      if (distanceFromCenter < oneHopRadius + 30) {
-        final direction = (node.position - currentUserNode.position);
-        if (direction.distance > 0) {
-          final newPosition =
-              currentUserNode.position +
-              (direction / direction.distance) * (oneHopRadius + 40);
-          node.position = newPosition;
-          node.velocity *=
-              0.1; // Strongly reduce velocity when hitting boundary
         }
       }
     }
