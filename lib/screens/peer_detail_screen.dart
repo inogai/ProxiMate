@@ -4,6 +4,7 @@ import '../models/peer.dart';
 import '../models/activity.dart';
 import '../services/storage_service.dart';
 import '../utils/toast_utils.dart';
+import '../widgets/profile_avatar.dart';
 import 'activity_selection_screen.dart';
 import 'main_screen.dart';
 import 'venue_recommendation_screen.dart';
@@ -51,22 +52,10 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
                     padding: const EdgeInsets.all(32),
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          backgroundImage: widget.peer.profileImageUrl != null
-                              ? NetworkImage(widget.peer.profileImageUrl!)
-                              : null,
-                          child: widget.peer.profileImageUrl == null
-                              ? Text(
-                                  widget.peer.name[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : null,
+                        ProfileAvatar(
+                          name: widget.peer.name,
+                          imagePath: widget.peer.profileImageUrl,
+                          size: 120,
                         ),
                         const SizedBox(height: 16),
                         Text(

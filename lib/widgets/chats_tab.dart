@@ -5,6 +5,7 @@ import '../services/chat_service.dart';
 import '../models/meeting.dart';
 import '../models/profile.dart';
 import '../screens/chat_room_screen.dart';
+import '../widgets/profile_avatar.dart';
 
 /// Tab showing chat rooms as a contacts list with chat-style interface
 class ChatsTab extends StatefulWidget {
@@ -245,18 +246,7 @@ class _ChatsTabState extends State<ChatsTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Avatar
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.green,
-                      child: Text(
-                        _getInitials(peerName),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    ProfileAvatar(name: peerName, size: 56),
                     const SizedBox(width: 12),
 
                     // Content
@@ -334,14 +324,6 @@ class _ChatsTabState extends State<ChatsTab> {
         builder: (context) => ChatRoomScreen(chatRoom: chatRoom),
       ),
     );
-  }
-
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   String _formatTime(DateTime date) {

@@ -11,6 +11,7 @@ import '../models/profile.dart';
 import '../screens/chat_room_screen.dart';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/profile_avatar.dart';
 import 'network_graph_node.dart';
 import 'network_graph_widget.dart';
 
@@ -544,16 +545,7 @@ Widget _buildNetworkGrid(BuildContext context) {
           final displayName = profile?.userName ?? 'Unknown';
 
           return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Text(
-                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            leading: ProfileAvatar(name: displayName, size: 40),
             title: Text(displayName),
             subtitle: Text('Met at: ${connection.restaurant}'),
             trailing: Text(

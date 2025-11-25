@@ -9,6 +9,7 @@ import '../services/chat_service.dart';
 import '../widgets/custom_buttons.dart';
 import '../widgets/invitation_message_card.dart';
 import '../widgets/connection_request_card.dart';
+import '../widgets/profile_avatar.dart';
 
 /// Chat room screen for communicating about meetup
 class ChatRoomScreen extends StatefulWidget {
@@ -1095,16 +1096,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             : MainAxisAlignment.start,
         children: [
           if (!isFromMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: otherUserId.isNotEmpty
-                  ? NetworkImage(
-                      storage.getPeerById(otherUserId)?.profileImageUrl ?? '',
-                    )
-                  : null,
-              child: otherUserId.isEmpty
-                  ? const Icon(Icons.person, size: 16)
-                  : null,
+            ProfileAvatar(
+              name: storage.getPeerById(otherUserId)?.name ?? 'Unknown',
+              imagePath: storage.getPeerById(otherUserId)?.profileImageUrl,
+              size: 32,
             ),
             const SizedBox(width: 8),
           ],
@@ -1127,14 +1122,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
           if (isFromMe) ...[
             const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: storage.currentProfile?.profileImagePath != null
-                  ? NetworkImage(storage.currentProfile!.profileImagePath!)
-                  : null,
-              child: storage.currentProfile?.profileImagePath == null
-                  ? const Icon(Icons.person, size: 16)
-                  : null,
+            ProfileAvatar(
+              name: storage.currentProfile?.userName ?? 'You',
+              imagePath: storage.currentProfile?.profileImagePath,
+              size: 32,
             ),
           ],
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/peer.dart';
+import '../widgets/profile_avatar.dart';
 import 'match_badge.dart';
 import 'tag_chip.dart';
 
@@ -34,22 +35,10 @@ class PeerCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Theme.of(context).primaryColor,
-                    backgroundImage: peer.profileImageUrl != null
-                        ? NetworkImage(peer.profileImageUrl!)
-                        : null,
-                    child: peer.profileImageUrl == null
-                        ? Text(
-                            peer.name[0].toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
+                  ProfileAvatar(
+                    name: peer.name,
+                    imagePath: peer.profileImageUrl,
+                    size: 60,
                   ),
                   const SizedBox(width: 16),
                   Expanded(

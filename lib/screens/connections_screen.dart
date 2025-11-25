@@ -4,6 +4,7 @@ import '../models/connection.dart';
 import '../models/profile.dart';
 import '../services/storage_service.dart';
 import '../services/chat_service.dart';
+import '../widgets/profile_avatar.dart';
 import 'chat_room_screen.dart';
 
 class ConnectionsScreen extends StatefulWidget {
@@ -90,24 +91,10 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                 Row(
                   children: [
                     // Profile avatar
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).primaryColor.withValues(alpha: 0.1),
-                      backgroundImage: profile?.profileImagePath != null
-                          ? NetworkImage(profile!.profileImagePath!)
-                          : null,
-                      child: profile?.profileImagePath == null
-                          ? Text(
-                              _getInitials(profile?.userName ?? 'Unknown'),
-                              style: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
+                    ProfileAvatar(
+                      name: profile?.userName ?? 'Unknown',
+                      imagePath: profile?.profileImagePath,
+                      size: 60,
                     ),
                     const SizedBox(width: 16),
                     // Profile info
@@ -359,15 +346,13 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (profile.profileImagePath != null) ...[
-                Center(
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundImage: NetworkImage(profile.profileImagePath!),
-                  ),
+              Center(
+                child: ProfileAvatar(
+                  name: profile.userName,
+                  imagePath: profile.profileImagePath,
+                  size: 100,
                 ),
-                const SizedBox(height: 16),
-              ],
+              ),
               if (profile.school != null) ...[
                 _buildProfileDetail('School', profile.school!),
                 const SizedBox(height: 8),
@@ -408,14 +393,6 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
         Text(value, style: const TextStyle(fontSize: 14)),
       ],
     );
-  }
-
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   String _formatDate(DateTime date) {
