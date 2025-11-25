@@ -1,7 +1,8 @@
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
+import 'package:flutter/material.dart';
+
+import '../widgets/profile_avatar.dart';
 import 'network_graph_node.dart';
 
 /// Extension for Offset to calculate distance
@@ -548,64 +549,12 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                 height: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _selectedNode!.profileImagePath == null
-                      ? _selectedNode!.color
-                      : Colors.transparent,
+                  color: Colors.transparent,
                 ),
-                child: ClipOval(
-                  child: _selectedNode!.profileImagePath != null
-                      ? RepaintBoundary(
-                          child: Image(
-                            image: NetworkNodeWidget.getImageProvider(
-                              _selectedNode!.profileImagePath!,
-                            ),
-                            fit: BoxFit.cover,
-                            width: 50,
-                            height: 50,
-                            gaplessPlayback: true,
-                            filterQuality: FilterQuality.medium,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: _selectedNode!.color,
-                                child: Center(
-                                  child: Text(
-                                    _selectedNode!.id == 'you'
-                                        ? 'YOU'
-                                        : _selectedNode!.name
-                                              .split(' ')
-                                              .map((e) => e[0])
-                                              .take(2)
-                                              .join(),
-                                    style: TextStyle(
-                                      color: theme.colorScheme.onPrimary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      : Container(
-                          color: _selectedNode!.color,
-                          child: Center(
-                            child: Text(
-                              _selectedNode!.id == 'you'
-                                  ? 'YOU'
-                                  : _selectedNode!.name
-                                        .split(' ')
-                                        .map((e) => e[0])
-                                        .take(2)
-                                        .join(),
-                              style: TextStyle(
-                                color: theme.colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
-                        ),
+                child: ProfileAvatar(
+                  name: _selectedNode!.name,
+                  imagePath: _selectedNode!.profileImagePath,
+                  size: 50,
                 ),
               ),
             ),

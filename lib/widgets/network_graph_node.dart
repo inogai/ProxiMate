@@ -1,8 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../widgets/profile_avatar.dart';
 
 /// Node in the network graph
 class NetworkNode {
@@ -129,22 +127,8 @@ class NetworkNodeWidget extends StatelessWidget {
         : nodeRadius * 2;
     final size = isSelected ? baseSize * 1.2 : baseSize;
 
-    // Calculate opacity based on filter state and common interests
-    final hasCommonTags = _hasCommonInterests(node);
-    double opacity;
-    if (node.isDirectConnection) {
-      opacity = 1.0;
-    } else if (highlightCommonInterests) {
-      // When filter is on, full opacity for common interests, reduced for others
-      opacity = hasCommonTags
-          ? 1.0
-          : (node.depth != null && node.depth! >= 2 ? 0.25 : 0.4);
-    } else {
-      // Default opacity based on depth
-      opacity = node.depth != null && node.depth! >= 2 ? 0.25 : 0.4;
-    }
-
     // Determine if node should have secondary outline (non-direct connection with common tags)
+    final hasCommonTags = _hasCommonInterests(node);
     final bool hasSecondaryOutline = !node.isDirectConnection && hasCommonTags;
 
     Widget nodeWidget = Container(
@@ -152,7 +136,7 @@ class NetworkNodeWidget extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: node.profileImagePath == null ? node.color : Colors.transparent,
+        color: Colors.transparent,
         border: Border.all(
           color: isSelected
               ? theme.colorScheme.surface
@@ -177,76 +161,10 @@ class NetworkNodeWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipOval(
-        child: node.profileImagePath != null
-            ? RepaintBoundary(
-                child: Image(
-                  image: NetworkNodeWidget.getImageProvider(
-                    node.profileImagePath!,
-                  ),
-                  fit: BoxFit.cover,
-                  width: size,
-                  height: size,
-                  gaplessPlayback: true,
-                  filterQuality: FilterQuality.medium,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: node.color,
-                      child: Center(
-                        child: Text(
-                          isYou
-                              ? 'YOU'
-                              : node.name
-                                    .split(' ')
-                                    .map((e) => e[0])
-                                    .take(2)
-                                    .join(),
-                          style: TextStyle(
-                            color: theme.colorScheme.onPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: isSelected
-                                ? (isYou
-                                      ? 18
-                                      : isTwoHop
-                                      ? 12
-                                      : 16)
-                                : (isYou
-                                      ? 16
-                                      : isTwoHop
-                                      ? 10
-                                      : 14),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              )
-            : Container(
-                color: node.color,
-                child: Center(
-                  child: Text(
-                    isYou
-                        ? 'YOU'
-                        : node.name.split(' ').map((e) => e[0]).take(2).join(),
-                    style: TextStyle(
-                      color: theme.colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: isSelected
-                          ? (isYou
-                                ? 18
-                                : isTwoHop
-                                ? 12
-                                : 16)
-                          : (isYou
-                                ? 16
-                                : isTwoHop
-                                ? 10
-                                : 14),
-                    ),
-                  ),
-                ),
-              ),
+      child: ProfileAvatar(
+        name: node.name,
+        imagePath: node.profileImagePath,
+        size: size,
       ),
     );
 
@@ -270,20 +188,5 @@ class NetworkNodeWidget extends StatelessWidget {
     }
 
     return nodeWidget;
-  }
-
-  static ImageProvider getImageProvider(String imagePath) {
-    if (kIsWeb) {
-      if (imagePath.startsWith('data:')) {
-        // Base64 data URL
-        return MemoryImage(base64Decode(imagePath.split(',')[1]));
-      } else {
-        // Blob URL or network URL
-        return NetworkImage(imagePath);
-      }
-    } else {
-      // Mobile: file path
-      return FileImage(File(imagePath));
-    }
   }
 }
