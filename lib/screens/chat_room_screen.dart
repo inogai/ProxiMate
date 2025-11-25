@@ -237,20 +237,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   Widget build(BuildContext context) {
     final storage = context.watch<StorageService>();
-    ChatRoom? chatRoom = updatedChatRoom;
+    final chatService = context
+        .watch<ChatService>(); // Critical fix: Watch ChatService for updates
 
-    if (chatRoom == null && widget.invitation != null) {
-      // Try to find existing chat room for this invitation by user pair
-      final currentUserId = storage.currentProfile?.id ?? '';
-      final chatService = context.read<ChatService>();
-      chatRoom = chatService.chatRooms
-          .where(
-            (cr) =>
-                cr.containsUser(currentUserId) &&
-                cr.containsUser(widget.invitation!.peerId),
-          )
-          .firstOrNull;
-    }
+    ChatRoom? chatRoom = chatService.chatRooms.firstWhere(
+      (c) => c.id == widget.chatRoom?.id,
+    );
 
     // Auto-scroll to bottom when new messages arrive
     if (chatRoom != null && chatRoom.messages.isNotEmpty) {

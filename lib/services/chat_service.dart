@@ -278,6 +278,66 @@ class ChatService extends ChangeNotifier {
     _chatRoomPollTimer = null;
   }
 
+  /// Update local message status immediately after successful API call
+  void updateMessageStatus(
+    String chatRoomId,
+    String messageId,
+    String newStatus,
+  ) {
+    final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
+    if (index == -1) return;
+
+    final messageIndex = _chatRooms[index].messages.indexWhere(
+      (msg) => msg.id == messageId,
+    );
+
+    if (messageIndex != -1) {
+      final originalMessage = _chatRooms[index].messages[messageIndex];
+      final updatedMessage = originalMessage.copyWith(
+        invitationData: {
+          ...originalMessage.invitationData ?? {},
+          'status': newStatus,
+        },
+      );
+
+      final updatedMessages = [..._chatRooms[index].messages];
+      updatedMessages[messageIndex] = updatedMessage;
+
+      _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
+      notifyListeners();
+    }
+  }
+
+  /// Update local message name card collection status
+  void updateMessageNameCardCollected(
+    String chatRoomId,
+    String messageId,
+    bool collected,
+  ) {
+    final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
+    if (index == -1) return;
+
+    final messageIndex = _chatRooms[index].messages.indexWhere(
+      (msg) => msg.id == messageId,
+    );
+
+    if (messageIndex != -1) {
+      final originalMessage = _chatRooms[index].messages[messageIndex];
+      final updatedMessage = originalMessage.copyWith(
+        invitationData: {
+          ...originalMessage.invitationData ?? {},
+          'name_card_collected': collected,
+        },
+      );
+
+      final updatedMessages = [..._chatRooms[index].messages];
+      updatedMessages[messageIndex] = updatedMessage;
+
+      _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     if (_isDisposed) return;
