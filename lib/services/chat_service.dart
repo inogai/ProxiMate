@@ -55,6 +55,19 @@ class ChatService extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
 
+  /// Helper method to merge new chat rooms with existing ones, preserving messages.
+  List<ChatRoom> _mergeChatRooms(List<ChatRoom> newRooms) {
+    final existingRoomsMap = {for (final room in _chatRooms) room.id: room};
+
+    return newRooms.map((newRoom) {
+      final existingRoom = existingRoomsMap[newRoom.id];
+      // If we already have this chat room locally, preserve its messages
+      return (existingRoom != null)
+          ? newRoom.copyWith(messages: existingRoom.messages)
+          : newRoom;
+    }).toList();
+  }
+
   /// Refresh list of chat rooms from API and notify listeners.
   Future<void> refreshChatRooms() async {
     _isLoading = true;
@@ -67,9 +80,11 @@ class ChatService extends ChangeNotifier {
         _chatRooms = rooms;
       } else {
         final roomsRead = await _apiService.getChatRooms(userId);
-        _chatRooms = roomsRead
+        final newRooms = roomsRead
             .map((it) => _apiService.chatRoomReadToChatRoom(it))
             .toList();
+
+        _chatRooms = _mergeChatRooms(newRooms);
       }
       // (already assigned above / or assigned from override)
 
