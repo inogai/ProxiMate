@@ -102,7 +102,7 @@ class NetworkNodeWidget extends StatelessWidget {
 
   Widget _buildNode(BuildContext context, NetworkNode node) {
     final theme = Theme.of(context);
-    
+
     // Handle text-only nodes
     if (node.isTextNode) {
       return Text(
@@ -119,13 +119,14 @@ class NetworkNodeWidget extends StatelessWidget {
     final isSelected = selectedNode?.id == node.id;
     final isYou = currentUserId != null && node.id == currentUserId;
     final isTwoHop = node.depth == 2; // Check if this is a 2-hop node
-    
+
     // Smaller size for 2-hop nodes
-    final baseSize = isYou 
-        ? nodeRadius * 2.6 
-        : isTwoHop 
-            ? nodeRadius * 1.5 // Smaller for 2-hop
-            : nodeRadius * 2;
+    final baseSize = isYou
+        ? nodeRadius * 2.6
+        : isTwoHop
+        ? nodeRadius *
+              1.5 // Smaller for 2-hop
+        : nodeRadius * 2;
     final size = isSelected ? baseSize * 1.2 : baseSize;
 
     // Calculate opacity based on filter state and common interests
@@ -164,13 +165,15 @@ class NetworkNodeWidget extends StatelessWidget {
                 : hasSecondaryOutline
                 ? theme.colorScheme.secondary
                 : theme.colorScheme.surface.withOpacity(0.3),
-            width: isSelected ? 3 : (isYou ? 3 : (hasSecondaryOutline ? 2.5 : 2)),
+            width: isSelected
+                ? 3
+                : (isYou ? 3 : (hasSecondaryOutline ? 2.5 : 2)),
           ),
           boxShadow: [
             BoxShadow(
               color: hasSecondaryOutline
-                  ? theme.colorScheme.secondary.withOpacity(0.6)
-                  : node.color.withOpacity(0.5),
+                  ? theme.colorScheme.secondary
+                  : node.color,
               blurRadius: isSelected
                   ? 20
                   : (isYou ? 15 : (hasSecondaryOutline ? 12 : 10)),
@@ -196,24 +199,30 @@ class NetworkNodeWidget extends StatelessWidget {
                       return Container(
                         color: node.color,
                         child: Center(
-                           child: Text(
-                             isTwoHop
-                                 ? node.major?.substring(0, 3).toUpperCase() ?? '???' // Show major abbreviation for 2-hop
-                                 : isYou
-                                     ? 'YOU'
-                                     : node.name
-                                           .split(' ')
-                                           .map((e) => e[0])
-                                           .take(2)
-                                           .join(),
-                             style: TextStyle(
-                               color: theme.colorScheme.onPrimary,
-                               fontWeight: FontWeight.bold,
-                               fontSize: isSelected
-                                   ? (isYou ? 18 : isTwoHop ? 12 : 16)
-                                   : (isYou ? 16 : isTwoHop ? 10 : 14),
-                             ),
-                           ),
+                          child: Text(
+                            isYou
+                                ? 'YOU'
+                                : node.name
+                                      .split(' ')
+                                      .map((e) => e[0])
+                                      .take(2)
+                                      .join(),
+                            style: TextStyle(
+                              color: theme.colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSelected
+                                  ? (isYou
+                                        ? 18
+                                        : isTwoHop
+                                        ? 12
+                                        : 16)
+                                  : (isYou
+                                        ? 16
+                                        : isTwoHop
+                                        ? 10
+                                        : 14),
+                            ),
+                          ),
                         ),
                       );
                     },
@@ -223,21 +232,27 @@ class NetworkNodeWidget extends StatelessWidget {
                   color: node.color,
                   child: Center(
                     child: Text(
-                      isTwoHop
-                          ? node.major?.substring(0, 3).toUpperCase() ?? '???' // Show major abbreviation for 2-hop
-                          : isYou
-                              ? 'YOU'
-                              : node.name
-                                    .split(' ')
-                                    .map((e) => e[0])
-                                    .take(2)
-                                    .join(),
+                      isYou
+                          ? 'YOU'
+                          : node.name
+                                .split(' ')
+                                .map((e) => e[0])
+                                .take(2)
+                                .join(),
                       style: TextStyle(
                         color: theme.colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: isSelected
-                            ? (isYou ? 18 : isTwoHop ? 12 : 16)
-                            : (isYou ? 16 : isTwoHop ? 10 : 14),
+                            ? (isYou
+                                  ? 18
+                                  : isTwoHop
+                                  ? 12
+                                  : 16)
+                            : (isYou
+                                  ? 16
+                                  : isTwoHop
+                                  ? 10
+                                  : 14),
                       ),
                     ),
                   ),
