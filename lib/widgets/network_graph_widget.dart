@@ -587,6 +587,11 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                                     highlightCommonInterests:
                                         _highlightCommonInterests,
                                     nodeRadius: nodeRadius,
+                                    isConnectedToSelected:
+                                        _selectedNode != null &&
+                                        _selectedNode!.connections.contains(
+                                          node.id,
+                                        ),
                                   ),
                                 ),
                               ),
@@ -626,6 +631,9 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                               highlightCommonInterests:
                                   _highlightCommonInterests,
                               nodeRadius: nodeRadius,
+                              isConnectedToSelected:
+                                  _selectedNode != null &&
+                                  _selectedNode!.connections.contains(node.id),
                             ),
                           ),
                         );

@@ -2,6 +2,57 @@ import 'package:flutter/material.dart';
 
 import '../widgets/profile_avatar.dart';
 
+/// Custom painter for dashed circle border
+class DashedCircleBorder extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+
+  DashedCircleBorder({
+    required this.color,
+    this.strokeWidth = 2.0,
+    this.dashWidth = 5.0,
+    this.dashSpace = 5.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final Path path = Path();
+    final double radius = size.width / 2;
+    final Offset center = Offset(radius, radius);
+
+    // Create a dashed circle
+    final double circumference = 2 * 3.14159265359 * radius;
+    final int dashCount = (circumference / (dashWidth + dashSpace)).floor();
+
+    for (int i = 0; i < dashCount; i++) {
+      final double startAngle = (i * (dashWidth + dashSpace) / radius);
+      final double sweepAngle = (dashWidth / radius);
+
+      path.addArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+      );
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is! DashedCircleBorder ||
+        oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth;
+  }
+}
+
 /// Node in the network graph
 class NetworkNode {
   final String id;
@@ -45,6 +96,7 @@ class NetworkNodeWidget extends StatelessWidget {
   final String? currentUserInterests;
   final bool highlightCommonInterests;
   final double nodeRadius;
+  final bool isConnectedToSelected;
 
   const NetworkNodeWidget({
     super.key,
@@ -55,47 +107,12 @@ class NetworkNodeWidget extends StatelessWidget {
     this.currentUserInterests,
     this.highlightCommonInterests = false,
     this.nodeRadius = 30.0,
+    this.isConnectedToSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return _buildNode(context, node);
-  }
-
-  bool _hasCommonInterests(NetworkNode node) {
-    // Always show current user, text nodes, and direct connections
-    if (node.id == currentUserId ||
-        node.isTextNode ||
-        node.isDirectConnection) {
-      return true;
-    }
-
-    // Check for common major
-    if (currentUserMajor != null && node.major != null) {
-      if (node.major!.toLowerCase() == currentUserMajor!.toLowerCase()) {
-        return true;
-      }
-    }
-
-    // Check for common interests
-    if (currentUserInterests != null && node.interests != null) {
-      final currentUserInterestsList = currentUserInterests!
-          .split(',')
-          .map((i) => i.trim().toLowerCase())
-          .toList();
-      final nodeInterestsList = node.interests!
-          .split(',')
-          .map((i) => i.trim().toLowerCase())
-          .toList();
-
-      for (final interest in nodeInterestsList) {
-        if (currentUserInterestsList.contains(interest)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
   }
 
   Widget _buildNode(BuildContext context, NetworkNode node) {
@@ -127,9 +144,18 @@ class NetworkNodeWidget extends StatelessWidget {
         : nodeRadius * 2;
     final size = isSelected ? baseSize * 1.2 : baseSize;
 
-    // Determine if node should have secondary outline (non-direct connection with common tags)
-    final hasCommonTags = _hasCommonInterests(node);
-    final bool hasSecondaryOutline = !node.isDirectConnection && hasCommonTags;
+    // Determine if we need to show a highlight border
+    bool showHighlightBorder = isSelected || isConnectedToSelected;
+    Color borderColor = isSelected
+        ? Colors.red
+        : isConnectedToSelected
+        ? Colors.green
+        : Colors.transparent;
+    double borderWidth = isSelected
+        ? 10.0
+        : isConnectedToSelected
+        ? 10.0
+        : 0.0;
 
     Widget nodeWidget = Container(
       width: size,
@@ -137,34 +163,27 @@ class NetworkNodeWidget extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.transparent,
-        border: Border.all(
-          color: isSelected
-              ? theme.colorScheme.surface
-              : isYou
-              ? theme.colorScheme.surface.withOpacity(0.8)
-              : hasSecondaryOutline
-              ? theme.colorScheme.secondary
-              : theme.colorScheme.surface.withOpacity(0.3),
-          width: isSelected ? 3 : (isYou ? 3 : (hasSecondaryOutline ? 2.5 : 2)),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: hasSecondaryOutline
-                ? theme.colorScheme.secondary
-                : node.color,
-            blurRadius: isSelected
-                ? 20
-                : (isYou ? 15 : (hasSecondaryOutline ? 12 : 10)),
-            spreadRadius: isSelected
-                ? 5
-                : (isYou ? 4 : (hasSecondaryOutline ? 3 : 2)),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Show dashed border for selected or connected nodes
+          if (showHighlightBorder)
+            Positioned.fill(
+              child: CustomPaint(
+                painter: DashedCircleBorder(
+                  color: borderColor,
+                  strokeWidth: borderWidth,
+                ),
+              ),
+            ),
+          // Profile avatar
+          ProfileAvatar(
+            name: node.name,
+            imagePath: node.profileImagePath,
+            size: size,
           ),
         ],
-      ),
-      child: ProfileAvatar(
-        name: node.name,
-        imagePath: node.profileImagePath,
-        size: size,
       ),
     );
 
@@ -175,8 +194,8 @@ class NetworkNodeWidget extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Container(
-            width: size + 4,
-            height: size + 4,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
