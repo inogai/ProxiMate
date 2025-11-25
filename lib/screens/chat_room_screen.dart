@@ -831,32 +831,30 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
-  /// Check if there's already a pending invitation in this chat
-  bool _hasPendingInvitation() {
-    final storage = context.read<StorageService>();
-    final currentUserId = storage.currentProfile?.id ?? '';
+  /// Check if the invitation button should be visible
+  bool _getInviteButtonVisibility() {
+    final hasInvitationRequest =
+        updatedChatRoom?.messages.any((m) => m.isInvitation) ?? false;
 
-    final chatRoom = updatedChatRoom;
-    final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
-
-    // First, check the current chat room messages for any pending invitation
-    // messages — invitations are delivered via messages now.
-    if (chatRoom != null) {
-      return chatRoom.messages.any((m) => m.isInvitation && m.isPending);
-    }
-
-    // Fallback: check the stored invitations list if no chat room exists yet
-    return storage.invitations.any(
-      (inv) =>
-          inv.isPending &&
-          ((inv.peerId == otherUserId && inv.sentByMe) ||
-              (inv.peerId == currentUserId && !inv.sentByMe)),
+    final otherUserId =
+        updatedChatRoom?.getOtherUserId(
+          context.read<StorageService>().currentProfile?.id ?? '',
+        ) ??
+        '';
+    final hasConnected = context.read<StorageService>().connections.any(
+      (profile) => profile.id == otherUserId,
     );
+
+    if (hasConnected) {
+      return true;
+    } else {
+      return !hasInvitationRequest;
+    }
   }
 
-  /// Build action buttons based on current state
-  Widget _buildActionButtons() {
-    final storage = context.watch<StorageService>();
+  /// Get the accepted invitation message for connection buttons, null if conditions not met
+  ChatMessage? _getConnectButtonVisibility() {
+    final storage = context.read<StorageService>();
     final currentUserId = storage.currentProfile?.id ?? '';
     final chatRoom = updatedChatRoom;
     final otherUserId = chatRoom?.getOtherUserId(currentUserId) ?? '';
@@ -896,20 +894,33 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       (profile) => profile.id == otherUserId,
     );
 
-    // Build list of buttons to show based on criteria
-    List<Widget> buttons = [];
-
-    // Show collect name card / not good match buttons if there's an accepted invitation and no connection requests
+    // Return the message only if all conditions are met
     if (acceptedInvitationMessage != null &&
         !hasConnection &&
         !hasPendingConnectionRequest &&
         !hasAnsweredConnectionRequest) {
+      return acceptedInvitationMessage;
+    }
+
+    return null;
+  }
+
+  /// Build action buttons based on current state
+  Widget _buildActionButtons() {
+    // Build list of buttons to show based on criteria
+    List<Widget> buttons = [];
+
+    // Get the accepted invitation message for connection buttons
+    final acceptedInvitationMessage = _getConnectButtonVisibility();
+
+    // Show collect name card / not good match buttons if there's an accepted invitation
+    if (acceptedInvitationMessage != null) {
       buttons.addAll([
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () =>
-                _handleCollectNameCard(acceptedInvitationMessage!.id),
+                _handleCollectNameCard(acceptedInvitationMessage.id),
             icon: const Icon(Icons.contacts),
             label: const Text('Collect Name Card'),
             style: ElevatedButton.styleFrom(
@@ -926,7 +937,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () => _handleNotGoodMatch(acceptedInvitationMessage!.id),
+            onPressed: () => _handleNotGoodMatch(acceptedInvitationMessage.id),
             icon: const Icon(Icons.close),
             label: const Text('Not Good Match'),
             style: OutlinedButton.styleFrom(
@@ -943,8 +954,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       ]);
     }
 
-    // Show send invitation button if no pending invitation
-    if (!_hasPendingInvitation()) {
+    // Show send invitation button if appropriate
+    if (_getInviteButtonVisibility()) {
       buttons.add(
         Container(
           width: double.infinity,
