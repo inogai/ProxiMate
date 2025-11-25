@@ -76,9 +76,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             nameCardCollected: message.isNameCardCollected ?? false,
             chatOpened: true,
           );
-          print(
-            'Created pending invitation: ${_pendingInvitation?.restaurant}',
-          );
+
           break;
         }
       }
