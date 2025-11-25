@@ -24,9 +24,10 @@ class _MainScreenState extends State<MainScreen> {
   int _previousIndex = 0;
 
   final GlobalKey _chatsTabKey = GlobalKey();
+  final GlobalKey _networkTabKey = GlobalKey();
 
   List<Widget> get _tabs => [
-    const NetworkTab(),
+    NetworkTab(key: _networkTabKey),
     const FindPeersTab(),
     ChatsTab(key: _chatsTabKey),
     const ProfileTab(),
@@ -62,6 +63,23 @@ class _MainScreenState extends State<MainScreen> {
             _previousIndex = _currentIndex;
             _currentIndex = index;
           });
+
+          // Trigger refresh when switching to network tab (index 0)
+          if (index == 0 && _previousIndex != 0) {
+            // Use a delayed callback to ensure tab is fully visible
+            Future.delayed(const Duration(milliseconds: 300), () {
+              // Refresh network data
+              try {
+                final networkTabState = _networkTabKey.currentState as dynamic;
+                if (networkTabState != null &&
+                    networkTabState.refreshNetworkData != null) {
+                  networkTabState.refreshNetworkData();
+                }
+              } catch (e) {
+                print('Error refreshing network: $e');
+              }
+            });
+          }
 
           // Trigger refresh when switching to chats tab (index 2)
           if (index == 2 && _previousIndex != 2) {

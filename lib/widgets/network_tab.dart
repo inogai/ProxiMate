@@ -29,6 +29,12 @@ class _NetworkTabState extends State<NetworkTab> {
   String? _lastProfileId;
   int _lastConnectionsLength = 0;
 
+  void refreshNetworkData() {
+    setState(() {
+      _networkDataFuture = null;
+    });
+  }
+
   Future<NetworkData> _fetchNetworkData(StorageService storage) async {
     print('🏗️ _fetchNetworkData: Starting...');
 
