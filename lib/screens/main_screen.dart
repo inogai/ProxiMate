@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:playground/widgets/chats_tab.dart';
 import 'package:provider/provider.dart';
+import 'package:app_links/app_links.dart';
 
 import '../models/connection.dart';
 import '../services/storage_service.dart';
 import '../services/chat_service.dart';
+import '../services/api_service.dart';
 import '../widgets/find_peers_tab.dart';
 import '../widgets/network_tab.dart';
 import '../widgets/profile_tab.dart';
@@ -38,6 +40,99 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _previousIndex = widget.initialIndex;
+
+    // Handle deep links
+    _initDeepLinks();
+  }
+
+  void _initDeepLinks() async {
+    final appLinks = AppLinks();
+
+    // Handle initial link if app was launched from a deep link
+    try {
+      final initialLink = await appLinks.getInitialLink();
+      if (initialLink != null) {
+        _handleDeepLink(initialLink.toString());
+      }
+    } catch (e) {
+      print('Error getting initial link: $e');
+    }
+
+    // Listen for incoming links
+    appLinks.uriLinkStream.listen(
+      (Uri? uri) {
+        if (uri != null) {
+          _handleDeepLink(uri.toString());
+        }
+      },
+      onError: (err) {
+        print('Error listening to link stream: $err');
+      },
+    );
+  }
+
+  void _handleDeepLink(String link) {
+    print('Handling deep link: $link');
+    final uri = Uri.parse(link);
+    if (uri.scheme == 'proximate' && uri.host == 'addConnection') {
+      final targetUserId = uri.queryParameters['id'];
+      if (targetUserId != null && targetUserId.isNotEmpty) {
+        _handleAddConnection(targetUserId);
+      }
+    }
+  }
+
+  void _handleAddConnection(String targetUserId) async {
+    if (!mounted) return;
+
+    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
+    final currentUserIdInt = int.tryParse(storage.apiUserId ?? '') ?? 0;
+    final targetId = int.tryParse(targetUserId) ?? 0;
+
+    if (currentUserIdInt == 0 || targetId == 0) {
+      print('Invalid user IDs: current=$currentUserIdInt, target=$targetId');
+      return;
+    }
+
+    try {
+      // Create or get chat room between current user and target user
+      final chatRoom = await chatService.getOrCreateChatRoomBetweenUsers(
+        currentUserIdInt,
+        targetId,
+        '', // No restaurant specified
+      );
+
+      if (chatRoom != null) {
+        // Send connection request
+        final apiService = ApiService();
+        await apiService.createConnectionRequest(
+          chatRoom.id,
+          currentUserIdInt,
+          targetId,
+        );
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connection request sent!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error adding connection: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add connection: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

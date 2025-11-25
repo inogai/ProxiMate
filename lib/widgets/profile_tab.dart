@@ -5,6 +5,7 @@ import '../services/storage_service.dart';
 import '../services/storage_service_wrapper.dart';
 import '../screens/register_screen.dart';
 import '../screens/edit_profile_screen.dart';
+import '../screens/qr_code_screen.dart';
 import 'profile_image_picker.dart';
 
 /// Profile tab widget displaying user information
@@ -26,6 +27,11 @@ class ProfileTab extends StatelessWidget {
               tooltip: 'Test API Connection',
               onPressed: () => _testApiConnection(context),
             ),
+          IconButton(
+            icon: const Icon(Icons.qr_code),
+            tooltip: 'Show QR Code',
+            onPressed: () => _handleShowQRCode(context),
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             tooltip: 'Edit Profile',
@@ -204,6 +210,12 @@ class ProfileTab extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _handleShowQRCode(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const QRCodeScreen()));
   }
 
   Widget _buildTagCard(
