@@ -813,12 +813,14 @@ class NetworkGraphPainter extends CustomPainter {
         // Make connection line more transparent if either node is indirect
         final isIndirectConnection =
             !node.isDirectConnection || !connectedNode.isDirectConnection;
-        final baseOpacity = isIndirectConnection ? 0.05 : 0.1;
-        final highlightOpacity = isIndirectConnection ? 0.3 : 0.6;
+
+        final baseOpacity = 0.5;
+        final highlightOpacity = 1.0;
 
         connectionPaint.color = isHighlighted
             ? theme.colorScheme.onSurface.withOpacity(highlightOpacity)
             : theme.colorScheme.onSurface.withOpacity(baseOpacity);
+
         connectionPaint.strokeWidth = isHighlighted ? 3 : 1.5;
 
         canvas.drawLine(node.position, connectedNode.position, connectionPaint);

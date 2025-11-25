@@ -147,119 +147,129 @@ class NetworkNodeWidget extends StatelessWidget {
     // Determine if node should have secondary outline (non-direct connection with common tags)
     final bool hasSecondaryOutline = !node.isDirectConnection && hasCommonTags;
 
-    return Opacity(
-      opacity: opacity,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: node.profileImagePath == null
-              ? node.color
-              : Colors.transparent,
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.surface
-                : isYou
-                ? theme.colorScheme.surface.withOpacity(0.8)
-                : hasSecondaryOutline
-                ? theme.colorScheme.secondary
-                : theme.colorScheme.surface.withOpacity(0.3),
-            width: isSelected
-                ? 3
-                : (isYou ? 3 : (hasSecondaryOutline ? 2.5 : 2)),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: hasSecondaryOutline
-                  ? theme.colorScheme.secondary
-                  : node.color,
-              blurRadius: isSelected
-                  ? 20
-                  : (isYou ? 15 : (hasSecondaryOutline ? 12 : 10)),
-              spreadRadius: isSelected
-                  ? 5
-                  : (isYou ? 4 : (hasSecondaryOutline ? 3 : 2)),
-            ),
-          ],
+    Widget nodeWidget = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: node.profileImagePath == null ? node.color : Colors.transparent,
+        border: Border.all(
+          color: isSelected
+              ? theme.colorScheme.surface
+              : isYou
+              ? theme.colorScheme.surface.withOpacity(0.8)
+              : hasSecondaryOutline
+              ? theme.colorScheme.secondary
+              : theme.colorScheme.surface.withOpacity(0.3),
+          width: isSelected ? 3 : (isYou ? 3 : (hasSecondaryOutline ? 2.5 : 2)),
         ),
-        child: ClipOval(
-          child: node.profileImagePath != null
-              ? RepaintBoundary(
-                  child: Image(
-                    image: NetworkNodeWidget.getImageProvider(
-                      node.profileImagePath!,
-                    ),
-                    fit: BoxFit.cover,
-                    width: size,
-                    height: size,
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.medium,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: node.color,
-                        child: Center(
-                          child: Text(
-                            isYou
-                                ? 'YOU'
-                                : node.name
-                                      .split(' ')
-                                      .map((e) => e[0])
-                                      .take(2)
-                                      .join(),
-                            style: TextStyle(
-                              color: theme.colorScheme.onPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: isSelected
-                                  ? (isYou
-                                        ? 18
-                                        : isTwoHop
-                                        ? 12
-                                        : 16)
-                                  : (isYou
-                                        ? 16
-                                        : isTwoHop
-                                        ? 10
-                                        : 14),
-                            ),
+        boxShadow: [
+          BoxShadow(
+            color: hasSecondaryOutline
+                ? theme.colorScheme.secondary
+                : node.color,
+            blurRadius: isSelected
+                ? 20
+                : (isYou ? 15 : (hasSecondaryOutline ? 12 : 10)),
+            spreadRadius: isSelected
+                ? 5
+                : (isYou ? 4 : (hasSecondaryOutline ? 3 : 2)),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: node.profileImagePath != null
+            ? RepaintBoundary(
+                child: Image(
+                  image: NetworkNodeWidget.getImageProvider(
+                    node.profileImagePath!,
+                  ),
+                  fit: BoxFit.cover,
+                  width: size,
+                  height: size,
+                  gaplessPlayback: true,
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: node.color,
+                      child: Center(
+                        child: Text(
+                          isYou
+                              ? 'YOU'
+                              : node.name
+                                    .split(' ')
+                                    .map((e) => e[0])
+                                    .take(2)
+                                    .join(),
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: isSelected
+                                ? (isYou
+                                      ? 18
+                                      : isTwoHop
+                                      ? 12
+                                      : 16)
+                                : (isYou
+                                      ? 16
+                                      : isTwoHop
+                                      ? 10
+                                      : 14),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                )
-              : Container(
-                  color: node.color,
-                  child: Center(
-                    child: Text(
-                      isYou
-                          ? 'YOU'
-                          : node.name
-                                .split(' ')
-                                .map((e) => e[0])
-                                .take(2)
-                                .join(),
-                      style: TextStyle(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSelected
-                            ? (isYou
-                                  ? 18
-                                  : isTwoHop
-                                  ? 12
-                                  : 16)
-                            : (isYou
-                                  ? 16
-                                  : isTwoHop
-                                  ? 10
-                                  : 14),
                       ),
+                    );
+                  },
+                ),
+              )
+            : Container(
+                color: node.color,
+                child: Center(
+                  child: Text(
+                    isYou
+                        ? 'YOU'
+                        : node.name.split(' ').map((e) => e[0]).take(2).join(),
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSelected
+                          ? (isYou
+                                ? 18
+                                : isTwoHop
+                                ? 12
+                                : 16)
+                          : (isYou
+                                ? 16
+                                : isTwoHop
+                                ? 10
+                                : 14),
                     ),
                   ),
                 ),
-        ),
+              ),
       ),
     );
+
+    if (isTwoHop) {
+      nodeWidget = Opacity(opacity: 0.6, child: nodeWidget);
+
+      nodeWidget = Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: size + 4,
+            height: size + 4,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+          ),
+          nodeWidget,
+        ],
+      );
+    }
+
+    return nodeWidget;
   }
 
   static ImageProvider getImageProvider(String imagePath) {
