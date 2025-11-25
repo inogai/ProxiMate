@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 
 import '../models/connection.dart';
 import '../models/profile.dart';
+import '../screens/chat_room_screen.dart';
+import '../services/chat_service.dart';
 import '../services/storage_service.dart';
 import 'network_graph_node.dart';
 import 'network_graph_widget.dart';
@@ -784,12 +786,12 @@ void _showCurrentUserProfile(BuildContext context) {
 }
 
 void _showConnectionDetails(
-  BuildContext context,
+  BuildContext parentContext,
   Profile profile,
   Connection connection,
 ) {
   showDialog(
-    context: context,
+    context: parentContext,
     builder: (BuildContext context) {
       return Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -968,14 +970,54 @@ void _showConnectionDetails(
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.of(context).pop();
-                        // TODO: Navigate to chat
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Chat feature coming soon!'),
-                          ),
-                        );
+                        final storage = context.read<StorageService>();
+                        final chatService = context.read<ChatService>();
+                        final currentProfile = storage.currentProfile;
+
+                        if (currentProfile == null) {
+                          ScaffoldMessenger.of(parentContext).showSnackBar(
+                            const SnackBar(content: Text('No current profile')),
+                          );
+                          return;
+                        }
+                        final user1Id = int.tryParse(currentProfile.id) ?? 0;
+                        final user2Id = int.tryParse(profile.id) ?? 0;
+                        try {
+                          final chatRoom = await chatService
+                              .getOrCreateChatRoomBetweenUsers(
+                                user1Id,
+                                user2Id,
+                                connection.restaurant,
+                              );
+
+                          if (chatRoom != null) {
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Chat room opened successfully'),
+                              ),
+                            );
+
+                            Navigator.push(
+                              parentContext,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ChatRoomScreen(chatRoom: chatRoom),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to open chat room'),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(
+                            parentContext,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
