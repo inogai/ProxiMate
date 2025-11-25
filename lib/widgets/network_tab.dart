@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:anyhow/rust.dart';
 import 'package:flutter/material.dart';
+import 'package:playground/utils/toast_utils.dart';
 import 'package:provider/provider.dart';
 
 import '../models/connection.dart';
@@ -971,53 +973,14 @@ void _showConnectionDetails(
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () async {
-                        Navigator.of(context).pop();
-                        final storage = context.read<StorageService>();
-                        final chatService = context.read<ChatService>();
-                        final currentProfile = storage.currentProfile;
-
-                        if (currentProfile == null) {
-                          ScaffoldMessenger.of(parentContext).showSnackBar(
-                            const SnackBar(content: Text('No current profile')),
-                          );
-                          return;
-                        }
-                        final user1Id = int.tryParse(currentProfile.id) ?? 0;
-                        final user2Id = int.tryParse(profile.id) ?? 0;
-                        try {
-                          final chatRoom = await chatService
-                              .getOrCreateChatRoomBetweenUsers(
-                                user1Id,
-                                user2Id,
-                                connection.restaurant,
-                              );
-
-                          if (chatRoom != null) {
-                            ScaffoldMessenger.of(parentContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Chat room opened successfully'),
-                              ),
-                            );
-
-                            Navigator.push(
-                              parentContext,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ChatRoomScreen(chatRoom: chatRoom),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(parentContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to open chat room'),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          ScaffoldMessenger.of(
+                        await ToastUtils.showFutureResult(
+                          context,
+                          _handleChatNavigationButton(
                             parentContext,
-                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
+                            profile,
+                            connection,
+                          ),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1062,4 +1025,44 @@ void _sendInvitation(NetworkNode node, BuildContext context) {
   );
 
   print('📨 Invitation sent to 2-hop node: ${node.name} (${node.id})');
+}
+
+FutureResult<void> _handleChatNavigationButton(
+  BuildContext parentContext,
+  Profile profile,
+  Connection connection,
+) async {
+  final storage = parentContext.read<StorageService>();
+  final chatService = parentContext.read<ChatService>();
+  final currentProfile = storage.currentProfile;
+
+  if (currentProfile == null) {
+    return bail('Current profile not found');
+  }
+
+  final user1Id = int.tryParse(currentProfile.id);
+  final user2Id = int.tryParse(profile.id);
+
+  if (user1Id == null || user2Id == null) {
+    return bail('Invalid user IDs');
+  }
+
+  final chatRoom = await chatService.getOrCreateChatRoomBetweenUsers(
+    user1Id,
+    user2Id,
+    connection.restaurant,
+  );
+
+  if (chatRoom == null) {
+    return bail('Failed to get or create chat room');
+  }
+
+  if (!parentContext.mounted) return bail('Context no longer mounted');
+
+  Navigator.push(
+    parentContext,
+    MaterialPageRoute(builder: (context) => ChatRoomScreen(chatRoom: chatRoom)),
+  );
+
+  return Ok(null);
 }
