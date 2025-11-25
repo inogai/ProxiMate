@@ -279,7 +279,7 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) =>
-                const MainScreen(initialIndex: 1), // 1 = Invitations tab
+                const MainScreen(initialIndex: 2), // 2 = Invitations tab
           ),
           (route) => false,
         );
