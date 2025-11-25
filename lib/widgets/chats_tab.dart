@@ -53,7 +53,7 @@ class _ChatsTabState extends State<ChatsTab> {
 
     // Sort by most recent first
     final sortedChatRooms = List<ChatRoom>.from(chatRooms)
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
     return Scaffold(
       appBar: AppBar(
