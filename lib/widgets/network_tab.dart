@@ -306,43 +306,78 @@ class _NetworkTabState extends State<NetworkTab> {
     Profile currentProfile,
     Size size,
   ) {
-    // Calculate the 1-hop circle radius based on existing direct connections
-    final oneHopRadius = min(size.width, size.height) * 0.25;
-    // Position 2-hop nodes outside the 1-hop circle with larger margin
-    final twoHopRadius =
-        oneHopRadius +
-        200; // Increase margin to ensure clearly outside 1-hop circle
+    // Position 2-hop nodes around their parent 1-hop nodes
 
-    for (int i = 0; i < twoHopProfiles.length; i++) {
-      final profile = twoHopProfiles[i];
-      final angle = (i / twoHopProfiles.length) * 2 * pi;
+    // Group 2-hop nodes by their parent (1-hop) connections
+    final Map<String, List<Profile>> twoHopNodesByParent = {};
 
+    for (final profile in twoHopProfiles) {
       // Find all edges that end at this profile
       final profileEdges = twoHopEdges
           .where((edge) => edge.to == profile.id)
           .toList();
-      final twoHopNodeConnections = profileEdges
-          .map((edge) => edge.via)
-          .toList();
 
-      nodes.add(
-        NetworkNode(
-          id: profile.id,
-          name: profile.userName,
-          school: profile.school ?? '',
-          major: profile.major,
-          interests: profile.interests,
-          color: Colors.purple.withOpacity(0.8),
-          position: Offset(
-            size.width * 0.5 + twoHopRadius * cos(angle),
-            size.height * 0.5 + twoHopRadius * sin(angle),
-          ),
-          connections: twoHopNodeConnections,
-          profileImagePath: profile.profileImagePath,
-          isDirectConnection: false,
-          depth: 2,
+      // Group by the parent node (via)
+      for (final edge in profileEdges) {
+        if (!twoHopNodesByParent.containsKey(edge.via)) {
+          twoHopNodesByParent[edge.via] = [];
+        }
+        twoHopNodesByParent[edge.via]!.add(profile);
+      }
+    }
+
+    // Position 2-hop nodes around their parent nodes
+    for (final entry in twoHopNodesByParent.entries) {
+      final parentId = entry.key;
+      final childProfiles = entry.value;
+
+      // Find the parent node position
+      final parentNode = nodes.firstWhere(
+        (node) => node.id == parentId,
+        orElse: () => NetworkNode(
+          id: 'default',
+          name: '',
+          position: Offset(size.width * 0.5, size.height * 0.5),
+          color: Colors.transparent,
         ),
       );
+
+      // Position child nodes around their parent
+      for (int i = 0; i < childProfiles.length; i++) {
+        final profile = childProfiles[i];
+        final angle = (i / childProfiles.length) * 2 * pi;
+
+        // Find all edges that end at this profile
+        final profileEdges = twoHopEdges
+            .where((edge) => edge.to == profile.id)
+            .toList();
+        final twoHopNodeConnections = profileEdges
+            .map((edge) => edge.via)
+            .toList();
+
+        // Position around parent node with some offset
+        final offsetRadius = 120.0; // Distance from parent node
+        final position = Offset(
+          parentNode.position.dx + offsetRadius * cos(angle),
+          parentNode.position.dy + offsetRadius * sin(angle),
+        );
+
+        nodes.add(
+          NetworkNode(
+            id: profile.id,
+            name: profile.userName,
+            school: profile.school ?? '',
+            major: profile.major,
+            interests: profile.interests,
+            color: Colors.purple.withOpacity(0.8),
+            position: position,
+            connections: twoHopNodeConnections,
+            profileImagePath: profile.profileImagePath,
+            isDirectConnection: false,
+            depth: 2,
+          ),
+        );
+      }
     }
   }
 
