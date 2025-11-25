@@ -268,9 +268,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       otherUserId = widget.invitation!.peerId;
     }
 
-    final restaurant =
-        chatRoom?.restaurant ?? widget.invitation?.restaurant ?? '';
-
     return Scaffold(
       appBar: AppBar(
         title: FutureBuilder<Profile?>(
@@ -291,19 +288,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               }
             }
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(peerName),
-                if (restaurant.isNotEmpty)
-                  Text(
-                    restaurant,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-              ],
-            );
+            return Text(peerName);
           },
         ),
         actions: [
@@ -357,14 +342,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               const Icon(Icons.person),
                               const SizedBox(width: 8),
                               Text(dialogPeerName),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              const Icon(Icons.restaurant),
-                              const SizedBox(width: 8),
-                              Text(restaurant),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -449,7 +426,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Ready to meet up at $restaurant',
+                    'Ready to meet up',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w600,
