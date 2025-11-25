@@ -48,7 +48,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   double _scale = 1.0;
   Offset _panOffset = Offset.zero;
   Offset _lastFocalPoint = Offset.zero;
-  bool _highlightCommonInterests = false;
+  bool _highlightCommonInterests = true;
   Size? _viewportSize;
 
   // Physics simulation parameters
@@ -331,6 +331,44 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
     }
   }
 
+  /// Check if a node has common interests with the current user
+  bool _hasCommonInterests(NetworkNode node) {
+    // Skip if current user info is not available
+    if (widget.currentUserMajor == null &&
+        widget.currentUserInterests == null) {
+      return false;
+    }
+
+    // Check for common major
+    if (widget.currentUserMajor != null &&
+        node.major != null &&
+        node.major!.toLowerCase() == widget.currentUserMajor!.toLowerCase()) {
+      return true;
+    }
+
+    // Check for common interests
+    if (widget.currentUserInterests != null && node.interests != null) {
+      final currentUserInterestsList = widget.currentUserInterests!
+          .split(',')
+          .map((interest) => interest.trim().toLowerCase())
+          .toList();
+
+      final nodeInterestsList = node.interests!
+          .split(',')
+          .map((interest) => interest.trim().toLowerCase())
+          .toList();
+
+      // Check if there's any overlap in interests
+      for (final interest in currentUserInterestsList) {
+        if (nodeInterestsList.contains(interest)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   void _onNodePanStart(
     NetworkNode node,
     DragStartDetails details,
@@ -585,7 +623,8 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                                     currentUserInterests:
                                         widget.currentUserInterests,
                                     highlightCommonInterests:
-                                        _highlightCommonInterests,
+                                        _highlightCommonInterests &&
+                                        _hasCommonInterests(node),
                                     nodeRadius: nodeRadius,
                                     isConnectedToSelected:
                                         _selectedNode != null &&
@@ -629,7 +668,8 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                               currentUserMajor: widget.currentUserMajor,
                               currentUserInterests: widget.currentUserInterests,
                               highlightCommonInterests:
-                                  _highlightCommonInterests,
+                                  _highlightCommonInterests &&
+                                  _hasCommonInterests(node),
                               nodeRadius: nodeRadius,
                               isConnectedToSelected:
                                   _selectedNode != null &&

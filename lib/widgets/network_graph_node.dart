@@ -202,6 +202,13 @@ class NetworkNodeWidget extends StatelessWidget {
             ),
           ),
           nodeWidget,
+          // Add lightbulb icon for 2-hop nodes with common interests
+          if (highlightCommonInterests)
+            Positioned(
+              top: 1,
+              right: 1,
+              child: Icon(Icons.lightbulb, size: 16, color: Colors.yellow),
+            ),
         ],
       );
     }
