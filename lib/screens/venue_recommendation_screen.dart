@@ -1,58 +1,60 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_buttons.dart';
 
-/// Screen for selecting a restaurant when sending an invitation
-class RestaurantSelectionScreen extends StatefulWidget {
-  const RestaurantSelectionScreen({super.key});
+/// Screen for recommending venues after activity selection
+class VenueRecommendationScreen extends StatefulWidget {
+  final String? selectedActivity;
+
+  const VenueRecommendationScreen({super.key, this.selectedActivity});
 
   @override
-  State<RestaurantSelectionScreen> createState() =>
-      _RestaurantSelectionScreenState();
+  State<VenueRecommendationScreen> createState() =>
+      _VenueRecommendationScreenState();
 }
 
-class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
+class _VenueRecommendationScreenState extends State<VenueRecommendationScreen> {
   final TextEditingController _customRestaurantController =
       TextEditingController();
   String? _selectedRestaurant;
   bool _isCustom = false;
 
-  // List of recommended restaurants
-  final List<Map<String, dynamic>> _restaurants = [
+  // List of recommended venues
+  final List<Map<String, dynamic>> _venues = [
     {
-      'name': 'The Coffee House',
-      'type': 'Café',
-      'icon': Icons.local_cafe,
-      'color': Colors.brown,
+      'name': 'Virtual / No Venue',
+      'type': 'Online / None',
+      'icon': Icons.wifi,
+      'color': Colors.grey,
     },
     {
-      'name': 'Bella Italia',
-      'type': 'Italian',
+      'name': 'Library',
+      'type': 'Study Space',
+      'icon': Icons.library_books,
+      'color': Colors.blue,
+    },
+    {
+      'name': 'Canteen 2 (LG1)',
+      'type': 'Cafeteria',
       'icon': Icons.restaurant,
-      'color': Colors.red,
-    },
-    {
-      'name': 'Sushi Paradise',
-      'type': 'Japanese',
-      'icon': Icons.set_meal,
       'color': Colors.orange,
     },
     {
-      'name': 'Green Garden Cafe',
-      'type': 'Healthy',
-      'icon': Icons.eco,
+      'name': 'LG7 Food Court',
+      'type': 'Food Court',
+      'icon': Icons.fastfood,
+      'color': Colors.red,
+    },
+    {
+      'name': 'Starbucks',
+      'type': 'Café',
+      'icon': Icons.local_cafe,
       'color': Colors.green,
     },
     {
-      'name': 'Urban Bistro',
-      'type': 'Fusion',
-      'icon': Icons.restaurant_menu,
+      'name': 'E²I',
+      'type': 'Meeting Space',
+      'icon': Icons.business,
       'color': Colors.purple,
-    },
-    {
-      'name': 'The Tea Room',
-      'type': 'Tea House',
-      'icon': Icons.emoji_food_beverage,
-      'color': Colors.teal,
     },
   ];
 
@@ -64,13 +66,13 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
 
   void _confirmSelection() {
     String? restaurant;
-    
+
     if (_isCustom) {
       final customName = _customRestaurantController.text.trim();
       if (customName.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please enter a restaurant name'),
+            content: Text('Please enter a venue'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -84,7 +86,7 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
     if (restaurant == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select or enter a restaurant'),
+          content: Text('Please select or enter a venue'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -98,16 +100,13 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Choose Restaurant'),
+        title: const Text('Choose a Venue'),
         actions: [
           TextButton(
             onPressed: _confirmSelection,
             child: const Text(
               'Confirm',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
         ],
@@ -119,24 +118,24 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
-                  'Recommended Restaurants',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  'Recommended Venues',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                ..._restaurants.map((restaurant) {
+                ..._venues.map((venue) {
                   final isSelected =
-                      !_isCustom && _selectedRestaurant == restaurant['name'];
-                  return _buildRestaurantCard(
-                    name: restaurant['name'] as String,
-                    type: restaurant['type'] as String,
-                    icon: restaurant['icon'] as IconData,
-                    color: restaurant['color'] as Color,
+                      !_isCustom && _selectedRestaurant == venue['name'];
+                  return _buildVenueCard(
+                    name: venue['name'] as String,
+                    type: venue['type'] as String,
+                    icon: venue['icon'] as IconData,
+                    color: venue['color'] as Color,
                     isSelected: isSelected,
                     onTap: () {
                       setState(() {
-                        _selectedRestaurant = restaurant['name'] as String;
+                        _selectedRestaurant = venue['name'] as String;
                         _isCustom = false;
                       });
                     },
@@ -147,9 +146,9 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                 const SizedBox(height: 24),
                 Text(
                   'Or Enter Your Own',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 _buildCustomRestaurantInput(),
@@ -177,10 +176,7 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: const Text(
                     'Confirm Selection',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -191,7 +187,7 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
     );
   }
 
-  Widget _buildRestaurantCard({
+  Widget _buildVenueCard({
     required String name,
     required String type,
     required IconData icon,
@@ -222,11 +218,7 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 32,
-                ),
+                child: Icon(icon, color: color, size: 32),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -236,31 +228,23 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                     Text(
                       name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       type,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
               if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: color,
-                  size: 28,
-                )
+                Icon(Icons.check_circle, color: color, size: 28)
               else
-                Icon(
-                  Icons.circle_outlined,
-                  color: Colors.grey[300],
-                  size: 28,
-                ),
+                Icon(Icons.circle_outlined, color: Colors.grey[300], size: 28),
             ],
           ),
         ),
@@ -274,7 +258,9 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: _isCustom ? Theme.of(context).colorScheme.primary : Colors.transparent,
+          color: _isCustom
+              ? Theme.of(context).colorScheme.primary
+              : Colors.transparent,
           width: 2,
         ),
       ),
@@ -288,7 +274,9 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -302,8 +290,8 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                   child: Text(
                     'Custom Restaurant',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 if (_isCustom)

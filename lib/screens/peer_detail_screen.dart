@@ -6,6 +6,7 @@ import '../services/storage_service.dart';
 import '../utils/toast_utils.dart';
 import 'activity_selection_screen.dart';
 import 'main_screen.dart';
+import 'venue_recommendation_screen.dart';
 import '../widgets/match_badge.dart';
 import '../widgets/tag_section.dart';
 import '../widgets/info_section.dart';
@@ -244,11 +245,22 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
       MaterialPageRoute(builder: (context) => const ActivitySelectionScreen()),
     );
 
-    // // // print('Activity selected: ${selectedActivity?.name}');
-
     // If user cancelled activity selection, don't send invitation
     if (selectedActivity == null || !mounted) {
-      // // // print('Activity selection cancelled or widget not mounted');
+      return;
+    }
+
+    // Second, show venue selection screen after activity selection
+    final selectedVenue = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            VenueRecommendationScreen(selectedActivity: selectedActivity.name),
+      ),
+    );
+
+    // If user cancelled venue selection, don't send invitation
+    if (selectedVenue == null || !mounted) {
       return;
     }
 
@@ -257,12 +269,10 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
     });
 
     try {
-      // // // print('Calling sendInvitation...');
       await context.read<StorageService>().sendInvitation(
         widget.peer,
-        selectedActivity.name, // Use activity name as restaurant for now
+        selectedVenue, // Use selected venue name instead of activity name
       );
-      // // // print('sendInvitation completed successfully');
 
       if (mounted) {
         // Pop all routes and push MainScreen with invitations tab selected
@@ -276,15 +286,10 @@ class _PeerDetailScreenState extends State<PeerDetailScreen> {
 
         ToastUtils.showSuccess(
           context,
-          'Invitation sent to ${widget.peer.name} for ${selectedActivity.name}!',
+          'Invitation sent to ${widget.peer.name} for ${selectedActivity.name} at ${selectedVenue}!',
         );
       }
     } catch (e) {
-      // // // print('Error sending invitation: $e');
-
-      // Log the error
-      // // // debugPrint('Failed to send invitation to ${widget.peer.name}: $e');
-
       if (mounted) {
         ToastUtils.showError(
           context,
