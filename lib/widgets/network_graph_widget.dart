@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../widgets/profile_avatar.dart';
 import 'network_graph_node.dart';
@@ -53,11 +54,32 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   // Physics simulation parameters
   static const double nodeRadius = 30.0;
 
+  // Physics constants
+  static const double repulsionStrength = 150.0; // Repulsion force strength
+  static const double attractionStrength =
+      10; // Increased attraction strength for stronger edge pulling
+  static const double damping = 0.85; // Damping factor for quick settling (0-1)
+  static const double minDistance = 80.0; // Minimum distance between nodes
+  static const double idealEdgeLength =
+      100.0; // Ideal length for edges (increased for better visibility)
+  static const double maxVelocity =
+      10.0; // Maximum velocity to prevent instability
+  static const double physicsTimeStep = 0.016; // ~60fps physics timestep
+
+  // Physics state
+  bool _physicsEnabled = true;
+  Ticker? _physicsTicker;
+
   @override
   void initState() {
     super.initState();
     // Create a copy of nodes to maintain state
     _nodes = List.from(widget.nodes);
+
+    // Initialize velocities for all nodes
+    for (final node in _nodes) {
+      node.velocity = Offset.zero;
+    }
 
     // Set initial selected node if provided
     if (widget.initialSelectedNodeId != null) {
@@ -66,6 +88,9 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
         orElse: () => _nodes.first,
       );
     }
+
+    // Start physics simulation
+    _startPhysicsSimulation();
   }
 
   @override
@@ -115,7 +140,229 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
 
   @override
   void dispose() {
+    _physicsTicker?.dispose();
     super.dispose();
+  }
+
+  void _startPhysicsSimulation() {
+    _physicsTicker = Ticker((elapsed) {
+      if (_physicsEnabled && mounted) {
+        _updatePhysics(physicsTimeStep);
+      }
+    });
+    _physicsTicker!.start();
+  }
+
+  void _updatePhysics(double deltaTime) {
+    if (!mounted) return;
+
+    setState(() {
+      // Calculate forces for each node
+      for (final node in _nodes) {
+        if (node.isTextNode || node.isDragging) continue;
+
+        Offset totalForce = Offset.zero;
+
+        // 1. Calculate repulsion forces from all other nodes
+        totalForce += _calculateRepulsionForces(node);
+
+        // 2. Calculate attraction forces along edges
+        totalForce += _calculateAttractionForces(node);
+
+        // 3. Apply boundary forces for 2-hop nodes
+        if (node.depth == 2) {
+          totalForce += _calculateBoundaryForces(node);
+        }
+
+        // Update velocity with force and damping
+        node.velocity = (node.velocity + totalForce * deltaTime) * damping;
+
+        // Clamp velocity to prevent instability
+        final velocityMagnitude = node.velocity.distance;
+        if (velocityMagnitude > maxVelocity) {
+          node.velocity = (node.velocity / velocityMagnitude) * maxVelocity;
+        }
+
+        // Update position
+        node.position += node.velocity * deltaTime;
+      }
+
+      // Handle collisions between nodes
+      _handleCollisions();
+
+      // Ensure 2-hop nodes stay outside 1-hop boundary
+      _enforce2HopBoundaries();
+
+      // Ensure nodes stay in viewport
+      _ensureNodesInViewport();
+    });
+  }
+
+  /// Calculate repulsion forces from all other nodes
+  Offset _calculateRepulsionForces(NetworkNode node) {
+    Offset totalForce = Offset.zero;
+
+    for (final otherNode in _nodes) {
+      if (otherNode.id == node.id || otherNode.isTextNode) continue;
+
+      final direction = node.position - otherNode.position;
+      final distance = direction.distance;
+
+      // Apply repulsion only if nodes are too close
+      if (distance < minDistance * 2 && distance > 0) {
+        // Calculate repulsion force (stronger when closer)
+        final forceMagnitude = repulsionStrength / (distance * distance);
+        final forceDirection = direction / distance; // Normalize direction
+        totalForce += forceDirection * forceMagnitude;
+      }
+    }
+
+    return totalForce;
+  }
+
+  /// Calculate attraction forces along connected edges
+  Offset _calculateAttractionForces(NetworkNode node) {
+    Offset totalForce = Offset.zero;
+
+    for (final connectionId in node.connections) {
+      final connectedNode = _nodes.firstWhere(
+        (n) => n.id == connectionId,
+        orElse: () => node,
+      );
+
+      if (connectedNode.id == node.id) continue;
+
+      final direction = connectedNode.position - node.position;
+      final distance = direction.distance;
+
+      if (distance > 0) {
+        // Hooke's law: F = k * (distance - restLength)
+        final springForce = attractionStrength * (distance - idealEdgeLength);
+
+        final totalAttraction = springForce;
+
+        final forceDirection = direction / distance; // Normalize direction
+        totalForce += forceDirection * totalAttraction;
+      }
+    }
+
+    return totalForce;
+  }
+
+  /// Calculate boundary forces to keep 2-hop nodes outside 1-hop circle
+  Offset _calculateBoundaryForces(NetworkNode node) {
+    // Find current user node (center)
+    NetworkNode? currentUserNode;
+    try {
+      currentUserNode = _nodes.firstWhere(
+        (n) => n.id == 'you' || (!n.isTextNode && n.connections.isNotEmpty),
+      );
+    } catch (e) {
+      return Offset.zero; // No current user found
+    }
+
+    // Calculate 1-hop radius
+    final directConnections = _nodes.where((n) => n.isDirectConnection);
+    double maxDistance = 0;
+
+    for (final conn in directConnections) {
+      final distance = (conn.position - currentUserNode.position).distance;
+      maxDistance = math.max(maxDistance, distance);
+    }
+
+    final oneHopRadius = maxDistance > 0 ? maxDistance + 40 : 200;
+    final distanceFromCenter =
+        (node.position - currentUserNode.position).distance;
+
+    // Strong force to push 2-hop nodes outside red border
+    if (distanceFromCenter < oneHopRadius + 30) {
+      final direction = (node.position - currentUserNode.position);
+      if (direction.distance > 0) {
+        // Much stronger force for 2-hop nodes to keep them outside red border
+        final forceMagnitude =
+            15.0 * (1.0 - distanceFromCenter / (oneHopRadius + 30));
+        return (direction / direction.distance) * forceMagnitude;
+      }
+    }
+
+    return Offset.zero;
+  }
+
+  /// Handle collisions between nodes
+  void _handleCollisions() {
+    for (int i = 0; i < _nodes.length; i++) {
+      for (int j = i + 1; j < _nodes.length; j++) {
+        final nodeA = _nodes[i];
+        final nodeB = _nodes[j];
+
+        if (nodeA.isTextNode || nodeB.isTextNode) continue;
+
+        final direction = nodeB.position - nodeA.position;
+        final distance = direction.distance;
+        final minCollisionDistance = nodeRadius * 2.5;
+
+        if (distance < minCollisionDistance && distance > 0) {
+          // Nodes are colliding, separate them
+          final overlap = minCollisionDistance - distance;
+          final separation = (direction / distance) * (overlap * 0.5);
+
+          // Apply separation if not dragging
+          if (!nodeA.isDragging) {
+            nodeA.position -= separation;
+            nodeA.velocity *= 0.5; // Reduce velocity on collision
+          }
+          if (!nodeB.isDragging) {
+            nodeB.position += separation;
+            nodeB.velocity *= 0.5; // Reduce velocity on collision
+          }
+        }
+      }
+    }
+  }
+
+  /// Ensure 2-hop nodes stay outside 1-hop boundary
+  void _enforce2HopBoundaries() {
+    // Find current user node (center)
+    NetworkNode? currentUserNode;
+    try {
+      currentUserNode = _nodes.firstWhere(
+        (n) => n.id == 'you' || (!n.isTextNode && n.connections.isNotEmpty),
+      );
+    } catch (e) {
+      return; // No current user found
+    }
+
+    // Calculate 1-hop radius
+    final directConnections = _nodes.where((n) => n.isDirectConnection);
+    double maxDistance = 0;
+
+    for (final conn in directConnections) {
+      final distance = (conn.position - currentUserNode.position).distance;
+      maxDistance = math.max(maxDistance, distance);
+    }
+
+    final oneHopRadius = maxDistance > 0 ? maxDistance + 100 : 200;
+
+    // Check each 2-hop node
+    for (final node in _nodes) {
+      if (node.depth != 2 || node.isDragging || node.isTextNode) continue;
+
+      final distanceFromCenter =
+          (node.position - currentUserNode.position).distance;
+
+      // Strong force to push 2-hop nodes outside red border
+      if (distanceFromCenter < oneHopRadius + 30) {
+        final direction = (node.position - currentUserNode.position);
+        if (direction.distance > 0) {
+          final newPosition =
+              currentUserNode.position +
+              (direction / direction.distance) * (oneHopRadius + 40);
+          node.position = newPosition;
+          node.velocity *=
+              0.1; // Strongly reduce velocity when hitting boundary
+        }
+      }
+    }
   }
 
   void _onNodePanStart(
@@ -193,39 +440,13 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
       // Find the node in our local state and update it
       final nodeInState = _nodes.firstWhere((n) => n.id == node.id);
 
-      // Apply repulsion forces from other nodes
-      final repulsionForce = _calculateRepulsionForce(nodeInState);
-
-      // Use delta for smooth incremental updates with repulsion
+      // Apply drag delta directly (physics will handle repulsion/attraction)
       // Don't divide by scale since gesture detector is already inside Transform.scale
-      nodeInState.position += details.delta + repulsionForce;
-      nodeInState.velocity = Offset.zero;
+      nodeInState.position += details.delta;
+
+      // Set velocity based on drag movement for smooth physics transition
+      nodeInState.velocity = details.delta * 0.5;
     });
-  }
-
-  /// Calculate repulsion force to push nodes away from each other
-  Offset _calculateRepulsionForce(NetworkNode draggedNode) {
-    const repulsionStrength = 8.0; // Increased for stronger repulsion
-    const minDistance = 120.0; // Increased minimum distance between nodes
-    var totalForce = Offset.zero;
-
-    for (final otherNode in _nodes) {
-      if (otherNode.id == draggedNode.id || otherNode.isTextNode) continue;
-
-      final direction = draggedNode.position - otherNode.position;
-      final distance = direction.distance;
-
-      // Apply repulsion only if nodes are too close
-      if (distance < minDistance && distance > 0) {
-        // Calculate repulsion force (stronger when closer)
-        final forceMagnitude =
-            repulsionStrength * (1.0 - distance / minDistance);
-        final forceDirection = direction / distance; // Normalize direction
-        totalForce += forceDirection * forceMagnitude;
-      }
-    }
-
-    return totalForce;
   }
 
   void _onNodePanEnd(NetworkNode node, DragEndDetails details) {
@@ -487,6 +708,20 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             Divider(
               color: theme.colorScheme.onSurface.withOpacity(0.24),
               height: 1,
+            ),
+            IconButton(
+              icon: Icon(
+                _physicsEnabled ? Icons.pause : Icons.play_arrow,
+                color: _physicsEnabled
+                    ? theme.colorScheme.secondary
+                    : theme.colorScheme.onSurface,
+              ),
+              onPressed: () {
+                setState(() {
+                  _physicsEnabled = !_physicsEnabled;
+                });
+              },
+              tooltip: _physicsEnabled ? 'Pause Physics' : 'Resume Physics',
             ),
             IconButton(
               icon: Icon(Icons.add, color: theme.colorScheme.onSurface),
@@ -760,9 +995,6 @@ class NetworkGraphPainter extends CustomPainter {
             selectedNode?.id == node.id || selectedNode?.id == connectedNode.id;
 
         // Make connection line more transparent if either node is indirect
-        final isIndirectConnection =
-            !node.isDirectConnection || !connectedNode.isDirectConnection;
-
         final baseOpacity = 0.5;
         final highlightOpacity = 1.0;
 
@@ -798,8 +1030,6 @@ class NetworkGraphPainter extends CustomPainter {
       }
     }
 
-    if (currentUserNode == null) return;
-
     // Calculate 1-hop radius - make it bigger to capture all nodes
     double radius;
     if (custom1HopRadius != null) {
@@ -810,12 +1040,12 @@ class NetworkGraphPainter extends CustomPainter {
       double maxDistance = 0;
 
       for (final node in directConnections) {
-        final distance = (node.position - currentUserNode!.position).distance;
+        final distance = (node.position - currentUserNode.position).distance;
         maxDistance = math.max(maxDistance, distance);
       }
 
       // Make it significantly bigger to capture all nodes with good margin
-      radius = maxDistance > 0 ? maxDistance + 80 : 200; // Add generous padding
+      radius = maxDistance > 0 ? maxDistance + 50 : 200; // Add generous padding
     }
 
     // Draw red overlay circle with fill
@@ -823,7 +1053,7 @@ class NetworkGraphPainter extends CustomPainter {
       ..color = Colors.red.withOpacity(0.15)
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(currentUserNode!.position, radius, circlePaint);
+    canvas.drawCircle(currentUserNode.position, radius, circlePaint);
 
     // Draw red border
     final borderPaint = Paint()
@@ -832,9 +1062,11 @@ class NetworkGraphPainter extends CustomPainter {
       ..strokeWidth = 3.0
       ..isAntiAlias = true;
 
-    canvas.drawCircle(currentUserNode!.position, radius, borderPaint);
-
-    // Add "Your connections" text above the circle
+    canvas.drawCircle(
+      currentUserNode.position,
+      radius,
+      borderPaint,
+    ); // Add "Your connections" text above the circle
     final textPainter = TextPainter(
       text: TextSpan(
         text: 'Your connections',
@@ -852,8 +1084,8 @@ class NetworkGraphPainter extends CustomPainter {
 
     // Position text above the circle
     final textPosition = Offset(
-      currentUserNode!.position.dx - textPainter.width / 2,
-      currentUserNode!.position.dy - radius - 25,
+      currentUserNode.position.dx - textPainter.width / 2,
+      currentUserNode.position.dy - radius - 25,
     );
 
     // Draw text background
