@@ -28,7 +28,7 @@ class ApiService {
   final Duration _timeout;
 
   ApiService({
-    String baseUrl = 'http://localhost:8000', // Local development API URL
+    String baseUrl = 'http://192.168.68.123:8000', // Local development API URL
     int maxRetries = 3,
     Duration timeout = const Duration(seconds: 30),
   }) : _baseUrl = baseUrl,

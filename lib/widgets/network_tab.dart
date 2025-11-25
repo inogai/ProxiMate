@@ -8,9 +8,11 @@ import 'package:provider/provider.dart';
 
 import '../models/connection.dart';
 import '../models/profile.dart';
+import '../screens/qr_camera_screen.dart';
 import '../screens/chat_room_screen.dart';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
 import '../widgets/profile_avatar.dart';
 import 'network_graph_node.dart';
 import 'network_graph_widget.dart';
@@ -100,6 +102,16 @@ class _NetworkTabState extends State<NetworkTab> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Network'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Scan / Show QR Code',
+            onPressed: () => _openQr(context),
+          ),
+        ],
+      ),
       body: _showGraph
           ? _buildNetworkGraph(context)
           : _buildNetworkGrid(context),
@@ -142,6 +154,17 @@ class _NetworkTabState extends State<NetworkTab> {
             )
           : null,
     );
+  }
+
+  void _openQr(BuildContext context) async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute<String>(builder: (context) => const QRCameraScreen()),
+    );
+
+    // Handle QR code scanning result
+    if (result != null && result.isNotEmpty) {
+      _handleDeepLink(result);
+    }
   }
 
   Widget _buildNetworkGraph(BuildContext context) {
@@ -487,6 +510,70 @@ class _NetworkTabState extends State<NetworkTab> {
     );
 
     _showConnectionDetails(context, profile, connection);
+  }
+
+  void _handleDeepLink(String link) {
+    print('Handling deep link: $link');
+    final uri = Uri.parse(link);
+    if (uri.scheme == 'proximate' && uri.host == 'addConnection') {
+      final targetUserId = uri.queryParameters['id'];
+      if (targetUserId != null && targetUserId.isNotEmpty) {
+        _handleAddConnection(targetUserId);
+      }
+    }
+  }
+
+  void _handleAddConnection(String targetUserId) async {
+    if (!mounted) return;
+
+    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
+    final currentUserIdInt = int.tryParse(storage.apiUserId ?? '') ?? 0;
+    final targetId = int.tryParse(targetUserId) ?? 0;
+
+    if (currentUserIdInt == 0 || targetId == 0) {
+      print('Invalid user IDs: current=$currentUserIdInt, target=$targetId');
+      return;
+    }
+
+    try {
+      // Create or get chat room between current user and target user
+      final chatRoom = await chatService.getOrCreateChatRoomBetweenUsers(
+        currentUserIdInt,
+        targetId,
+        '', // No restaurant specified
+      );
+
+      if (chatRoom != null) {
+        // Send connection request
+        final apiService = ApiService();
+        await apiService.createConnectionRequest(
+          chatRoom.id,
+          currentUserIdInt,
+          targetId,
+        );
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connection request sent!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error adding connection: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add connection: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 
