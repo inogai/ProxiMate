@@ -1086,6 +1086,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       );
     }
 
+    final sender = storage.getCacheProfileById(otherUserId);
+
     // Default message bubble for regular text messages
     final isFromMe = message.isMine;
     return Padding(
@@ -1097,8 +1099,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         children: [
           if (!isFromMe) ...[
             ProfileAvatar(
-              name: storage.getPeerById(otherUserId)?.name ?? 'Unknown',
-              imagePath: storage.getPeerById(otherUserId)?.profileImageUrl,
+              name: sender?.userName ?? 'Unknown',
+              imagePath: sender?.profileImagePath,
               size: 32,
             ),
             const SizedBox(width: 8),

@@ -245,8 +245,11 @@ class _ChatsTabState extends State<ChatsTab> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Avatar
-                    ProfileAvatar(name: peerName, size: 56),
+                    ProfileAvatar(
+                      name: peerName,
+                      imagePath: snapshot.data?.profileImagePath,
+                      size: 56,
+                    ),
                     const SizedBox(width: 12),
 
                     // Content
