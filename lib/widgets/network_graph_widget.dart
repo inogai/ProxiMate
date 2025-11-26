@@ -1076,10 +1076,10 @@ class NetworkGraphPainter extends CustomPainter {
       text: TextSpan(
         text: 'Your connections',
         style: TextStyle(
-          color: Colors.red.withOpacity(0.8),
+          color: Colors.white,
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          backgroundColor: Colors.white.withOpacity(0.9),
+          backgroundColor: Colors.black.withOpacity(0.7),
         ),
       ),
       textDirection: TextDirection.ltr,
