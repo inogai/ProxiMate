@@ -1093,23 +1093,6 @@ class NetworkGraphPainter extends CustomPainter {
       currentUserNode.position.dy - radius - 25,
     );
 
-    // Draw text background
-    final textBgPaint = Paint()
-      ..color = Colors.white.withOpacity(0.9)
-      ..style = PaintingStyle.fill;
-
-    final textBgRect = Rect.fromLTWH(
-      textPosition.dx - 4,
-      textPosition.dy - 2,
-      textPainter.width + 8,
-      textPainter.height + 4,
-    );
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(textBgRect, const Radius.circular(4)),
-      textBgPaint,
-    );
-
     // Draw text
     textPainter.paint(canvas, textPosition);
   }
