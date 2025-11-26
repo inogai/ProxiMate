@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/meeting.dart';
+import '../widgets/profile_avatar.dart';
 
 class ConnectionRequestCard extends StatefulWidget {
   final ChatMessage message;
@@ -61,24 +62,7 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
   Widget _buildHeader(String status) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: widget.isFromMe ? Colors.blue : Colors.purple,
-          child: widget.senderName != null
-              ? Text(
-                  _getInitials(widget.senderName!),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : Icon(
-                  widget.isFromMe ? Icons.send : Icons.contact_page,
-                  color: Colors.white,
-                  size: 16,
-                ),
-        ),
+        ProfileAvatar(name: widget.senderName ?? 'Unknown', size: 32),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -361,13 +345,5 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
       default:
         return Colors.grey.shade200;
     }
-  }
-
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 }

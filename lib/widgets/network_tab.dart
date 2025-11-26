@@ -1,12 +1,19 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:anyhow/rust.dart';
 import 'package:flutter/material.dart';
+import 'package:playground/utils/toast_utils.dart';
 import 'package:provider/provider.dart';
 
 import '../models/connection.dart';
 import '../models/profile.dart';
+import '../screens/qr_camera_screen.dart';
+import '../screens/chat_room_screen.dart';
+import '../services/chat_service.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
+import '../widgets/profile_avatar.dart';
 import 'network_graph_node.dart';
 import 'network_graph_widget.dart';
 
@@ -24,6 +31,12 @@ class _NetworkTabState extends State<NetworkTab> {
   Future<NetworkData>? _networkDataFuture;
   String? _lastProfileId;
   int _lastConnectionsLength = 0;
+
+  void refreshNetworkData() {
+    setState(() {
+      _networkDataFuture = null;
+    });
+  }
 
   Future<NetworkData> _fetchNetworkData(StorageService storage) async {
     print('🏗️ _fetchNetworkData: Starting...');
@@ -89,6 +102,16 @@ class _NetworkTabState extends State<NetworkTab> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Network'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Scan / Show QR Code',
+            onPressed: () => _openQr(context),
+          ),
+        ],
+      ),
       body: _showGraph
           ? _buildNetworkGraph(context)
           : _buildNetworkGrid(context),
@@ -131,6 +154,17 @@ class _NetworkTabState extends State<NetworkTab> {
             )
           : null,
     );
+  }
+
+  void _openQr(BuildContext context) async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute<String>(builder: (context) => const QRCameraScreen()),
+    );
+
+    // Handle QR code scanning result
+    if (result != null && result.isNotEmpty) {
+      _handleDeepLink(result);
+    }
   }
 
   Widget _buildNetworkGraph(BuildContext context) {
@@ -272,43 +306,78 @@ class _NetworkTabState extends State<NetworkTab> {
     Profile currentProfile,
     Size size,
   ) {
-    // Calculate the 1-hop circle radius based on existing direct connections
-    final oneHopRadius = min(size.width, size.height) * 0.25;
-    // Position 2-hop nodes outside the 1-hop circle with larger margin
-    final twoHopRadius =
-        oneHopRadius +
-        200; // Increase margin to ensure clearly outside 1-hop circle
+    // Position 2-hop nodes around their parent 1-hop nodes
 
-    for (int i = 0; i < twoHopProfiles.length; i++) {
-      final profile = twoHopProfiles[i];
-      final angle = (i / twoHopProfiles.length) * 2 * pi;
+    // Group 2-hop nodes by their parent (1-hop) connections
+    final Map<String, List<Profile>> twoHopNodesByParent = {};
 
+    for (final profile in twoHopProfiles) {
       // Find all edges that end at this profile
       final profileEdges = twoHopEdges
           .where((edge) => edge.to == profile.id)
           .toList();
-      final twoHopNodeConnections = profileEdges
-          .map((edge) => edge.via)
-          .toList();
 
-      nodes.add(
-        NetworkNode(
-          id: profile.id,
-          name: profile.userName,
-          school: profile.school ?? '',
-          major: profile.major,
-          interests: profile.interests,
-          color: Colors.purple.withOpacity(0.8),
-          position: Offset(
-            size.width * 0.5 + twoHopRadius * cos(angle),
-            size.height * 0.5 + twoHopRadius * sin(angle),
-          ),
-          connections: twoHopNodeConnections,
-          profileImagePath: profile.profileImagePath,
-          isDirectConnection: false,
-          depth: 2,
+      // Group by the parent node (via)
+      for (final edge in profileEdges) {
+        if (!twoHopNodesByParent.containsKey(edge.via)) {
+          twoHopNodesByParent[edge.via] = [];
+        }
+        twoHopNodesByParent[edge.via]!.add(profile);
+      }
+    }
+
+    // Position 2-hop nodes around their parent nodes
+    for (final entry in twoHopNodesByParent.entries) {
+      final parentId = entry.key;
+      final childProfiles = entry.value;
+
+      // Find the parent node position
+      final parentNode = nodes.firstWhere(
+        (node) => node.id == parentId,
+        orElse: () => NetworkNode(
+          id: 'default',
+          name: '',
+          position: Offset(size.width * 0.5, size.height * 0.5),
+          color: Colors.transparent,
         ),
       );
+
+      // Position child nodes around their parent
+      for (int i = 0; i < childProfiles.length; i++) {
+        final profile = childProfiles[i];
+        final angle = (i / childProfiles.length) * 2 * pi;
+
+        // Find all edges that end at this profile
+        final profileEdges = twoHopEdges
+            .where((edge) => edge.to == profile.id)
+            .toList();
+        final twoHopNodeConnections = profileEdges
+            .map((edge) => edge.via)
+            .toList();
+
+        // Position around parent node with some offset
+        final offsetRadius = 120.0; // Distance from parent node
+        final position = Offset(
+          parentNode.position.dx + offsetRadius * cos(angle),
+          parentNode.position.dy + offsetRadius * sin(angle),
+        );
+
+        nodes.add(
+          NetworkNode(
+            id: profile.id,
+            name: profile.userName,
+            school: profile.school ?? '',
+            major: profile.major,
+            interests: profile.interests,
+            color: Colors.purple.withOpacity(0.8),
+            position: position,
+            connections: twoHopNodeConnections,
+            profileImagePath: profile.profileImagePath,
+            isDirectConnection: false,
+            depth: 2,
+          ),
+        );
+      }
     }
   }
 
@@ -477,6 +546,70 @@ class _NetworkTabState extends State<NetworkTab> {
 
     _showConnectionDetails(context, profile, connection);
   }
+
+  void _handleDeepLink(String link) {
+    print('Handling deep link: $link');
+    final uri = Uri.parse(link);
+    if (uri.scheme == 'proximate' && uri.host == 'addConnection') {
+      final targetUserId = uri.queryParameters['id'];
+      if (targetUserId != null && targetUserId.isNotEmpty) {
+        _handleAddConnection(targetUserId);
+      }
+    }
+  }
+
+  void _handleAddConnection(String targetUserId) async {
+    if (!mounted) return;
+
+    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
+    final currentUserIdInt = int.tryParse(storage.apiUserId ?? '') ?? 0;
+    final targetId = int.tryParse(targetUserId) ?? 0;
+
+    if (currentUserIdInt == 0 || targetId == 0) {
+      print('Invalid user IDs: current=$currentUserIdInt, target=$targetId');
+      return;
+    }
+
+    try {
+      // Create or get chat room between current user and target user
+      final chatRoom = await chatService.getOrCreateChatRoomBetweenUsers(
+        currentUserIdInt,
+        targetId,
+        '', // No restaurant specified
+      );
+
+      if (chatRoom != null) {
+        // Send connection request
+        final apiService = ApiService();
+        await apiService.createConnectionRequest(
+          chatRoom.id,
+          currentUserIdInt,
+          targetId,
+        );
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connection request sent!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error adding connection: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add connection: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 }
 
 /// Network edge representing a 2-hop connection
@@ -534,16 +667,7 @@ Widget _buildNetworkGrid(BuildContext context) {
           final displayName = profile?.userName ?? 'Unknown';
 
           return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Text(
-                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            leading: ProfileAvatar(name: displayName, size: 40),
             title: Text(displayName),
             subtitle: Text('Met at: ${connection.restaurant}'),
             trailing: Text(
@@ -784,12 +908,12 @@ void _showCurrentUserProfile(BuildContext context) {
 }
 
 void _showConnectionDetails(
-  BuildContext context,
+  BuildContext parentContext,
   Profile profile,
   Connection connection,
 ) {
   showDialog(
-    context: context,
+    context: parentContext,
     builder: (BuildContext context) {
       return Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -968,12 +1092,13 @@ void _showConnectionDetails(
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        // TODO: Navigate to chat
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Chat feature coming soon!'),
+                      onPressed: () async {
+                        await ToastUtils.showFutureResult(
+                          context,
+                          _handleChatNavigationButton(
+                            parentContext,
+                            profile,
+                            connection,
                           ),
                         );
                       },
@@ -1020,4 +1145,44 @@ void _sendInvitation(NetworkNode node, BuildContext context) {
   );
 
   print('📨 Invitation sent to 2-hop node: ${node.name} (${node.id})');
+}
+
+FutureResult<void> _handleChatNavigationButton(
+  BuildContext parentContext,
+  Profile profile,
+  Connection connection,
+) async {
+  final storage = parentContext.read<StorageService>();
+  final chatService = parentContext.read<ChatService>();
+  final currentProfile = storage.currentProfile;
+
+  if (currentProfile == null) {
+    return bail('Current profile not found');
+  }
+
+  final user1Id = int.tryParse(currentProfile.id);
+  final user2Id = int.tryParse(profile.id);
+
+  if (user1Id == null || user2Id == null) {
+    return bail('Invalid user IDs');
+  }
+
+  final chatRoom = await chatService.getOrCreateChatRoomBetweenUsers(
+    user1Id,
+    user2Id,
+    connection.restaurant,
+  );
+
+  if (chatRoom == null) {
+    return bail('Failed to get or create chat room');
+  }
+
+  if (!parentContext.mounted) return bail('Context no longer mounted');
+
+  Navigator.push(
+    parentContext,
+    MaterialPageRoute(builder: (context) => ChatRoomScreen(chatRoom: chatRoom)),
+  );
+
+  return Ok(null);
 }

@@ -8,6 +8,7 @@
 
 - Chatroom
   - fix: shouldn't show a venue
+  - fix: add ice-breaking questions
   - suggest: Maybe handle venue in a different way
   - suggest: Send invite -> Send "another" invite?
 

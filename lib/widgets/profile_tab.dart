@@ -1,10 +1,12 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
 import '../services/storage_service_wrapper.dart';
+import '../services/chat_service.dart';
+import '../services/api_service.dart';
 import '../screens/register_screen.dart';
 import '../screens/edit_profile_screen.dart';
+import '../screens/qr_camera_screen.dart';
 import 'profile_image_picker.dart';
 
 /// Profile tab widget displaying user information
@@ -20,12 +22,11 @@ class ProfileTab extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.bug_report),
-              tooltip: 'Test API Connection',
-              onPressed: () => _testApiConnection(context),
-            ),
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Show / Scan QR Code',
+            onPressed: () => _handleShowQRCode(context),
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             tooltip: 'Edit Profile',
@@ -170,11 +171,6 @@ class ProfileTab extends StatelessWidget {
     ).push(MaterialPageRoute(builder: (context) => const EditProfileScreen()));
   }
 
-  void _testApiConnection(BuildContext context) async {
-    final wrapper = StorageServiceWrapper(context);
-    await wrapper.testApiConnection();
-  }
-
   void _handleLogout(BuildContext context) {
     showDialog(
       context: context,
@@ -204,6 +200,17 @@ class ProfileTab extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _handleShowQRCode(BuildContext context) async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (context) => const QRCameraScreen()),
+    );
+
+    // Handle QR code scanning result
+    if (result != null && result.isNotEmpty) {
+      _handleDeepLink(context, result);
+    }
   }
 
   Widget _buildTagCard(
@@ -271,5 +278,63 @@ class ProfileTab extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _handleDeepLink(BuildContext context, String link) {
+    print('Handling deep link: $link');
+    final uri = Uri.parse(link);
+    if (uri.scheme == 'proximate' && uri.host == 'addConnection') {
+      final targetUserId = uri.queryParameters['id'];
+      if (targetUserId != null && targetUserId.isNotEmpty) {
+        _handleAddConnection(context, targetUserId);
+      }
+    }
+  }
+
+  void _handleAddConnection(BuildContext context, String targetUserId) async {
+    final storage = context.read<StorageService>();
+    final chatService = context.read<ChatService>();
+    final currentUserIdInt = int.tryParse(storage.apiUserId ?? '') ?? 0;
+    final targetId = int.tryParse(targetUserId) ?? 0;
+
+    if (currentUserIdInt == 0 || targetId == 0) {
+      print('Invalid user IDs: current=$currentUserIdInt, target=$targetId');
+      return;
+    }
+
+    try {
+      // Create or get chat room between current user and target user
+      final chatRoom = await chatService.getOrCreateChatRoomBetweenUsers(
+        currentUserIdInt,
+        targetId,
+        '', // No restaurant specified
+      );
+
+      if (chatRoom != null) {
+        // Send connection request
+        final apiService = ApiService();
+        await apiService.createConnectionRequest(
+          chatRoom.id,
+          currentUserIdInt,
+          targetId,
+        );
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connection request sent!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error adding connection: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add connection: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

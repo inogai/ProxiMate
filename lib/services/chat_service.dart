@@ -58,6 +58,19 @@ class ChatService extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
 
+  /// Helper method to merge new chat rooms with existing ones, preserving messages.
+  List<ChatRoom> _mergeChatRooms(List<ChatRoom> newRooms) {
+    final existingRoomsMap = {for (final room in _chatRooms) room.id: room};
+
+    return newRooms.map((newRoom) {
+      final existingRoom = existingRoomsMap[newRoom.id];
+      // If we already have this chat room locally, preserve its messages
+      return (existingRoom != null)
+          ? newRoom.copyWith(messages: existingRoom.messages)
+          : newRoom;
+    }).toList();
+  }
+
   /// Refresh list of chat rooms from API and notify listeners.
   Future<void> refreshChatRooms() async {
     _isLoading = true;
@@ -70,9 +83,11 @@ class ChatService extends ChangeNotifier {
         _chatRooms = rooms;
       } else {
         final roomsRead = await _apiService.getChatRooms(userId);
-        _chatRooms = roomsRead
+        final newRooms = roomsRead
             .map((it) => _apiService.chatRoomReadToChatRoom(it))
             .toList();
+
+        _chatRooms = _mergeChatRooms(newRooms);
       }
       // (already assigned above / or assigned from override)
 
@@ -279,6 +294,66 @@ class ChatService extends ChangeNotifier {
   void stopChatRoomPolling() {
     _chatRoomPollTimer?.cancel();
     _chatRoomPollTimer = null;
+  }
+
+  /// Update local message status immediately after successful API call
+  void updateMessageStatus(
+    String chatRoomId,
+    String messageId,
+    String newStatus,
+  ) {
+    final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
+    if (index == -1) return;
+
+    final messageIndex = _chatRooms[index].messages.indexWhere(
+      (msg) => msg.id == messageId,
+    );
+
+    if (messageIndex != -1) {
+      final originalMessage = _chatRooms[index].messages[messageIndex];
+      final updatedMessage = originalMessage.copyWith(
+        invitationData: {
+          ...originalMessage.invitationData ?? {},
+          'status': newStatus,
+        },
+      );
+
+      final updatedMessages = [..._chatRooms[index].messages];
+      updatedMessages[messageIndex] = updatedMessage;
+
+      _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
+      notifyListeners();
+    }
+  }
+
+  /// Update local message name card collection status
+  void updateMessageNameCardCollected(
+    String chatRoomId,
+    String messageId,
+    bool collected,
+  ) {
+    final index = _chatRooms.indexWhere((c) => c.id == chatRoomId);
+    if (index == -1) return;
+
+    final messageIndex = _chatRooms[index].messages.indexWhere(
+      (msg) => msg.id == messageId,
+    );
+
+    if (messageIndex != -1) {
+      final originalMessage = _chatRooms[index].messages[messageIndex];
+      final updatedMessage = originalMessage.copyWith(
+        invitationData: {
+          ...originalMessage.invitationData ?? {},
+          'name_card_collected': collected,
+        },
+      );
+
+      final updatedMessages = [..._chatRooms[index].messages];
+      updatedMessages[messageIndex] = updatedMessage;
+
+      _chatRooms[index] = _chatRooms[index].copyWith(messages: updatedMessages);
+      notifyListeners();
+    }
   }
 
   @override

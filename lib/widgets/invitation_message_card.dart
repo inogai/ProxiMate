@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/meeting.dart';
+import '../widgets/profile_avatar.dart';
 
 class InvitationMessageCard extends StatefulWidget {
   final ChatMessage message;
@@ -10,6 +12,9 @@ class InvitationMessageCard extends StatefulWidget {
   final Future<void> Function()? onRate;
   final String? senderName;
   final bool isFromMe;
+  // When true, show mock ice-breakers even if not in debug mode. Useful for
+  // previewing the UI in dev builds where kDebugMode might be false.
+  final bool previewIceBreakers;
 
   const InvitationMessageCard({
     super.key,
@@ -21,6 +26,7 @@ class InvitationMessageCard extends StatefulWidget {
     this.onRate,
     this.senderName,
     this.isFromMe = false,
+    this.previewIceBreakers = false,
   });
 
   @override
@@ -36,13 +42,14 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
     final status = widget.message.invitationStatus?.toLowerCase() ?? "pending";
     final restaurant =
         widget.message.invitationData?["restaurant"] as String? ?? '';
-    final iceBreakers = widget.message.iceBreakers ?? [];
+    // Use real ice breakers by default. When running in debug mode and the
+    // real list is empty, substitute a small set of mock questions so the
+    // UI can be previewed during development.
+    List<IceBreaker> iceBreakers = widget.message.iceBreakers ?? [];
+    if (iceBreakers.isEmpty && (kDebugMode || widget.previewIceBreakers)) {
+      iceBreakers = _mockIceBreakers();
+    }
     final responseDeadline = widget.message.responseDeadline;
-
-    // Debug print to help diagnose issues
-    print(
-      'InvitationMessageCard: status=$status, restaurant=$restaurant, isFromMe=${widget.isFromMe}',
-    );
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -75,7 +82,6 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
             const SizedBox(height: 12),
             _buildIceBreakers(iceBreakers),
           ],
-          const SizedBox(height: 16),
           _buildActionButtons(status),
         ],
       ),
@@ -85,24 +91,7 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
   Widget _buildHeader(String status) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: widget.isFromMe ? Colors.blue : Colors.orange,
-          child: widget.senderName != null
-              ? Text(
-                  _getInitials(widget.senderName!),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : Icon(
-                  widget.isFromMe ? Icons.send : Icons.mail_outline,
-                  color: Colors.white,
-                  size: 16,
-                ),
-        ),
+        ProfileAvatar(name: widget.senderName ?? 'Unknown', size: 32),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -240,53 +229,113 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
 
   Widget _buildIceBreakers(List<IceBreaker> iceBreakers) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Ice Breaker Questions',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.orange[700],
-            fontSize: 12,
+        // Keep the tile visually light and compact: no large leading icon,
+        // smaller title and subtle icon color.
+        ExpansionTile(
+          shape: Border(),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+          childrenPadding: const EdgeInsets.all(0),
+          collapsedIconColor: Colors.grey.shade500,
+          iconColor: Colors.grey.shade700,
+          leading: Icon(
+            Icons.question_answer,
+            color: Colors.grey.shade700,
+            size: 16,
           ),
+          title: Text(
+            'Ice breaker questions (${iceBreakers.length})',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+              fontSize: 12,
+            ),
+          ),
+          initiallyExpanded: false,
+          children: iceBreakers
+              .map(
+                (ib) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildIceBreaker(ib),
+                    Divider(
+                      height: 8,
+                      thickness: 0.5,
+                      color: Colors.grey.shade300,
+                    ),
+                  ],
+                ),
+              )
+              .toList(),
         ),
-        const SizedBox(height: 8),
-        ...iceBreakers.map((ib) => _buildIceBreaker(ib)),
       ],
     );
   }
 
   Widget _buildIceBreaker(IceBreaker iceBreaker) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade200),
-      ),
-      child: Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            iceBreaker.question,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.green[900],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            iceBreaker.answer,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontStyle: FontStyle.italic,
+          Icon(Icons.help_outline, color: Colors.grey[500], size: 14),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  iceBreaker.question,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  iceBreaker.answer,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  // Helper useful for preview or testing — returns a few friendly example
+  // ice-breaker question/answer pairs used across the UI in development.
+  List<IceBreaker> _mockIceBreakers() {
+    return [
+      IceBreaker(
+        question: 'How was your weekend?',
+        answer: "I went to a nearby hiking trail — it was refreshing!",
+      ),
+      IceBreaker(
+        question: 'What hobby have you been enjoying lately?',
+        answer: 'I started learning guitar and it has been a lot of fun.',
+      ),
+      IceBreaker(
+        question: 'Seen any good shows or movies recently?',
+        answer:
+            'I loved the new documentary about urban gardens — very inspiring.',
+      ),
+      IceBreaker(
+        question: 'If you could travel anywhere this year, where to and why?',
+        answer: 'I’d visit Kyoto — I love the mix of tradition and nature.',
+      ),
+      IceBreaker(
+        question: 'What’s one quick recipe you enjoy?',
+        answer: 'A 10-minute avocado pasta — simple and tasty!',
+      ),
+    ];
   }
 
   Widget _buildActionButtons(String status) {
@@ -364,30 +413,6 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
             ),
             const SizedBox(height: 8),
           ],
-          // Show a status indicator instead of action buttons
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade300),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  'Name card options available in input area',
-                  style: TextStyle(
-                    color: Colors.blue[700],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       );
     } else if (widget.message.isNameCardCollected ?? false) {
@@ -490,13 +515,5 @@ class _InvitationMessageCardState extends State<InvitationMessageCard> {
       default:
         return Colors.grey.shade200;
     }
-  }
-
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 }

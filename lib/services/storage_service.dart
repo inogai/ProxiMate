@@ -51,6 +51,10 @@ class StorageService extends ChangeNotifier {
   StorageService() {
     _apiService = ApiService();
   }
+  // Profile cache for getProfileById
+  final Map<String, Profile> _profileCache = {};
+
+  // Private variables for internal state tracking
 
   Profile? get currentProfile => _currentProfile;
   List<Connection> get connections => _connections;
@@ -672,6 +676,7 @@ class StorageService extends ChangeNotifier {
     _selectedPeer = null;
     _selectedActivityId = null;
     _apiUserId = null;
+    _profileCache.clear();
 
     // Stop all periodic timers when user logs out
     _stopLocationTracking();
@@ -1208,6 +1213,13 @@ class StorageService extends ChangeNotifier {
       );
 
       _debugLog('Connection request response: $result');
+      
+      // If accepted, sync connections to update network immediately
+      if (action == 'accept') {
+        _debugLog('Connection accepted, syncing connections...');
+        await _syncConnections();
+      }
+      
       return result;
     } catch (e) {
       _debugLog('Failed to respond to connection request: $e');
@@ -1286,6 +1298,11 @@ class StorageService extends ChangeNotifier {
         apiUserIdInt,
         targetUserIdInt,
       );
+      
+      // Sync connections to ensure network is updated
+      _debugLog('Connection request sent, syncing connections...');
+      await _syncConnections();
+      
       return Ok(null);
     } catch (e) {
       return bail(
@@ -1306,9 +1323,22 @@ class StorageService extends ChangeNotifier {
     }
   }
 
+  /// A cached version of getProfileById to be used with watchers.
+  Profile? getCacheProfileById(String id) {
+    if (_profileCache.containsKey(id)) {
+      return _profileCache[id];
+    }
+
+    getProfileById(id); // Attempt to load peer into cache
+    return null;
+  }
+
   /// Get profile by ID (fetches from API if not found locally)
   Future<Profile?> getProfileById(String id) async {
-    if (id == _currentProfile?.id) return _currentProfile;
+    // Check cache first
+    if (_profileCache.containsKey(id)) {
+      return _profileCache[id];
+    }
 
     // Fetch from API since we don't have local caching
     try {
@@ -1320,6 +1350,9 @@ class StorageService extends ChangeNotifier {
 
       final userRead = await _apiService.getUser(userIdInt);
       final profile = _apiService.userReadToProfile(userRead);
+
+      // Cache the profile
+      _profileCache[id] = profile;
 
       return profile;
     } catch (e) {

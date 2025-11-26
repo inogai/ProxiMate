@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
 import '../services/chat_service.dart';
 import '../models/meeting.dart';
-import '../models/profile.dart';
 import '../screens/chat_room_screen.dart';
+import '../widgets/profile_avatar.dart';
 
 /// Tab showing chat rooms as a contacts list with chat-style interface
 class ChatsTab extends StatefulWidget {
@@ -53,7 +53,7 @@ class _ChatsTabState extends State<ChatsTab> {
 
     // Sort by most recent first
     final sortedChatRooms = List<ChatRoom>.from(chatRooms)
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
     return Scaffold(
       appBar: AppBar(
@@ -118,16 +118,9 @@ class _ChatsTabState extends State<ChatsTab> {
     });
 
     try {
-      final chatService = context.read<ChatService?>();
-      if (chatService != null) {
-        print('Refreshing chat rooms...');
-        await chatService.refreshChatRooms();
-        print('Chat rooms refreshed successfully');
-      } else {
-        print('ChatService not available');
-      }
+      final chatService = context.read<ChatService>();
+      await chatService.refreshChatRooms();
     } catch (e) {
-      print('Error refreshing chats: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -204,123 +197,96 @@ class _ChatsTabState extends State<ChatsTab> {
     // Get the other user's information
     final otherUserId = chatRoom.getOtherUserId(currentUserId);
 
-    // Use FutureBuilder to handle async profile fetching
-    return FutureBuilder<Profile?>(
-      future: storage.getProfileById(otherUserId),
-      builder: (context, snapshot) {
-        String peerName = 'Unknown User';
+    // Get profile synchronously
+    final profile = storage.getCacheProfileById(otherUserId);
 
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData) {
-          peerName = snapshot.data!.userName;
-        } else {
-          // Fallback to nearby peers if profile not found
-          final peer = storage.getPeerById(otherUserId);
-          if (peer != null) {
-            peerName = peer.name;
-          }
-        }
+    // Get last message for preview
+    String lastMessage = 'Start chatting!';
+    DateTime lastMessageTime = chatRoom.createdAt;
+    if (chatRoom.messages.isNotEmpty) {
+      final lastMsg = chatRoom.messages.last;
+      if (!lastMsg.isSystemMessage) {
+        lastMessage = lastMsg.text;
+        lastMessageTime = lastMsg.timestamp;
+      }
+    }
 
-        // Get last message for preview
-        String lastMessage = 'Start chatting!';
-        DateTime lastMessageTime = chatRoom.createdAt;
-        if (chatRoom.messages.isNotEmpty) {
-          final lastMsg = chatRoom.messages.last;
-          if (!lastMsg.isSystemMessage) {
-            lastMessage = lastMsg.text;
-            lastMessageTime = lastMsg.timestamp;
-          }
-        }
-
-        return Column(
-          children: [
-            InkWell(
-              onTap: () => _handleChatRoomTap(context, chatRoom),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => _handleChatRoomTap(context, chatRoom),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ProfileAvatar(
+                  name: profile?.userName ?? 'Unknown',
+                  imagePath: profile?.profileImagePath,
+                  size: 56,
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Avatar
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.green,
-                      child: Text(
-                        _getInitials(peerName),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-                    // Content
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  peerName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black,
-                                  ),
-                                ),
+                          Expanded(
+                            child: Text(
+                              profile?.userName ?? 'Unknown',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
                               ),
-                              Text(
-                                _formatTime(lastMessageTime),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                          const SizedBox(height: 4),
-
-                          // Last message preview
                           Text(
-                            lastMessage,
+                            _formatTime(lastMessageTime),
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w400,
+                              fontSize: 12,
+                              color: Colors.grey[600],
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-
-                          // Restaurant info (if available)
-                          if (chatRoom.restaurant.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              '📍 ${chatRoom.restaurant}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+
+                      // Last message preview
+                      Text(
+                        lastMessage,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      // Restaurant info (if available)
+                      if (chatRoom.restaurant.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '📍 ${chatRoom.restaurant}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-            const Divider(height: 1, indent: 72, thickness: 0.5),
-          ],
-        );
-      },
+          ),
+        ),
+        const Divider(height: 1, indent: 72, thickness: 0.5),
+      ],
     );
   }
 
@@ -334,14 +300,6 @@ class _ChatsTabState extends State<ChatsTab> {
         builder: (context) => ChatRoomScreen(chatRoom: chatRoom),
       ),
     );
-  }
-
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   String _formatTime(DateTime date) {

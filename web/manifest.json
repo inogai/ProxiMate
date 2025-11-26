@@ -8,6 +8,11 @@
     "description": "A new Flutter project.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "permissions": {
+        "camera": {
+            "description": "Required for scanning QR codes and taking pictures"
+        }
+    },
     "icons": [
         {
             "src": "icons/Icon-192.png",

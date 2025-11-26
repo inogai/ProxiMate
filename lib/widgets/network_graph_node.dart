@@ -1,8 +1,57 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../widgets/profile_avatar.dart';
+
+/// Custom painter for dashed circle border
+class DashedCircleBorder extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+
+  DashedCircleBorder({
+    required this.color,
+    this.strokeWidth = 2.0,
+    this.dashWidth = 5.0,
+    this.dashSpace = 5.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final Path path = Path();
+    final double radius = size.width / 2;
+    final Offset center = Offset(radius, radius);
+
+    // Create a dashed circle
+    final double circumference = 2 * 3.14159265359 * radius;
+    final int dashCount = (circumference / (dashWidth + dashSpace)).floor();
+
+    for (int i = 0; i < dashCount; i++) {
+      final double startAngle = (i * (dashWidth + dashSpace) / radius);
+      final double sweepAngle = (dashWidth / radius);
+
+      path.addArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+      );
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is! DashedCircleBorder ||
+        oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth;
+  }
+}
 
 /// Node in the network graph
 class NetworkNode {
@@ -47,6 +96,7 @@ class NetworkNodeWidget extends StatelessWidget {
   final String? currentUserInterests;
   final bool highlightCommonInterests;
   final double nodeRadius;
+  final bool isConnectedToSelected;
 
   const NetworkNodeWidget({
     super.key,
@@ -57,6 +107,7 @@ class NetworkNodeWidget extends StatelessWidget {
     this.currentUserInterests,
     this.highlightCommonInterests = false,
     this.nodeRadius = 30.0,
+    this.isConnectedToSelected = false,
   });
 
   @override
@@ -64,45 +115,9 @@ class NetworkNodeWidget extends StatelessWidget {
     return _buildNode(context, node);
   }
 
-  bool _hasCommonInterests(NetworkNode node) {
-    // Always show current user, text nodes, and direct connections
-    if (node.id == currentUserId ||
-        node.isTextNode ||
-        node.isDirectConnection) {
-      return true;
-    }
-
-    // Check for common major
-    if (currentUserMajor != null && node.major != null) {
-      if (node.major!.toLowerCase() == currentUserMajor!.toLowerCase()) {
-        return true;
-      }
-    }
-
-    // Check for common interests
-    if (currentUserInterests != null && node.interests != null) {
-      final currentUserInterestsList = currentUserInterests!
-          .split(',')
-          .map((i) => i.trim().toLowerCase())
-          .toList();
-      final nodeInterestsList = node.interests!
-          .split(',')
-          .map((i) => i.trim().toLowerCase())
-          .toList();
-
-      for (final interest in nodeInterestsList) {
-        if (currentUserInterestsList.contains(interest)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
   Widget _buildNode(BuildContext context, NetworkNode node) {
     final theme = Theme.of(context);
-    
+
     // Handle text-only nodes
     if (node.isTextNode) {
       return Text(
@@ -119,146 +134,85 @@ class NetworkNodeWidget extends StatelessWidget {
     final isSelected = selectedNode?.id == node.id;
     final isYou = currentUserId != null && node.id == currentUserId;
     final isTwoHop = node.depth == 2; // Check if this is a 2-hop node
-    
+
     // Smaller size for 2-hop nodes
-    final baseSize = isYou 
-        ? nodeRadius * 2.6 
-        : isTwoHop 
-            ? nodeRadius * 1.5 // Smaller for 2-hop
-            : nodeRadius * 2;
+    final baseSize = isYou
+        ? nodeRadius * 2.6
+        : isTwoHop
+        ? nodeRadius *
+              1.5 // Smaller for 2-hop
+        : nodeRadius * 2;
     final size = isSelected ? baseSize * 1.2 : baseSize;
 
-    // Calculate opacity based on filter state and common interests
-    final hasCommonTags = _hasCommonInterests(node);
-    double opacity;
-    if (node.isDirectConnection) {
-      opacity = 1.0;
-    } else if (highlightCommonInterests) {
-      // When filter is on, full opacity for common interests, reduced for others
-      opacity = hasCommonTags
-          ? 1.0
-          : (node.depth != null && node.depth! >= 2 ? 0.25 : 0.4);
-    } else {
-      // Default opacity based on depth
-      opacity = node.depth != null && node.depth! >= 2 ? 0.25 : 0.4;
-    }
+    // Determine if we need to show a highlight border
+    bool showHighlightBorder = isSelected || isConnectedToSelected;
+    Color borderColor = isSelected
+        ? Colors.red
+        : isConnectedToSelected
+        ? Colors.green
+        : Colors.transparent;
+    double borderWidth = isSelected
+        ? 10.0
+        : isConnectedToSelected
+        ? 10.0
+        : 0.0;
 
-    // Determine if node should have secondary outline (non-direct connection with common tags)
-    final bool hasSecondaryOutline = !node.isDirectConnection && hasCommonTags;
-
-    return Opacity(
-      opacity: opacity,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: node.profileImagePath == null
-              ? node.color
-              : Colors.transparent,
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.surface
-                : isYou
-                ? theme.colorScheme.surface.withOpacity(0.8)
-                : hasSecondaryOutline
-                ? theme.colorScheme.secondary
-                : theme.colorScheme.surface.withOpacity(0.3),
-            width: isSelected ? 3 : (isYou ? 3 : (hasSecondaryOutline ? 2.5 : 2)),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: hasSecondaryOutline
-                  ? theme.colorScheme.secondary.withOpacity(0.6)
-                  : node.color.withOpacity(0.5),
-              blurRadius: isSelected
-                  ? 20
-                  : (isYou ? 15 : (hasSecondaryOutline ? 12 : 10)),
-              spreadRadius: isSelected
-                  ? 5
-                  : (isYou ? 4 : (hasSecondaryOutline ? 3 : 2)),
-            ),
-          ],
-        ),
-        child: ClipOval(
-          child: node.profileImagePath != null
-              ? RepaintBoundary(
-                  child: Image(
-                    image: NetworkNodeWidget.getImageProvider(
-                      node.profileImagePath!,
-                    ),
-                    fit: BoxFit.cover,
-                    width: size,
-                    height: size,
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.medium,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: node.color,
-                        child: Center(
-                           child: Text(
-                             isTwoHop
-                                 ? node.major?.substring(0, 3).toUpperCase() ?? '???' // Show major abbreviation for 2-hop
-                                 : isYou
-                                     ? 'YOU'
-                                     : node.name
-                                           .split(' ')
-                                           .map((e) => e[0])
-                                           .take(2)
-                                           .join(),
-                             style: TextStyle(
-                               color: theme.colorScheme.onPrimary,
-                               fontWeight: FontWeight.bold,
-                               fontSize: isSelected
-                                   ? (isYou ? 18 : isTwoHop ? 12 : 16)
-                                   : (isYou ? 16 : isTwoHop ? 10 : 14),
-                             ),
-                           ),
-                        ),
-                      );
-                    },
-                  ),
-                )
-              : Container(
-                  color: node.color,
-                  child: Center(
-                    child: Text(
-                      isTwoHop
-                          ? node.major?.substring(0, 3).toUpperCase() ?? '???' // Show major abbreviation for 2-hop
-                          : isYou
-                              ? 'YOU'
-                              : node.name
-                                    .split(' ')
-                                    .map((e) => e[0])
-                                    .take(2)
-                                    .join(),
-                      style: TextStyle(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSelected
-                            ? (isYou ? 18 : isTwoHop ? 12 : 16)
-                            : (isYou ? 16 : isTwoHop ? 10 : 14),
-                      ),
-                    ),
-                  ),
+    Widget nodeWidget = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.transparent,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Show dashed border for selected or connected nodes
+          if (showHighlightBorder)
+            Positioned.fill(
+              child: CustomPaint(
+                painter: DashedCircleBorder(
+                  color: borderColor,
+                  strokeWidth: borderWidth,
                 ),
-        ),
+              ),
+            ),
+          // Profile avatar
+          ProfileAvatar(
+            name: node.name,
+            imagePath: node.profileImagePath,
+            size: size,
+          ),
+        ],
       ),
     );
-  }
 
-  static ImageProvider getImageProvider(String imagePath) {
-    if (kIsWeb) {
-      if (imagePath.startsWith('data:')) {
-        // Base64 data URL
-        return MemoryImage(base64Decode(imagePath.split(',')[1]));
-      } else {
-        // Blob URL or network URL
-        return NetworkImage(imagePath);
-      }
-    } else {
-      // Mobile: file path
-      return FileImage(File(imagePath));
+    if (isTwoHop) {
+      nodeWidget = Opacity(opacity: 0.6, child: nodeWidget);
+
+      nodeWidget = Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+          ),
+          nodeWidget,
+          // Add lightbulb icon for 2-hop nodes with common interests
+          if (highlightCommonInterests)
+            Positioned(
+              top: 1,
+              right: 1,
+              child: Icon(Icons.lightbulb, size: 16, color: Colors.yellow),
+            ),
+        ],
+      );
     }
+
+    return nodeWidget;
   }
 }
