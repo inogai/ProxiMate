@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/gestures.dart';
 
 /// A custom circular image cropper widget
 class CircularImageCropper extends StatefulWidget {
@@ -167,33 +168,50 @@ class _CircularImageCropperState extends State<CircularImageCropper> {
               children: [
                 // Image viewer with pan and zoom
                 Center(
-                  child: GestureDetector(
-                    onScaleStart: (details) {
-                      _startFocalPoint = details.focalPoint;
-                      _startScale = _scale;
+                  child: Listener(
+                    onPointerSignal: (event) {
+                      if (event is PointerScrollEvent) {
+                        setState(() {
+                          // Scroll wheel zoom for desktop
+                          final delta = event.scrollDelta.dy;
+                          final zoomChange = delta > 0 ? -0.1 : 0.1;
+                          _scale = (_scale + zoomChange).clamp(0.5, 4.0);
+                        });
+                      }
                     },
-                    onScaleUpdate: (details) {
-                      setState(() {
-                        // Handle zoom
-                        _scale = (_startScale! * details.scale).clamp(0.5, 4.0);
+                    child: GestureDetector(
+                      onScaleStart: (details) {
+                        _startFocalPoint = details.focalPoint;
+                        _startScale = _scale;
+                      },
+                      onScaleUpdate: (details) {
+                        setState(() {
+                          // Handle zoom with reduced sensitivity for mobile pinch
+                          final scaleDelta = details.scale;
+                          if (scaleDelta != 1.0 && _startScale != null) {
+                            // Reduce sensitivity by using 50% of the scale delta
+                            final adjustedScale = 1.0 + (scaleDelta - 1.0) * 0.5;
+                            _scale = (_startScale! * adjustedScale).clamp(0.5, 4.0);
+                          }
 
-                        // Handle pan
-                        if (_startFocalPoint != null) {
-                          _offset += details.focalPoint - _startFocalPoint!;
-                          _startFocalPoint = details.focalPoint;
-                        }
-                      });
-                    },
-                    child: _image != null
-                        ? CustomPaint(
-                            size: Size(screenWidth, MediaQuery.of(context).size.height),
-                            painter: ImagePainter(
-                              image: _image!,
-                              scale: _scale,
-                              offset: _offset,
-                            ),
-                          )
-                        : const SizedBox.shrink(),
+                          // Handle pan (works for both drag and pinch)
+                          if (_startFocalPoint != null) {
+                            _offset += details.focalPoint - _startFocalPoint!;
+                            _startFocalPoint = details.focalPoint;
+                          }
+                        });
+                      },
+                      child: _image != null
+                          ? CustomPaint(
+                              size: Size(screenWidth, MediaQuery.of(context).size.height),
+                              painter: ImagePainter(
+                                image: _image!,
+                                scale: _scale,
+                                offset: _offset,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   ),
                 ),
                 // Crop circle overlay
