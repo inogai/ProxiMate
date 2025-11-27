@@ -30,8 +30,9 @@ class TwoHopConnectionsResult {
 class StorageService extends ChangeNotifier {
   static const String _keyApiUserId = 'api_user_id';
 
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
   late LocationService _locationService;
+  
   // invitation polling removed — invitations are message-backed now
   Timer? _connectionSyncTimer; // Timer for connection synchronization
   Timer? _nearbyPeersTimer; // Timer for nearby peers polling
@@ -47,6 +48,9 @@ class StorageService extends ChangeNotifier {
   _selectedActivityId; // Currently selected activity for viewing invitations
   String? _apiUserId; // Store API user ID for backend integration
 
+  StorageService() {
+    _apiService = ApiService();
+  }
   // Profile cache for getProfileById
   final Map<String, Profile> _profileCache = {};
 
@@ -1209,6 +1213,13 @@ class StorageService extends ChangeNotifier {
       );
 
       _debugLog('Connection request response: $result');
+      
+      // If accepted, sync connections to update network immediately
+      if (action == 'accept') {
+        _debugLog('Connection accepted, syncing connections...');
+        await _syncConnections();
+      }
+      
       return result;
     } catch (e) {
       _debugLog('Failed to respond to connection request: $e');
@@ -1287,6 +1298,11 @@ class StorageService extends ChangeNotifier {
         apiUserIdInt,
         targetUserIdInt,
       );
+      
+      // Sync connections to ensure network is updated
+      _debugLog('Connection request sent, syncing connections...');
+      await _syncConnections();
+      
       return Ok(null);
     } catch (e) {
       return bail(

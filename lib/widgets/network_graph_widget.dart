@@ -528,9 +528,15 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      // Handle zoom
-      final newScale = (_scale * details.scale).clamp(0.5, 3.0);
-      _scale = newScale;
+      // Handle zoom with reduced sensitivity for mobile
+      // Use logarithmic scaling to make it less sensitive
+      final scaleDelta = details.scale;
+      if (scaleDelta != 1.0) {
+        // Reduce sensitivity by using the square root of the scale delta
+        final adjustedScale = 1.0 + (scaleDelta - 1.0) * 0.5;
+        final newScale = (_scale * adjustedScale).clamp(0.5, 3.0);
+        _scale = newScale;
+      }
 
       // Handle pan
       _panOffset += details.focalPoint - _lastFocalPoint;
@@ -559,7 +565,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
       onScaleStart: _onScaleStart,
       onScaleUpdate: _onScaleUpdate,
       child: Container(
-        color: theme.colorScheme.surface,
+        color: Colors.grey[900],
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -775,13 +781,12 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
   }
 
   Widget _buildSelectedNodeInfo() {
-    final theme = Theme.of(context);
     if (_selectedNode == null) return const SizedBox.shrink();
     final bool isCurrentUser =
         _selectedNode!.id == 'you' || _selectedNode!.id == widget.currentUserId;
 
     return Card(
-      color: theme.colorScheme.surface.withOpacity(0.85),
+      color: Colors.black.withOpacity(0.85),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -821,8 +826,8 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                   children: [
                     Text(
                       _selectedNode!.name,
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface,
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -832,7 +837,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                       Text(
                         _selectedNode!.school!,
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: Colors.grey[400],
                           fontSize: 14,
                         ),
                       ),
@@ -856,25 +861,19 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: matches
-                                      ? theme.colorScheme.secondary.withOpacity(
-                                          0.3,
-                                        )
-                                      : theme.colorScheme.onSurface.withOpacity(
-                                          0.3,
-                                        ),
+                                      ? Colors.green.withOpacity(0.3)
+                                      : Colors.grey.withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: matches
-                                        ? theme.colorScheme.secondary
-                                              .withOpacity(0.5)
-                                        : theme.colorScheme.onSurface
-                                              .withOpacity(0.5),
+                                        ? Colors.green.withOpacity(0.5)
+                                        : Colors.grey.withOpacity(0.5),
                                   ),
                                 ),
                                 child: Text(
                                   _selectedNode!.major!,
-                                  style: TextStyle(
-                                    color: theme.colorScheme.onSurface,
+                                  style: const TextStyle(
+                                    color: Colors.white,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -902,27 +901,19 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
                               ),
                               decoration: BoxDecoration(
                                 color: matches
-                                    ? theme.colorScheme.secondary.withOpacity(
-                                        0.3,
-                                      )
-                                    : theme.colorScheme.onSurface.withOpacity(
-                                        0.3,
-                                      ),
+                                    ? Colors.green.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: matches
-                                      ? theme.colorScheme.secondary.withOpacity(
-                                          0.5,
-                                        )
-                                      : theme.colorScheme.onSurface.withOpacity(
-                                          0.5,
-                                        ),
+                                      ? Colors.green.withOpacity(0.5)
+                                      : Colors.grey.withOpacity(0.5),
                                 ),
                               ),
                               child: Text(
                                 trimmedInterest,
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface,
+                                style: const TextStyle(
+                                  color: Colors.white,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -939,9 +930,9 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
               Container(
                 alignment: Alignment.center,
                 child: IconButton(
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.chat_bubble_outline,
-                    color: theme.colorScheme.onSurface,
+                    color: Colors.white,
                   ),
                   onPressed: () {
                     if (widget.onInfoBarTap != null) {
@@ -954,7 +945,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
             Container(
               alignment: Alignment.center,
               child: IconButton(
-                icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
+                icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () {
                   setState(() {
                     _selectedNode = null;
@@ -1085,10 +1076,10 @@ class NetworkGraphPainter extends CustomPainter {
       text: TextSpan(
         text: 'Your connections',
         style: TextStyle(
-          color: Colors.red.withOpacity(0.8),
+          color: Colors.white,
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          backgroundColor: Colors.white.withOpacity(0.9),
+          backgroundColor: Colors.black.withOpacity(0.7),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -1100,23 +1091,6 @@ class NetworkGraphPainter extends CustomPainter {
     final textPosition = Offset(
       currentUserNode.position.dx - textPainter.width / 2,
       currentUserNode.position.dy - radius - 25,
-    );
-
-    // Draw text background
-    final textBgPaint = Paint()
-      ..color = Colors.white.withOpacity(0.9)
-      ..style = PaintingStyle.fill;
-
-    final textBgRect = Rect.fromLTWH(
-      textPosition.dx - 4,
-      textPosition.dy - 2,
-      textPainter.width + 8,
-      textPainter.height + 4,
-    );
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(textBgRect, const Radius.circular(4)),
-      textBgPaint,
     );
 
     // Draw text
@@ -1140,7 +1114,7 @@ class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = theme.colorScheme.onSurface.withOpacity(0.05)
+      ..color = Colors.white.withOpacity(0.05)
       ..strokeWidth = 1;
 
     const gridSize = 50.0;

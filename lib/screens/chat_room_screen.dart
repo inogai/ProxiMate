@@ -544,7 +544,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Name card request accepted!'),
+              content: Text('Name card request accepted! Network updated.'),
               backgroundColor: Colors.green,
             ),
           );
@@ -740,6 +740,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         // Immediately update local message status after successful API call
         _updateLocalMessageNameCardCollected(messageId);
         await _refreshMessages();
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Name card request sent! Network will update when accepted.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
     }
   }
 

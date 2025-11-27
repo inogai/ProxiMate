@@ -103,10 +103,15 @@ class _NetworkTabState extends State<NetworkTab> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Network'),
+        title: const Text(
+          'Network',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.grey[900],
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
             tooltip: 'Scan / Show QR Code',
             onPressed: () => _openQr(context),
           ),

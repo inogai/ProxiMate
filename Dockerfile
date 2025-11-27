@@ -2,11 +2,18 @@
 # Stage 1: Build the Flutter web app
 FROM instrumentisto/flutter:latest AS build
 
+# Build argument for API URL (defaults to localhost for development)
+ARG API_BASE_URL=http://localhost:8000
+ARG ENVIRONMENT=production
+
 # Set working directory
 WORKDIR /app
 
 # Copy pubspec files first for better caching
 COPY pubspec.yaml pubspec.lock ./
+
+# Copy generated OpenAPI client (required dependency)
+COPY gen/ ./gen/
 
 # Get dependencies
 RUN flutter pub get
@@ -14,10 +21,13 @@ RUN flutter pub get
 # Copy the rest of the application
 COPY . .
 
-# Build web app with optimizations
+# Build web app with optimizations and environment variables
 # --release: Production build with minification
+# --dart-define: Pass environment variables to Flutter
 # Default renderer works across all browsers (Chrome, Firefox, Safari, Edge)
-RUN flutter build web --release
+RUN flutter build web --release \
+    --dart-define=API_BASE_URL=$API_BASE_URL \
+    --dart-define=ENVIRONMENT=$ENVIRONMENT
 
 # Stage 2: Serve with nginx (minimal image)
 FROM nginx:alpine

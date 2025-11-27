@@ -116,8 +116,6 @@ class NetworkNodeWidget extends StatelessWidget {
   }
 
   Widget _buildNode(BuildContext context, NetworkNode node) {
-    final theme = Theme.of(context);
-
     // Handle text-only nodes
     if (node.isTextNode) {
       return Text(
@@ -125,7 +123,7 @@ class NetworkNodeWidget extends StatelessWidget {
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 14,
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
+          color: Colors.grey.shade600,
           fontStyle: FontStyle.italic,
         ),
       );
@@ -133,86 +131,98 @@ class NetworkNodeWidget extends StatelessWidget {
 
     final isSelected = selectedNode?.id == node.id;
     final isYou = currentUserId != null && node.id == currentUserId;
-    final isTwoHop = node.depth == 2; // Check if this is a 2-hop node
-
-    // Smaller size for 2-hop nodes
+    final isTwoHop = node.depth == 2;
+    
     final baseSize = isYou
         ? nodeRadius * 2.6
         : isTwoHop
-        ? nodeRadius *
-              1.5 // Smaller for 2-hop
-        : nodeRadius * 2;
+            ? nodeRadius * 1.5
+            : nodeRadius * 2;
     final size = isSelected ? baseSize * 1.2 : baseSize;
 
-    // Determine if we need to show a highlight border
-    bool showHighlightBorder = isSelected || isConnectedToSelected;
-    Color borderColor = isSelected
-        ? Colors.red
-        : isConnectedToSelected
-        ? Colors.green
-        : Colors.transparent;
-    double borderWidth = isSelected
-        ? 10.0
-        : isConnectedToSelected
-        ? 10.0
-        : 0.0;
+    // Calculate opacity based on connection type and common interests
+    double opacity;
+    if (node.isDirectConnection) {
+      opacity = 1.0;
+    } else if (highlightCommonInterests) {
+      // When filter is on, full opacity for common interests, reduced for others
+      opacity = _hasCommonInterests(node) ? 1.0 : (node.depth != null && node.depth! >= 2 ? 0.25 : 0.4);
+    } else {
+      // Default opacity based on depth
+      opacity = node.depth != null && node.depth! >= 2 ? 0.25 : 0.4;
+    }
 
-    Widget nodeWidget = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.transparent,
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Show dashed border for selected or connected nodes
-          if (showHighlightBorder)
-            Positioned.fill(
-              child: CustomPaint(
-                painter: DashedCircleBorder(
-                  color: borderColor,
-                  strokeWidth: borderWidth,
-                ),
-              ),
+    // Determine if node should have green outline (non-direct connection with common tags)
+    final bool hasGreenOutline = !node.isDirectConnection && _hasCommonInterests(node);
+
+    return Opacity(
+      opacity: opacity,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.transparent,
+          border: Border.all(
+            color: isSelected
+                ? Colors.white
+                : isYou
+                    ? Colors.white.withOpacity(0.8)
+                    : hasGreenOutline
+                        ? Colors.green
+                        : Colors.white.withOpacity(0.3),
+            width: isSelected ? 3 : (isYou ? 3 : (hasGreenOutline ? 2.5 : 2)),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: hasGreenOutline 
+                  ? Colors.green.withOpacity(0.6) 
+                  : node.color.withOpacity(0.5),
+              blurRadius: isSelected ? 20 : (isYou ? 15 : (hasGreenOutline ? 12 : 10)),
+              spreadRadius: isSelected ? 5 : (isYou ? 4 : (hasGreenOutline ? 3 : 2)),
             ),
-          // Profile avatar
-          ProfileAvatar(
+          ],
+        ),
+        child: ClipOval(
+          child: ProfileAvatar(
             name: node.name,
             imagePath: node.profileImagePath,
             size: size,
           ),
-        ],
+        ),
       ),
     );
+  }
 
-    if (isTwoHop) {
-      nodeWidget = Opacity(opacity: 0.6, child: nodeWidget);
-
-      nodeWidget = Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-            ),
-          ),
-          nodeWidget,
-          // Add lightbulb icon for 2-hop nodes with common interests
-          if (highlightCommonInterests)
-            Positioned(
-              top: 1,
-              right: 1,
-              child: Icon(Icons.lightbulb, size: 16, color: Colors.yellow),
-            ),
-        ],
-      );
+  bool _hasCommonInterests(NetworkNode node) {
+    // Always show current user, text nodes, and direct connections
+    if (node.id == currentUserId || node.isTextNode || node.isDirectConnection) return true;
+    
+    // Check for common major
+    if (currentUserMajor != null && node.major != null) {
+      if (node.major!.toLowerCase() == currentUserMajor!.toLowerCase()) {
+        return true;
+      }
     }
-
-    return nodeWidget;
+    
+    // Check for common interests
+    if (currentUserInterests != null && node.interests != null) {
+      final currentUserInterestsList = currentUserInterests!
+          .split(',')
+          .map((i) => i.trim().toLowerCase())
+          .toList();
+      final nodeInterestsList = node.interests!
+          .split(',')
+          .map((i) => i.trim().toLowerCase())
+          .toList();
+      
+      for (final interest in nodeInterestsList) {
+        if (currentUserInterestsList.contains(interest)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
 }

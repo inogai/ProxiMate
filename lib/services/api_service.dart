@@ -13,6 +13,7 @@ import '../models/peer.dart';
 import '../models/meeting.dart';
 import '../models/activity.dart';
 import '../models/connection.dart';
+import '../config/api_config.dart';
 
 class ApiService {
   late UsersApi _usersApi;
@@ -28,10 +29,10 @@ class ApiService {
   final Duration _timeout;
 
   ApiService({
-    String baseUrl = 'http://192.168.68.123:8000', // Local development API URL
+    String? baseUrl, // Optional override, defaults to ApiConfig.baseUrl
     int maxRetries = 3,
     Duration timeout = const Duration(seconds: 30),
-  }) : _baseUrl = baseUrl,
+  }) : _baseUrl = baseUrl ?? ApiConfig.baseUrl,
        _maxRetries = maxRetries,
        _timeout = timeout {
     _initializeApi();
@@ -271,9 +272,7 @@ class ApiService {
       major: (user.major?.isEmpty ?? true) ? null : user.major,
       interests: (user.interests?.isEmpty ?? true) ? null : user.interests,
       background: (user.bio?.isEmpty ?? true) ? null : user.bio,
-      profileImagePath: (user.avatarUrl?.isEmpty ?? true)
-          ? null
-          : user.avatarUrl,
+      profileImagePath: _normalizeAvatarUrl(user.avatarUrl),
     );
   }
 
@@ -313,7 +312,7 @@ class ApiService {
       major: user.major ?? '',
       interests: user.interests ?? '',
       background: user.bio ?? '',
-      profileImageUrl: user.avatarUrl,
+      profileImageUrl: _normalizeAvatarUrl(user.avatarUrl),
       distance: distance ?? 0.0,
     );
   }
@@ -326,7 +325,7 @@ class ApiService {
       major: userWithDistance.major,
       interests: userWithDistance.interests,
       background: userWithDistance.bio,
-      profileImageUrl: userWithDistance.avatarUrl,
+      profileImageUrl: _normalizeAvatarUrl(userWithDistance.avatarUrl),
       distance: userWithDistance.distanceKm?.toDouble() ?? 0.0,
     );
   }
@@ -485,7 +484,7 @@ class ApiService {
       'Upload Avatar',
     );
 
-    return response.data?.avatarUrl;
+    return _normalizeAvatarUrl(response.data?.avatarUrl);
   }
 
   /// Delete avatar for a user
@@ -1042,6 +1041,20 @@ class ApiService {
       _debugLog('Error creating multipart file: $e');
     }
     return null;
+  }
+
+  /// Normalize avatar URL to use HTTPS if it's from the backend domain
+  String? _normalizeAvatarUrl(String? avatarUrl) {
+    if (avatarUrl == null || avatarUrl.isEmpty) return null;
+    
+    // If URL starts with http:// and contains our backend domain, convert to https://
+    if (avatarUrl.startsWith('http://') && 
+        (avatarUrl.contains('proximate-backend.sunnyfarmday.com') || 
+         avatarUrl.contains('proximate-api'))) {
+      return avatarUrl.replaceFirst('http://', 'https://');
+    }
+    
+    return avatarUrl;
   }
 
   void _debugLog(String message) {
